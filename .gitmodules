@@ -1,0 +1,3 @@
+[submodule "human_ai_coord"]
+	path = human_ai_coord
+	url = git@github.com:HumanCompatibleAI/human_ai_coord.git

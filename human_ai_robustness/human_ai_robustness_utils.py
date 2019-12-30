@@ -1,4 +1,5 @@
-from overcooked_ai_py.agents.agent import AgentPair, ToMModel
+from overcooked_ai_py.agents.agent import AgentPair
+from human_ai_robustness.agent import ToMModel
 import numpy as np
 
 

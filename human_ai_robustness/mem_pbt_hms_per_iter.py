@@ -22,7 +22,8 @@ from human_aware_rl.utils import create_dir_if_not_exists, delete_dir_if_exists,
     reset_tf, set_global_seed
 from human_aware_rl.baselines_utils import create_model, get_vectorized_gym_env, \
     update_model, get_agent_from_model, save_baselines_model, overwrite_model, \
-    load_baselines_model, LinearAnnealer, LinearAnnealerZeroToOne, delay_before_run
+    load_baselines_model, LinearAnnealer, delay_before_run
+from human_ai_robustness.human_ai_robustness_utils import LinearAnnealerZeroToOne
 from human_aware_rl.imitation.behavioural_cloning import get_bc_agent_from_saved
 # from memory_profiler import profile
 import tracemalloc as tm

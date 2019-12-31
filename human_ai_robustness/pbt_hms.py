@@ -25,7 +25,8 @@ from human_aware_rl.utils import create_dir_if_not_exists, delete_dir_if_exists,
     reset_tf, set_global_seed, find_dense_reward_fn
 from human_aware_rl.baselines_utils import create_model, get_vectorized_gym_env, \
     update_model, get_agent_from_model, save_baselines_model, overwrite_model, \
-    load_baselines_model, LinearAnnealer, LinearAnnealerZeroToOne, delay_before_run
+    load_baselines_model, LinearAnnealer, delay_before_run
+from human_ai_robustness.human_ai_robustness_utils import LinearAnnealerZeroToOne
 from human_aware_rl.imitation.behavioural_cloning import get_bc_agent_from_saved
 from human_ai_robustness.import_person_params import import_person_params
 from human_aware_rl.utils import convert_layout_names_if_required
@@ -805,6 +806,7 @@ def pbt_one_run(params, seed):
     reward_annealer = LinearAnnealer(horizon=params["REW_SHAPING_HORIZON"])
     # # Create annealer for annealing the weighting of hms vs ppo when evaluating the ppo agents
     # weight_annealer = LinearAnnealerZeroToOne(horizon=params["WEIGHT_HM_HORIZON"])
+
     prob_play_HM_annealer = LinearAnnealerZeroToOne(horizon=params["PROB_PLAY_HM_HORIZON"])
 
     # POPULATION INITIALIZATION

@@ -117,3 +117,18 @@ def make_tom_model(env, mlp, hm_number, agent_index):
                     wrong_decisions=wrong_decisions, thinking_prob=thinking_prob,
                     path_teamwork=path_teamwork, rationality_coefficient=rationality_coeff,
                     prob_pausing=prob_pausing)
+#
+# def convert_layout_names_if_required(layout_name):
+#     """If the layout name uses the NEW naming, then change it to the OLD naming"""
+#     if layout_name == "cramped_room":
+#         return "simple"
+#     elif layout_name == "coordination_ring":
+#         return "random1"
+#     elif layout_name == "forced_coordination":
+#         return "random0"
+#     elif layout_name == "counter_circuit":
+#         return "random3"
+#     elif layout_name == "asymmetric_advantages":
+#         return "unident_s"
+#     else:
+#         return layout_name

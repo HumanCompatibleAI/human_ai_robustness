@@ -1174,8 +1174,9 @@ def pbt_one_run(params, seed):
 @ex.automain
 def run_pbt(params):
 
-    # sys.exit('\n----> Before using, need to fully debug & check pbt_hms because there have been several changes made '
-    #          'to baselines (ppo2 & runner?) when making ppo work for PPO_{TOMs} <----')
+    import sys
+    sys.exit('\n----> Before using, need to fully debug & check pbt_hms because there have been several changes made '
+             'to baselines (ppo2 & runner?) when making ppo work for PPO_{TOMs} <----')
 
     logging.basicConfig(format='%(levelname)s:%(message)s', level=logging.WARNING)
     logging.getLogger().setLevel(logging.WARNING)  # pk: Note sure why I need this line too

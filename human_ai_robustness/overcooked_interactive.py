@@ -167,36 +167,36 @@ def setup_game(run_type, run_dir, cfg_run_dir, run_seed, agent_num, player_idx):
 
         cook_time = 5
 
-        if layout == 'sc1':
+        # if layout == 'sc1':
+        #
+        #     # Setup mdp
+        #     mdp = OvercookedGridworld.from_layout_name('scenario1_s', start_order_list=["any", "any", "any"],
+        #                                                cook_time=cook_time, rew_shaping_params=None)
 
-            # Setup mdp
-            mdp = OvercookedGridworld.from_layout_name('scenario1_s', start_order_list=["any", "any", "any"],
-                                                       cook_time=cook_time, rew_shaping_params=None)
-
-        elif layout == 'uni':
+        if layout == 'uni':
 
             # start_state = OvercookedState([P((2, 2), n), P((5, 2), n)], {}, order_list=start_order_list)
             # Setup mdp
-            mdp = OvercookedGridworld.from_layout_name('unident_s', start_order_list=["any", "any", "any"],
+            mdp = OvercookedGridworld.from_layout_name('asymmetric_advantages', start_order_list=["any", "any", "any"],
                                                        cook_time=cook_time, rew_shaping_params=None)
 
         elif layout == 'sim':
 
             # Setup mdp
-            mdp = OvercookedGridworld.from_layout_name('simple', start_order_list=["any", "any", "any"],
+            mdp = OvercookedGridworld.from_layout_name('cramped_room', start_order_list=["any", "any", "any"],
                                                        cook_time=cook_time, rew_shaping_params=None)
 
         elif layout == 'ran':
 
             # Setup mdp
-            mdp = OvercookedGridworld.from_layout_name('random1', start_order_list=["any", "any", "any"],
+            mdp = OvercookedGridworld.from_layout_name('coordination_ring', start_order_list=["any", "any", "any"],
                                                        cook_time=cook_time, rew_shaping_params=None)
 
-        elif layout == 'sch':
-
-            # Setup mdp
-            mdp = OvercookedGridworld.from_layout_name('schelling_s', start_order_list=["any", "any", "any"],
-                                                       cook_time=cook_time, rew_shaping_params=None)
+        # elif layout == 'sch':
+        #
+        #     # Setup mdp
+        #     mdp = OvercookedGridworld.from_layout_name('schelling_s', start_order_list=["any", "any", "any"],
+        #                                                cook_time=cook_time, rew_shaping_params=None)
 
         else:
             raise ValueError('layout not recognised')

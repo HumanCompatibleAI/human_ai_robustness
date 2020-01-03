@@ -48,7 +48,7 @@ def make_agent_pair(mlp):
                   retain_goals=retain_goals0, wrong_decisions=wrong_decisions1,
                   thinking_prob=thinking_prob0, prob_pausing=prob_pausing0,
                   path_teamwork=path_teamwork0, rationality_coefficient=rat_coeff0)
-    a0.use_OLD_ml_action = True
+    a0.use_OLD_ml_action = False
     a1.use_OLD_ml_action = True
     # a0 = ToMModel(mlp, player_index=0, perseverance=0.9, teamwork=1, retain_goals=0.9,
     #                                  wrong_decisions=0.02, thinking_prob=1, path_teamwork=1, rationality_coefficient=2)
@@ -103,34 +103,34 @@ if __name__ == "__main__" :
 
     if layout == 'uni':
         start_state = OvercookedState([P((2, 2), n), P((5, 2), n)], {}, order_list=start_order_list)
-        mdp = OvercookedGridworld.from_layout_name('unident_s', start_order_list=start_order_list,
+        mdp = OvercookedGridworld.from_layout_name('asymmetric_advantages', start_order_list=start_order_list,
                                                    cook_time=cook_time, rew_shaping_params=None)
-        mdp_params = {"layout_name": "unident_s", "start_order_list": start_order_list, "cook_time": cook_time}
-    elif layout == 'sc1':
-        start_state = OvercookedState([P((1, 2), n), P((1, 1), n)], {}, order_list=start_order_list)
-        mdp = OvercookedGridworld.from_layout_name('scenario1_s', start_order_list=start_order_list,
-                                                   cook_time=cook_time, rew_shaping_params=None)
-        mdp_params = {"layout_name": "scenario1_s", "start_order_list": start_order_list, "cook_time": cook_time}
+        mdp_params = {"layout_name": "asymmetric_advantages", "start_order_list": start_order_list, "cook_time": cook_time}
+    # elif layout == 'sc1':
+    #     start_state = OvercookedState([P((1, 2), n), P((1, 1), n)], {}, order_list=start_order_list)
+    #     mdp = OvercookedGridworld.from_layout_name('scenario1_s', start_order_list=start_order_list,
+    #                                                cook_time=cook_time, rew_shaping_params=None)
+    #     mdp_params = {"layout_name": "scenario1_s", "start_order_list": start_order_list, "cook_time": cook_time}
     elif layout == 'ran1':
         start_state = OvercookedState([P((1, 2), n), P((1, 1), n)], {}, order_list=start_order_list)
-        mdp = OvercookedGridworld.from_layout_name('random1', start_order_list=start_order_list,
+        mdp = OvercookedGridworld.from_layout_name('coordination_ring', start_order_list=start_order_list,
                                                    cook_time=cook_time, rew_shaping_params=None)
-        mdp_params = {"layout_name": "random1", "start_order_list": start_order_list, "cook_time": cook_time}
+        mdp_params = {"layout_name": "coordination_ring", "start_order_list": start_order_list, "cook_time": cook_time}
     elif layout == 'ran0':
         start_state = OvercookedState([P((1, 2), n), P((3, 2), n)], {}, order_list=start_order_list)
-        mdp = OvercookedGridworld.from_layout_name('random0', start_order_list=start_order_list,
+        mdp = OvercookedGridworld.from_layout_name('forced_coordination', start_order_list=start_order_list,
                                                    cook_time=cook_time, rew_shaping_params=None)
-        mdp_params = {"layout_name": "random0", "start_order_list": start_order_list, "cook_time": cook_time}
+        mdp_params = {"layout_name": "forced_coordination", "start_order_list": start_order_list, "cook_time": cook_time}
     elif layout == 'ran3':
         start_state = OvercookedState([P((1, 2), n), P((6, 2), n)], {}, order_list=start_order_list)
-        mdp = OvercookedGridworld.from_layout_name('random3', start_order_list=start_order_list,
+        mdp = OvercookedGridworld.from_layout_name('counter_circuit', start_order_list=start_order_list,
                                                    cook_time=cook_time, rew_shaping_params=None)
-        mdp_params = {"layout_name": "random3", "start_order_list": start_order_list, "cook_time": cook_time}
+        mdp_params = {"layout_name": "counter_circuit", "start_order_list": start_order_list, "cook_time": cook_time}
     elif layout == 'sim':
         start_state = OvercookedState([P((2, 2), n), P((2, 1), n)], {}, order_list=start_order_list)
-        mdp = OvercookedGridworld.from_layout_name('simple', start_order_list=start_order_list,
+        mdp = OvercookedGridworld.from_layout_name('cramped_room', start_order_list=start_order_list,
                                                    cook_time=cook_time, rew_shaping_params=None)
-        mdp_params = {"layout_name": "simple", "start_order_list": start_order_list, "cook_time": cook_time}
+        mdp_params = {"layout_name": "cramped_room", "start_order_list": start_order_list, "cook_time": cook_time}
     else:
         raise ValueError('layout not recognised')
 

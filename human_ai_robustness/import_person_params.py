@@ -3,7 +3,7 @@
 
 def import_person_params(LAYOUT_NAME):
 
-    if LAYOUT_NAME == "simple":
+    if LAYOUT_NAME == "cramped_room":
         #-------- SIMPLE --------#
         # HM0: Best values from 1st attempt to fit params to human data, on layout Simple. Run "Opt2". Params were
         # initialised at 0.5.
@@ -32,7 +32,7 @@ def import_person_params(LAYOUT_NAME):
         # Old HM3: Erratic, irrational, sub-optimal!
         #--------------------------------------#
 
-    elif LAYOUT_NAME == "unident_s":
+    elif LAYOUT_NAME == "asymmetric_advantages":
 
         PROB_PAUSING = 0.5774501661129569
 
@@ -58,7 +58,7 @@ def import_person_params(LAYOUT_NAME):
          'RETAIN_GOALS_HM3': 0.32132252260943206, 'WRONG_DECISIONS_HM3': 0.14204099041052887, 'THINKING_PROB_HM3': 1,
          'PATH_TEAMWORK_HM3': 0.8696952555427768, 'RATIONALITY_COEFF_HM3': 14.572050901372158, 'PROB_PAUSING_HM3': PROB_PAUSING}
 
-    elif LAYOUT_NAME == "random0":
+    elif LAYOUT_NAME == "forced_coordination":
 
         PROB_PAUSING = 0.605719479793036
 
@@ -85,7 +85,7 @@ def import_person_params(LAYOUT_NAME):
                              'THINKING_PROB_HM3': 0.9991922785573734, 'PATH_TEAMWORK_HM3': 0.03370976022270199,
                              'RATIONALITY_COEFF_HM3': 9.776231141019649, 'PROB_PAUSING_HM3': PROB_PAUSING}
 
-    elif LAYOUT_NAME == "random1":
+    elif LAYOUT_NAME == "coordination_ring":
 
         PROB_PAUSING = 0.5098243060609211
 
@@ -113,7 +113,7 @@ def import_person_params(LAYOUT_NAME):
                              'THINKING_PROB_HM3': 1, 'PATH_TEAMWORK_HM3': 0.3263514799029463, 'RATIONALITY_COEFF_HM3':
                                  14.055778875490155, 'PROB_PAUSING_HM3': PROB_PAUSING}
 
-    elif LAYOUT_NAME == "random3":
+    elif LAYOUT_NAME == "counter_circuit":
 
         PROB_PAUSING = 0.49366365430559883
 

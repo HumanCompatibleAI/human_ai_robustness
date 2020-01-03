@@ -770,7 +770,6 @@ def pbt_one_run(params, seed):
     create_dir_if_not_exists(params["SAVE_DIR"])
     save_dict_to_file(params, params["SAVE_DIR"] + "config")
 
-    params["MDP_PARAMS"]["layout_name"] = convert_layout_names_if_required(params["MDP_PARAMS"]["layout_name"])
     mdp = OvercookedGridworld.from_layout_name(**params["MDP_PARAMS"])
     overcooked_env = OvercookedEnv(mdp, **params["ENV_PARAMS"])
     NO_COUNTERS_PARAMS = {

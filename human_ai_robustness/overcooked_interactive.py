@@ -215,7 +215,7 @@ def setup_game(run_type, run_dir, cfg_run_dir, run_seed, agent_num, player_idx):
         # path_teamwork0 = 1 - random.random() **2
         # rat_coeff0 = 1+random.random()*3
 
-        perseverance0 = 0.3
+        perseverance0 = 0
         teamwork0 = 0.5
         retain_goals0 = 0.8
         wrong_decisions0 = 0.05
@@ -229,6 +229,8 @@ def setup_game(run_type, run_dir, cfg_run_dir, run_seed, agent_num, player_idx):
                          retain_goals=retain_goals0, wrong_decisions=wrong_decisions0,
                          thinking_prob=thinking_prob0, path_teamwork=path_teamwork0,
                          rationality_coefficient=rat_coeff0, prob_pausing=prob_pausing0)
+
+        agent.use_OLD_ml_action = False
 
         print('Ply 1: tw: {:.1f}, retain: {:.1f}, wrong dec: {:.1f}, think: {:.1f}, path_tw: {:.1f}, rat: {:.1f}'.
               format(teamwork0, retain_goals0, wrong_decisions0, thinking_prob0, path_teamwork0,

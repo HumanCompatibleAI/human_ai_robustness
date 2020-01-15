@@ -153,7 +153,7 @@ class GreedyHumanModel_pk(Agent):
         if not player.has_object():
 
             if soup_nearly_ready:  # PK removed "and not other_has_dish"
-                motion_goals = am.pickup_dish_actions(state, counter_objects)
+                motion_goals = am.pickup_dish_actions(counter_objects)
             else:
                 next_order = None
                 #TODO: This seems to look at the next-but-one order? Should it be order_list[0]? Check this, and modify if needed
@@ -161,16 +161,16 @@ class GreedyHumanModel_pk(Agent):
                     next_order = state.order_list[1]
 
                 if next_order == 'onion':
-                    motion_goals = am.pickup_onion_actions(state, counter_objects)
+                    motion_goals = am.pickup_onion_actions(counter_objects)
                 elif next_order == 'tomato':
-                    motion_goals = am.pickup_tomato_actions(state, counter_objects)
+                    motion_goals = am.pickup_tomato_actions(counter_objects)
                 elif next_order is None or next_order == 'any':
-                    motion_goals = am.pickup_onion_actions(state, counter_objects) + am.pickup_tomato_actions(state, counter_objects)
+                    motion_goals = am.pickup_onion_actions(counter_objects) + am.pickup_tomato_actions(counter_objects)
 
             # If there's a soup on the counter, then override other goals and get the soup
             #TODO: This can cause issues in unident <-- fix it
             if 'soup' in counter_objects:
-                motion_goals = am.pickup_counter_soup_actions(state, counter_objects)
+                motion_goals = am.pickup_counter_soup_actions(counter_objects)
 
         else:
             player_obj = player.get_object()
@@ -258,10 +258,12 @@ class ToMModel(Agent):
 
     def __init__(self, mlp, player_index,
                  perseverance=0.5, teamwork=0.8, retain_goals=0.8, wrong_decisions=0.02, thinking_prob=0.8,
-                 path_teamwork=0.8, rationality_coefficient=3, prob_pausing=0.5, use_OLD_ml_action=True):
+                 path_teamwork=0.8, rationality_coefficient=3, prob_pausing=0.5, use_OLD_ml_action=True,
+                 personality_type=[0.25,0.25,0.25,0.25], look_ahead_steps=4):
         self.mlp = mlp
         self.agent_index = player_index
         self.mdp = self.mlp.mdp
+
         self.prev_state = None
         self.timesteps_stuck = 0  # Count how many times there's a clash with the other player
         self.dont_drop = False
@@ -269,26 +271,38 @@ class ToMModel(Agent):
         self.prev_best_action = None
         self.only_take_dispenser_onions = False  # Only used for layout Forced Coordination: when an onion is
         # deliberately dropped on a shared counter, then from then on only take onions from the dispenser
-        self.only_take_dispenser_dishes = False
+        self.only_take_dispenser_dishes = False  # Ditto
+
         self.GHM = GreedyHumanModel_pk(self.mlp, player_index=1 - self.agent_index)  # For ToM of other players
         self.human_model = True
 
-        self.use_OLD_ml_action = use_OLD_ml_action
+        ## "Personality" parameters ##
 
-        # "Personality" parameters (within 0 to 1, except rationality_coefficient)
+        # Motion-level parmas:
+        #TODO: Remove perseverance once I stop using the old fitted params:
         self.perseverance = perseverance  # perseverance = 1 means the agent always tries to go where it want to do, even when it's stuck
-        self.teamwork = teamwork  # teamwork = 0 should make this agent similar to GreedyHuman
-        self.retain_goals = retain_goals  # Prob of keeping the previous goal each timestep (rather than re-calculating)
-        self.wrong_decisions = wrong_decisions  # Prob of making a wrong decision about the motion_goal. I.e. they should
-        # get onion but they get dish instead. Note: this should only work well if retain_goals is large
-        self.thinking_prob = thinking_prob  # After achieving a goal (e.g. fetching onion) the agent waits to "think".
-        # thinking_prob is the probability (p) of moving on during this "thinking time". Expected value of a geometrically
-        # distributed random variable is 1/p, so set p to e.g. 0.25?
+        self.compliance = 1 - self.perseverance
         self.path_teamwork = path_teamwork  # Prob of considering the other agent's location in the path choice
         self.rationality_coefficient = rationality_coefficient  # Setting to 0 means random actions; inf means always takes
         # lowest cost path. In practice inf ~ 100
         self.prob_pausing = prob_pausing # Probability of pausing on a given timestep, instead of acting. From a
         # quick initial look at the human data, the humans pause very approx 50% of the time
+        self.thinking_prob = thinking_prob  # After achieving a goal (e.g. fetching onion) the agent waits to "think".
+        # thinking_prob is the probability (p) of moving on during this "thinking time". Expected value of a geometrically
+        # distributed random variable is 1/p, so set p to e.g. 0.25?
+
+        # Higher level strategy:
+        self.retain_goals = retain_goals  # Prob of keeping the previous goal each timestep (rather than re-calculating)
+        self.personality_type = personality_type  # Probability vector of the probability of being type A, B, C, D
+        self.look_ahead_steps = look_ahead_steps  # How many steps to look ahead when planning. Choose 2 or 4 (1
+        # makes A=C, 3~2, and >4 pointless? Should be >1 (required by function remove_others_current_task_from_list)
+
+        # Unused, or related to the old TOM:
+        self.focus_most_full_pot = True  # Not actually using this yet...
+        self.wrong_decisions = wrong_decisions  # Prob of making a wrong decision about the motion_goal. I.e. they should
+        # get onion but they get dish instead. Note: this should only work well if retain_goals is large
+        self.teamwork = teamwork  # teamwork = 0 should make this agent similar to GreedyHuman
+        self.use_OLD_ml_action = use_OLD_ml_action
 
     def reset(self):
         # Reset agent -- wipe it's history
@@ -373,27 +387,28 @@ class ToMModel(Agent):
                     if display_eval_games:
                         overcooked_env.get_rollouts(agent_pair, num_games=1, final_state=False, display=True)
 
-                for bc_number in range(2):
+                if additional_params["EVAL_WITH_BC"]:
+                    for bc_number in range(2):
 
-                    print('\nPPO index {} | Playing with BC{}\n'.format(ppo_index, bc_number))
+                        print('\nPPO index {} | Playing with BC{}\n'.format(ppo_index, bc_number))
 
-                    bc_agent = env.bc_agent0 if bc_number == 0 else env.bc_agent1
+                        bc_agent = env.bc_agent0 if bc_number == 0 else env.bc_agent1
 
-                    if ppo_index == 0:
-                        agent_pair = AgentPair(ppo_agent, bc_agent)
-                    elif ppo_index == 1:
-                        agent_pair = AgentPair(bc_agent, ppo_agent)
+                        if ppo_index == 0:
+                            agent_pair = AgentPair(ppo_agent, bc_agent)
+                        elif ppo_index == 1:
+                            agent_pair = AgentPair(bc_agent, ppo_agent)
 
-                    trajs = overcooked_env.get_rollouts(agent_pair, num_games=additional_params["NUM_EVAL_GAMES"],
-                                                        final_state=False, display=False)  # reward shaping not needed
-                    sparse_rews = trajs["ep_returns"]
-                    avg_sparse_rew = np.mean(sparse_rews)
+                        trajs = overcooked_env.get_rollouts(agent_pair, num_games=additional_params["NUM_EVAL_GAMES"],
+                                                            final_state=False, display=False)  # reward shaping not needed
+                        sparse_rews = trajs["ep_returns"]
+                        avg_sparse_rew = np.mean(sparse_rews)
 
-                    run_info["rew_ppo_idx{}_bc{}".format(ppo_index, bc_number)].append(avg_sparse_rew)
+                        run_info["rew_ppo_idx{}_bc{}".format(ppo_index, bc_number)].append(avg_sparse_rew)
 
-                    # To observe play:
-                    if display_eval_games:
-                        overcooked_env.get_rollouts(agent_pair, num_games=1, final_state=False, display=True)
+                        # To observe play:
+                        if display_eval_games:
+                            overcooked_env.get_rollouts(agent_pair, num_games=1, final_state=False, display=True)
 
         elif additional_params["LOCAL_TESTING"]:
 
@@ -450,7 +465,7 @@ class ToMModel(Agent):
 
                     logging.info('Getting new goal')
 
-                    #TODO: Remove this temp once the new ml_action is finished:
+                    #TODO: Remove this once the old ml_action is no longer used:
                     if not self.use_OLD_ml_action:
                         motion_goals = self.ml_action(state)
                     else:
@@ -477,16 +492,16 @@ class ToMModel(Agent):
 
 
     def ml_action(self, state):
+        """Choose a higher-level task (e.g. fetch an onion), which gives a set of motion_goals to achieve that task."""
 
-        #TODO: This will go elsewhere:
-        self.personality_type = [1, 0, 0, 0]  # Probability vector of the probability of being type A, B, C, D
-        self.look_ahead_steps = 2  # How many steps to look ahead when planning. Choose 2 or 4??
-        self.imminently_ready_threshold = 10
-        self.focus_most_full_pot = True
+        #TODO: The helper functions below at times have some shared-functionality --> it may be possible to combine some
+        # of them together
 
+        # For noting if the task you're doing is/is not the top priority task:
+        self.doing_lower_priority_task = None
 
         # TODO: modify and merge get_info_for_making_decisions and get_extra_info_for_making_decisions so it returns
-        #  'info', SEE DIRECTLY BELOW!
+        #  'info', SEE DIRECTLY BELOW! AND add get_extra_info_for_making_decisions to get_info_for_making_decisions?
         player, other_player, am, counter_objects, pot_states_dict, soup_nearly_ready, count_soups_nearly_ready, \
         other_has_dish, other_has_onion, number_of_pots, temp_dont_drop = self.get_info_for_making_decisions(state)
         info = {'player': player, 'other_player': other_player, 'am': am, 'counter_objects': counter_objects,
@@ -512,9 +527,9 @@ class ToMModel(Agent):
             elif personality_type_to_use == 'B':
                 motion_goals = self.choose_goals_type_B(state, task_priority_list, info)
             elif personality_type_to_use == 'C':
-                motion_goals = self.choose_goals_type_C(state, task_priority_list, info)
+                motion_goals = self.choose_goals_type_C(state, task_priority_list, info, self.look_ahead_steps)
             elif personality_type_to_use == 'D':
-                motion_goals = self.choose_goals_type_D(state, task_priority_list, info)
+                motion_goals = self.choose_goals_type_D(state, task_priority_list, info, self.look_ahead_steps)
             else:
                 raise ValueError('Unavailable personality type selected')
 
@@ -544,9 +559,6 @@ class ToMModel(Agent):
             task_priority_list.append(tasks_this_priority)
 
         print('Task list: ', task_priority_list)
-        print('Simulated pot states: ', sim_pot_states_dict)
-        print('Simulated ONION pot states: ', sim_pot_states_dict['onion'])
-        print('Simulated counters: ', sim_counter_objects)
         return task_priority_list
 
     def calculate_next_priority_tasks(self, sim_pot_states_dict, sim_counter_objects):
@@ -612,18 +624,21 @@ class ToMModel(Agent):
         #
 
         elif count_soups_nearly_ready > 0:
-            # Fetch the soup!
+            locations = []  # This method of creating 'locations' then using this to remove/append the pot states dict
+            # is needed because otherwise ready_soups updates as we append/remove the pot states dict, which means the
+            # 'for location' loop doesn't complete as it should do
             for location in ready_soups:
                 tasks_this_priority.append({'deliver_soup': location})
-                # Ammend sim_info:
-                sim_pot_states_dict['onion']['ready'].remove(location)
-                sim_pot_states_dict['empty'].append(location)
+                locations.append(location)
+            [sim_pot_states_dict['onion']['ready'].remove(location) for location in locations]
+            [sim_pot_states_dict['empty'].append(location) for location in locations]
 
+            locations = []
             for location in cooking_soups:
                 tasks_this_priority.append({'deliver_soup': location})
-                # Ammend sim_info:
-                sim_pot_states_dict['onion']['cooking'].remove(location)
-                sim_pot_states_dict['empty'].append(location)
+                locations.append(location)
+            [sim_pot_states_dict['onion']['cooking'].remove(location) for location in locations]
+            [sim_pot_states_dict['empty'].append(location) for location in locations]
 
         elif soups_need_onions > 0:
 
@@ -631,17 +646,7 @@ class ToMModel(Agent):
 
                 #TODO: Factor into helper functions?:
 
-                # Focus on the pot with more onions in. So we look for pots with 3 onions in first, then 2, then 1:
-
-                #TODO: Removed this because there doesn't exist a state with 3_items??! 3_items == cooking!
-                # if sim_pot_states_dict['onion']['3_items']:
-                #     locations = []
-                #     for location in sim_pot_states_dict['onion']['3_items']:
-                #         tasks_this_priority.append({'deliver_onion': location})
-                #         locations.append(location)
-                #     [sim_pot_states_dict['onion']['3_items'].remove(location) for location in locations]
-                #     [sim_pot_states_dict['onion']['partially_full'].remove(location) for location in locations]
-                #     [sim_pot_states_dict['onion']['cooking'].append(location) for location in locations]
+                # Focus on the pot with more onions in. So we look for pots with 2 onions in first, then 2, then 1:
 
                 if sim_pot_states_dict['onion']['2_items']:
                     locations = []
@@ -682,69 +687,195 @@ class ToMModel(Agent):
 
     def choose_goals_type_A(self, state, task_priority_list, info):
         """This agent does the first task on the list, regardless of what the other agent is doing"""
-
-        task_to_do = task_priority_list[0]
-
-        # If there are several top-priority tasks, pick the one with the lowest cost for this player
-        lowest_cost = np.inf
-        task_to_do_temp = None
-        for task in task_to_do:
-            # Each task might have more than one goal
-            task_goals = info["am"]._get_ml_actions_for_positions([list(task.values())[0]])
-            for task_goal in task_goals:
-                cost, _, _ = self.find_cost_of_single_task(state, task, task_goal, info, find_own_cost=True)
-                if cost < lowest_cost:
-                    lowest_cost = cost
-                    task_to_do_temp = task
-        task_to_do = task_to_do_temp
-
-        #TODO: Do we really want this?? YES I think: if we want to do the lowest cost task, then this will be for a
-        # specific subgoal. Doesn't make sense to randomly pick between them
-        #TODO: Factor in path_teamwork and/or rationality here???
-
-        # We now have a single task to do
-
+        tasks_to_do = task_priority_list[0]  # This could be a list of several tasks
+        task_to_do = self.find_lowest_cost_task(tasks_to_do, info, state)
         print('Chosen task to do: {}'.format(task_to_do))
+        motion_goals = self.find_motion_goals_for_task(state, info, task_to_do)
+        print('Chosen motion_goals (agent type A): {}'.format(motion_goals))
+
+        return motion_goals
+
+    def choose_goals_type_B(self, state, task_priority_list, info):
+        """This agent identifies other agent’s current task and plans in isolation after that"""
+
+        # If other player has soup, then just assume they are delivering it, and leave the task list unchanged
+        if not (info['other_player'].has_object() and info['other_player'].get_object().name == 'soup'):
+            task_priority_list, _ = self.remove_others_current_task_from_list(task_priority_list, info, state)
+            print('Revised task priority list: {}'.format(task_priority_list))
+
+        # Now we have a revised task list, do the greedy action:
+        tasks_to_do = task_priority_list[0]  # This could be a list of several tasks
+        task_to_do = self.find_lowest_cost_task(tasks_to_do, info, state)
+        print('Chosen task to do: {}'.format(task_to_do))
+        motion_goals = self.find_motion_goals_for_task(state, info, task_to_do)
+        print('Chosen motion_goals (agent type B): {}'.format(motion_goals))
+
+        return motion_goals
+
+    def choose_goals_type_C(self, state, task_priority_list, info, look_ahead_steps):
+        """This agent works out the lowest-cost team strategy, then executes their first move for this strategy"""
+
+        others_cost = 0
+        if info['other_player'].has_object():
+            others_sim_held_object = info['other_player'].get_object()
+        else:
+            others_sim_held_object = None
+        others_sim_pos_and_or = info['other_player'].pos_and_or
+        sim_counter_objects = info['counter_objects']
+
+        # Special case if they're holding a soup: they should deliver it
+        if info['other_player'].has_object() and info['other_player'].get_object().name == 'soup':
+            others_cost, others_sim_pos_and_or = self.cost_serve_soup(info["am"], others_sim_pos_and_or)
+            others_sim_held_object = None
+
+        # Execute the lowest cost team strategy:
+        motion_goals = self.find_motion_goal_for_best_team_strategy(task_priority_list, info, state, look_ahead_steps,
+                                                                others_cost, others_sim_pos_and_or,
+                                                                others_sim_held_object, sim_counter_objects)
+
+        print('Chosen motion_goals (agent type C): {}'.format(motion_goals))
+        return motion_goals
+
+    def choose_goals_type_D(self, state, task_priority_list, info, look_ahead_steps):
+        """This agent first works out what the other player is doing and crosses this task off the list (as agent B
+        does). It then works out the lowest-cost team strategy, then executes their first move for this strategy (as
+        agent C does)."""
+
+        task_priority_list, task_removed = self.remove_others_current_task_from_list(task_priority_list, info, state,
+                                                                                     look_ahead_steps=look_ahead_steps)
+        print('Task removed: {}; Revised task priority list: {}'.format(task_removed, task_priority_list))
+
+        if task_removed is not None:
+            # Find min cost and final pos_or of other agent doing the task_removed:
+            others_cost, others_sim_pos_and_or, sim_counter_objects, _ = self.find_min_cost_of_task(task_removed,
+                                                info["am"], find_own_cost=False, first_action_info=[state, info])
+            others_sim_held_object = None
+        else:
+            others_cost = 0
+            if info['other_player'].has_object():
+                others_sim_held_object = info['other_player'].get_object()
+            else:
+                others_sim_held_object = None
+            others_sim_pos_and_or = info['other_player'].pos_and_or
+            sim_counter_objects = info['counter_objects']
+
+        # Assume other player has now done the task_removed, work out the lowest cost team strategy:
+        motion_goals =  self.find_motion_goal_for_best_team_strategy(task_priority_list, info, state, look_ahead_steps,
+                                    others_cost, others_sim_pos_and_or, others_sim_held_object, sim_counter_objects)
+
+        print('Chosen motion_goals (agent type D): {}'.format(motion_goals))
+        return motion_goals
+
+    def find_motion_goal_for_best_team_strategy(self, task_priority_list, info, state, look_ahead_steps,
+                                                                        others_cost, others_sim_pos_and_or,
+                                                                        others_sim_held_object, sim_counter_objects):
+        """Given the task_priority_list and the current state (or current simulated state, if others_cost>0), work out
+        the optimal team strategy. From this, deduce the best motion_goal to take."""
+
+        am = info["am"]
+
+        for i in range(len(task_priority_list)):
+
+            # Who has lower cost: me for doing the i'th task; or other player for doing ALL tasks from 0 to i'th?
+
+            # Own cost for doing i'th task. If more than one i'th task, work out cost for both:
+            own_min_cost = np.Inf
+            for task in task_priority_list[i]:
+                cost, _, _, task_goal = self.find_min_cost_of_task(task, am, find_own_cost=True,
+                                        first_action_info=[state, info], sim_counter_objects=sim_counter_objects)
+                if cost < own_min_cost:
+                    own_min_cost = cost
+                    own_task = task
+
+            # Others cost for doing tasks 0 to i'th:
+            others_total_cost = others_cost
+            for j in range(i+1):
+                for task in task_priority_list[j]:
+                    cost, others_sim_pos_and_or, sim_counter_objects, _ = self.find_min_cost_of_task(task,
+                                            am, find_own_cost=False,
+                                            subsequent_action_info=[others_sim_pos_and_or, others_sim_held_object, am],
+                                            sim_counter_objects=sim_counter_objects)
+                    others_sim_held_object = None  # After doing a full task, they won't be holding an object
+                    others_total_cost += cost
+
+            # If own cost is less than for the other player doing ALL tasks up to this point, then do the task:
+            if own_min_cost <= others_total_cost:
+                if i > 0:
+                    self.doing_lower_priority_task = True
+                print('Chosen task to do: {} (task #{})'.format(own_task, i))
+                return self.find_motion_goals_for_task(state, info, own_task)
+
+        # If the other player always has a lower cost, then motion_goals=[]:
+        return []
+
+    def find_min_cost_of_task(self, task, am, find_own_cost, first_action_info=False, subsequent_action_info=False,
+                              sim_counter_objects=defaultdict(list, {'onion': []})):
+        """Task removed might have several task_goals, so here we find the goal with the lowest cost, and return the
+        goal and the cost and simulated pos/or and counter objects."""
+
+        # Special case if they're holding soup:
+        if list(task.keys())[0] == 'special_case_deliver_soup':
+            others_pos_and_or = first_action_info[1]["other_player"].pos_and_or
+            cost, others_motion_goal = self.cost_serve_soup(am, others_pos_and_or)
+            return cost, others_motion_goal, sim_counter_objects, None
+
+        lowest_cost = np.Inf
+        task_goals = am._get_ml_actions_for_positions([list(task.values())[0]])
+        for task_goal in task_goals:
+            cost, sim_pos_and_or_temp, sim_counter_objects_temp = self.find_cost_of_single_task(task,
+                                task_goal, find_own_cost=find_own_cost, first_action_info=first_action_info,
+                                subsequent_action_info=subsequent_action_info, sim_counter_objects=sim_counter_objects)
+
+            if cost < lowest_cost:
+                lowest_cost = cost
+                sim_pos_and_or = sim_pos_and_or_temp
+                sim_counter_objects = sim_counter_objects_temp
+                lowest_cost_task_goal = task_goal
+        if lowest_cost < np.Inf:
+            return lowest_cost, sim_pos_and_or, sim_counter_objects, lowest_cost_task_goal
+        else:
+            return lowest_cost, None, defaultdict(list, {'onion': []}), None
+
+    def find_motion_goals_for_task(self, state, info, task_to_do):
+        """Find the motion goals for doing the task_to_do"""
+
         if task_to_do:
             task_name = list(task_to_do.keys())[0]
         else:
             task_name = None
-
         if task_name == 'soup_from_counter':
-
             motion_goals = self.find_subgoal_for_counter_soup(state, info,
-                                                                  soup_location=task_to_do['soup_from_counter'])
-
+                                                              soup_location=task_to_do['soup_from_counter'])
         elif task_name == 'deliver_onion':
-
             motion_goals = self.find_subgoal_for_delivering_onion(state, info,
-                                                                      pot_location=task_to_do['deliver_onion'])
-
+                                                                  pot_location=task_to_do['deliver_onion'])
         elif task_name == 'deliver_soup':
-
             motion_goals = self.find_subgoal_for_delivering_soup(state, info,
-                                                                  pot_location=task_to_do['deliver_soup'])
-
+                                                                 pot_location=task_to_do['deliver_soup'])
         elif task_name == None:
             motion_goals = []
-
         else:
             raise ValueError('Chosen task not valid')
 
-        print('Chosen motion_goals (agent type A): {}'.format(motion_goals))
         return motion_goals
 
-    # def choose_goals_type_B(self, state, task_priority_list, info):
-    #
-    #     return motion_goals
-    #
-    # def choose_goals_type_C(self, state, task_priority_list, info):
-    #
-    #     return motion_goals
-    #
-    # def choose_goals_type_D(self, state, task_priority_list, info):
-    #
-    #     return motion_goals
+    def find_lowest_cost_task(self, tasks_to_do, info, state, find_own_cost=True):
+        """If there are several top-priority tasks, pick the one with the lowest cost for this player
+        return: tasks_to_do
+        """
+        task_to_do = None
+        lowest_cost = np.inf
+        for task in tasks_to_do:
+            # Each task might have more than one goal
+            task_goals = info["am"]._get_ml_actions_for_positions([list(task.values())[0]])
+            for task_goal in task_goals:
+                cost, _, _ = self.find_cost_of_single_task(task, task_goal, find_own_cost=find_own_cost,
+                                                           first_action_info=[state, info])
+                if cost < lowest_cost:
+                    lowest_cost = cost
+                    task_to_do = task
+
+        return task_to_do
 
     def find_subgoal_for_counter_soup(self, state, info, soup_location):
         """The task is to deliver an counter soup. Depending on the player's current state, work out the best way to do
@@ -774,8 +905,13 @@ class ToMModel(Agent):
 
             if info['player_obj'].name == 'onion':
 
-                # The pot location directly gives the motion goal
                 motion_goals = info["am"]._get_ml_actions_for_positions([pot_location])
+
+                # Special case: If not doing the top priority task, then don't go all the way to the goal.
+                # BUT in asymmetric_advantages we can't get in the way, so ignore this:
+                if self.doing_lower_priority_task and self.mdp.layout_name != 'asymmetric_advantages':
+                    # This will return all positions that face the final motion_goal:
+                    return self.move_adjacent_to_goal(motion_goals)
 
             elif info['player_obj'].name == 'dish':
 
@@ -787,7 +923,7 @@ class ToMModel(Agent):
         elif not info['player'].has_object():
 
             # We haven't specified WHICH onion to pick up; just which pot to put the onion in!
-            motion_goals = info['am'].pickup_onion_actions(state, info['counter_objects'])
+            motion_goals = info['am'].pickup_onion_actions(info['counter_objects'])
 
         return motion_goals
 
@@ -798,8 +934,13 @@ class ToMModel(Agent):
 
             if info['player_obj'].name == 'dish':
 
-                # The pot location directly gives the motion goal
                 motion_goals = info["am"]._get_ml_actions_for_positions([pot_location])
+
+                # Special case: If not doing the top priority task, then don't go all the way to the goal:
+                # BUT in asymmetric_advantages we can't get in the way, so ignore this:
+                if self.doing_lower_priority_task and self.mdp.layout_name != 'asymmetric_advantages':
+                    # This will return all positions that face the final motion_goal
+                    return self.move_adjacent_to_goal(motion_goals)
 
             elif info['player_obj'].name == 'soup':
 
@@ -815,27 +956,58 @@ class ToMModel(Agent):
         elif not info['player'].has_object():
 
             # We haven't specified WHICH dish to pick up; just which pot to fetch!
-            motion_goals = info['am'].pickup_dish_actions(state, info['counter_objects'])
+            motion_goals = info['am'].pickup_dish_actions(info['counter_objects'])
 
         return motion_goals
 
-    def find_cost_of_single_task(self, state, task, task_goal, info, find_own_cost):
-        """Find the min cost, and the final state that you would have ended up in, for doing a single task"""
+    def move_adjacent_to_goal(self, motion_goals):
+        """Instead of moving to the motion_goals, move to an adjacent location"""
+        print("Other is doing the 1st task on the list, so we're heading NEXT to the motion_goal, so we don't obstruct")
+        list_of_lists = [self.mlp.mp._get_possible_motion_goals_for_feature(goal[0]) for goal in motion_goals]
+        adjacent_goals = [item for sublist in list_of_lists for item in sublist]
+        return adjacent_goals
+
+    def find_cost_of_single_task(self, task, task_goal, find_own_cost=True,
+                                 first_action_info=False, subsequent_action_info=False,
+                                 sim_counter_objects=None):
+        """
+        Find the min cost, and the final state that you would have ended up in, for doing a single task.
+        first_action_info = [state, info], which is the actual state and actual information about the system.
+        subsequent_action_info = [sim_pos_and_or, sim_held_object, am], which is your simulated
+        position/orientation etc.
+        """
 
         #TODO: SPLIT THIS INTO HELPER FUNCTIONS!
 
-        if find_own_cost:
-            player = info['player']
-        else:
-            player = info['other_player']
+        if first_action_info:
+            # If this is the first action, we need to create simulated ("sim") information from state and info. We
+            # will also need some extra things like state and player.
 
-        # Needed to simulate where the player will end up, and what they'll be carrying, after each subgoal
-        sim_pos_and_or = copy.deepcopy(player.pos_and_or)
-        sim_held_object = copy.deepcopy(player.held_object)
-        sim_counter_objects = copy.deepcopy(info["counter_objects"])
+            state, info = first_action_info
+            am = info["am"]
+
+            if find_own_cost:
+                player = info['player']
+            else:
+                player = info['other_player']
+
+            # Needed to simulate where the player will end up, and what they'll be carrying, after each subgoal
+            sim_pos_and_or = copy.deepcopy(player.pos_and_or)
+            sim_held_object = copy.deepcopy(player.held_object)
+            sim_counter_objects = copy.deepcopy(info["counter_objects"]) if sim_counter_objects == None \
+                                                                                            else sim_counter_objects
+
+        elif subsequent_action_info:
+            # If this is not the first action, then subsequent_action_info will contain the simulated information:
+            sim_pos_and_or, sim_held_object, am = subsequent_action_info
+            sim_counter_objects = defaultdict(list, {'onion': []}) if sim_counter_objects == None \
+                                                                                            else sim_counter_objects
+
+        else:
+            raise ValueError
+
 
         task_name = list(task.keys())[0]
-
         # If task goal is valid then calculate cost, if not then give cost = Inf
         if not self.mlp.mp.is_valid_motion_start_goal_pair(sim_pos_and_or, task_goal):
             cost = np.Inf
@@ -851,11 +1023,15 @@ class ToMModel(Agent):
                 object_wanted = 'soup'
 
             # If the player is holding the wrong object, then find the cost and final location for dropping it on the
-            # closest counter
-            if player.has_object() and not (player.get_object().name == object_wanted):
-                assert player.get_object().name != "soup", "Holding the soup is a special case and shouldn't reach here"
+            # closest counter.
+            if sim_held_object and sim_held_object.name != object_wanted:
+                assert sim_held_object.name != "soup", "Holding the soup is a special case and shouldn't reach here"
                 # Wrong object, so drop it first:
-                motion_goals = info["am"].place_obj_on_counter_actions(state)
+                if first_action_info:
+                    motion_goals = info["am"].place_obj_on_counter_actions(state)
+                else:  # Here we don't have the state info, so we simplify by considering all counters:
+                    all_counters = self.mdp.get_counter_locations()
+                    motion_goals = am._get_ml_actions_for_positions(all_counters)
                 cost_to_drop, best_goal = self.find_min_plan_cost_from_pos_or(motion_goals, sim_pos_and_or)
                 sim_pos_and_or = best_goal
                 sim_held_object = None
@@ -869,53 +1045,27 @@ class ToMModel(Agent):
                 sim_pos_and_or = task_goal
 
                 # Cost to deliver the soup:
-                motion_goals = info["am"].deliver_soup_actions()
+                motion_goals = am.deliver_soup_actions()
                 cost_to_deliver, final_pos_and_or = self.find_min_plan_cost_from_pos_or(motion_goals, sim_pos_and_or)
 
                 cost = cost_to_drop + cost_to_pick_up + cost_to_deliver
 
             elif task_name == 'deliver_onion':
 
-                #TODO: THIS WHOLE ELIF CAN BE A HELPER FUNCTION
-
                 # If not holding an object, then get an onion. Consider ALL available onions
                 if not sim_held_object:
-
-                    motion_goals = info["am"].pickup_onion_actions(state, sim_counter_objects)
-
-                    cost_to_pickup = []
-                    sim_pos_and_or_list = []
-                    pos_and_or_of_pickup = []
-
-                    for goal in motion_goals:
-                        plan_cost = self.find_plan_cost_inc_inf(sim_pos_and_or, goal)
-                        cost_to_pickup.append(plan_cost)
-                        sim_pos_and_or_list.append(goal)
-
-                        # Convert goal to actual the location of the object being picked up, then record the pickup location
-                        goal_location = self.find_goal_location_from_motion_goal(goal)
-                        pos_and_or_of_pickup.append(goal_location)
-
+                    cost_to_pickup, sim_pos_and_or_list, pos_and_or_of_pickup = self.get_onion(am,
+                                                                                sim_counter_objects, sim_pos_and_or)
                 else:
                     assert sim_held_object.name == "onion"
                     cost_to_pickup = [0]
                     sim_pos_and_or_list = [sim_pos_and_or]
                     pos_and_or_of_pickup = [None]
 
-                cost_to_deliver = []
-                # Now we have an onion! Work out the cost to deliver it, for each item in sim_pos_and_or_list
-                for pos_and_or in sim_pos_and_or_list:
-                    plan_cost = self.find_plan_cost_inc_inf(pos_and_or, task_goal)
-                    cost_to_deliver.append(plan_cost)
+                cost_to_deliver = self.find_cost_deliver_onion(sim_pos_and_or_list, task_goal)
 
-                # Work out total cost
-                min_cost = np.Inf
-                pickup_location = None
-                for i, cost in enumerate(cost_to_pickup):
-                    total_cost = cost_to_drop + cost + cost_to_deliver[i]
-                    if total_cost < min_cost:
-                        min_cost = total_cost
-                        pickup_location = pos_and_or_of_pickup[i]
+                min_cost, pickup_location = self.find_min_total_cost_onion(cost_to_pickup, cost_to_drop,
+                                                                           cost_to_deliver, pos_and_or_of_pickup)
 
                 # If we picked up from a counter, then remove this location from the sim_counter_objects
                 if pickup_location in sim_counter_objects['onion']:
@@ -926,44 +1076,25 @@ class ToMModel(Agent):
 
             elif task_name == 'deliver_soup':
 
-                # TODO: THIS WHOLE ELIF CAN BE A HELPER FUNCTION. It's similar to onion, at least until we get to
-                #  delivering the soup
+                # TODO: Factor into helper functions, as I did with deliver_onion. It's similar to onion, at least until
+                #  we get to delivering the soup
 
                 # If not holding an object, then get a dish. Consider ALL available dishes
                 if not sim_held_object:
 
-                    motion_goals = info["am"].pickup_dish_actions(state, sim_counter_objects)
-                    cost_to_pickup_dish = []
-                    sim_pos_and_or_list = []
-                    pos_and_or_of_dish_pickup = []
-
-                    for goal in motion_goals:
-                        plan_cost = self.find_plan_cost_inc_inf(sim_pos_and_or, goal)
-                        cost_to_pickup_dish.append(plan_cost)
-                        sim_pos_and_or_list.append(goal)
-                        pos_and_or_of_dish_pickup.append(goal)  # Needed to work out if the pickup location was a counter
+                    cost_to_pickup_dish, sim_pos_and_or_list, pos_and_or_of_dish_pickup = self.get_dish(am,
+                                                                        sim_counter_objects, sim_pos_and_or)
 
                 else:
                     assert sim_held_object.name == "dish"
                     cost_to_pickup_dish = [0]
                     sim_pos_and_or_list = [sim_pos_and_or]
+                    pos_and_or_of_dish_pickup = None
 
-                cost_to_fetch_soup = []
-                # Now we have a dish! Work out the cost to collect the soup, for each item in sim_pos_and_or_list
-                for pos_and_or in sim_pos_and_or_list:
-                    plan_cost = self.find_plan_cost_inc_inf(pos_and_or, task_goal)
-                    cost_to_fetch_soup.append(plan_cost)
+                cost_to_fetch_soup = self.find_cost_fetch_soup(sim_pos_and_or_list, task_goal)
 
-                # Work out total cost. NOTE: We can do this now because each layout only has 1 available serving location
-                # for each player. So we can work out the min cost now, then add on the serving cost
-                min_cost = np.Inf
-                dish_pickup_location = None
-                for i, cost in enumerate(cost_to_pickup_dish):
-                    total_cost_so_far = cost_to_drop + cost + cost_to_fetch_soup[i]
-                    if total_cost_so_far < min_cost:
-                        min_cost = total_cost_so_far
-                        if not sim_held_object:
-                            dish_pickup_location = pos_and_or_of_dish_pickup[i]
+                min_cost, dish_pickup_location = self.find_min_partial_cost_dish(cost_to_pickup_dish, cost_to_drop,
+                                                        cost_to_fetch_soup, sim_held_object, pos_and_or_of_dish_pickup)
 
                 # If we picked up from a counter, then remove this location from the sim_counter_objects
                 if dish_pickup_location in sim_counter_objects['dish']:
@@ -972,15 +1103,7 @@ class ToMModel(Agent):
                 sim_pos_and_or = task_goal
                 cost_so_far = min_cost
 
-                # Work out the cost and final pos/or for serving the soup:
-                motion_goals = info['am'].deliver_soup_actions()
-                valid_motion_goals = list(
-                    filter(lambda goal: self.mlp.mp.is_valid_motion_start_goal_pair(sim_pos_and_or, goal),
-                           motion_goals))
-                assert len(valid_motion_goals) == 1, "For all the layout this part of code was designed for, there should " \
-                                                 "only be 1 valid serving location for each player"
-                valid_motion_goal = valid_motion_goals[0]
-                serving_cost = self.find_plan_cost_inc_inf(sim_pos_and_or, valid_motion_goal)
+                serving_cost, valid_motion_goals = self.cost_serve_soup(am, sim_pos_and_or)
 
                 # Work out total cost and final postion:
                 cost = serving_cost + cost_so_far
@@ -990,6 +1113,126 @@ class ToMModel(Agent):
                 raise ValueError('Chosen task not valid')
 
         return cost, final_pos_and_or, sim_counter_objects
+
+    # TODO: Remove:
+    #
+    # def create_sim_information(self, first_action_info, find_own_cost):
+    #     """If this is the first action, we need to create simulated ("sim") information from state and info. The
+    #     simulated info is then used to record what would happen if the agent did x, y or z..."""
+    #
+    #     state, info = first_action_info
+    #
+    #     if find_own_cost:
+    #         player = info['player']
+    #     else:
+    #         player = info['other_player']
+    #
+    #     # Needed to simulate where the player will end up, and what they'll be carrying, after each subgoal
+    #     sim_pos_and_or = copy.deepcopy(player.pos_and_or)
+    #     sim_held_object = copy.deepcopy(player.held_object)
+    #     sim_counter_objects = copy.deepcopy(info["counter_objects"])
+    #
+    #     return sim_pos_and_or, sim_held_object, sim_counter_objects, info["am"]
+
+    # def place_obj_on_counter_actions_no_state(self, sim_counter_objects, am):
+    #     """MediumLevelActionManager.place_obj_on_counter_actions requires the state. But the state isn't needed for
+    #     this function, so here we make the equivalent function but without using the state."""
+    #
+    #     counter_locations = self.mdp.get_counter_locations()
+    #     all_empty_counters = [pos for pos in counter_locations if not (pos in (sim_counter_objects['onion'] or
+    #                                                                            sim_counter_objects['dish'] or
+    #                                                                            sim_counter_objects['soup']))]
+    #     valid_empty_counters = [c_pos for c_pos in am.counter_drop if c_pos in all_empty_counters]
+    #     return am._get_ml_actions_for_positions(valid_empty_counters)
+
+    def cost_serve_soup(self, am, sim_pos_and_or):
+        """Work out the cost and final pos/or for serving the soup"""
+        motion_goals = am.deliver_soup_actions()
+        valid_motion_goals = list(
+            filter(lambda goal: self.mlp.mp.is_valid_motion_start_goal_pair(sim_pos_and_or, goal),
+                   motion_goals))
+        assert len(valid_motion_goals) == 1, "For all the layout this part of code was designed for, there should " \
+                                             "only be 1 valid serving location for each player"
+        valid_motion_goal = valid_motion_goals[0]
+        serving_cost = self.find_plan_cost_inc_inf(sim_pos_and_or, valid_motion_goal)
+
+        return serving_cost, valid_motion_goal
+
+    def get_dish(self, am, sim_counter_objects, sim_pos_and_or):
+        """Find cost and other details of getting the dish"""
+
+        motion_goals = am.pickup_dish_actions(sim_counter_objects)
+        cost_to_pickup_dish = []
+        sim_pos_and_or_list = []
+        pos_and_or_of_dish_pickup = []
+
+        for goal in motion_goals:
+            plan_cost = self.find_plan_cost_inc_inf(sim_pos_and_or, goal)
+            cost_to_pickup_dish.append(plan_cost)
+            sim_pos_and_or_list.append(goal)
+            pos_and_or_of_dish_pickup.append(goal)  # Needed to work out if the pickup location was a counter
+
+        return cost_to_pickup_dish, sim_pos_and_or_list, pos_and_or_of_dish_pickup
+
+    def get_onion(self, am, sim_counter_objects, sim_pos_and_or):
+        """Find cost and other details of getting the onion"""
+
+        motion_goals = am.pickup_onion_actions(sim_counter_objects)
+        cost_to_pickup = []
+        sim_pos_and_or_list = []
+        pos_and_or_of_pickup = []
+
+        for goal in motion_goals:
+            plan_cost = self.find_plan_cost_inc_inf(sim_pos_and_or, goal)
+            cost_to_pickup.append(plan_cost)
+            sim_pos_and_or_list.append(goal)
+            # Convert goal to actual the location of the object being picked up, then record the pickup location
+            goal_location = self.find_goal_location_from_motion_goal(goal)
+            pos_and_or_of_pickup.append(goal_location)
+
+        return cost_to_pickup, sim_pos_and_or_list, pos_and_or_of_pickup
+
+    def find_cost_fetch_soup(self, sim_pos_and_or_list, task_goal):
+        cost_to_fetch_soup = []
+        # Now we have a dish! Work out the cost to collect the soup, for each item in sim_pos_and_or_list
+        for pos_and_or in sim_pos_and_or_list:
+            plan_cost = self.find_plan_cost_inc_inf(pos_and_or, task_goal)
+            cost_to_fetch_soup.append(plan_cost)
+        return cost_to_fetch_soup
+
+    def find_cost_deliver_onion(self, sim_pos_and_or_list, task_goal):
+        """Find cost of delivering the onion"""
+        cost_to_deliver = []
+        # Now we have an onion! Work out the cost to deliver it, for each item in sim_pos_and_or_list
+        for pos_and_or in sim_pos_and_or_list:
+            plan_cost = self.find_plan_cost_inc_inf(pos_and_or, task_goal)
+            cost_to_deliver.append(plan_cost)
+        return cost_to_deliver
+
+    def find_min_partial_cost_dish(self, cost_to_pickup_dish, cost_to_drop, cost_to_fetch_soup,
+                                   sim_held_object, pos_and_or_of_dish_pickup):
+        """Work out min total cost so far. NOTE: We can do this now because each layout only has 1 available
+        serving location for each player. So we can work out the min cost now, then add on the serving cost"""
+        min_cost = np.Inf
+        dish_pickup_location = None
+        for i, cost in enumerate(cost_to_pickup_dish):
+            total_cost_so_far = cost_to_drop + cost + cost_to_fetch_soup[i]
+            if total_cost_so_far < min_cost:
+                min_cost = total_cost_so_far
+                if not sim_held_object:
+                    dish_pickup_location = pos_and_or_of_dish_pickup[i]
+        return min_cost, dish_pickup_location
+
+    def find_min_total_cost_onion(self, cost_to_pickup, cost_to_drop, cost_to_deliver, pos_and_or_of_pickup):
+        """Work out total min cost of delivering onion"""
+        min_cost = np.Inf
+        pickup_location = None
+        for i, cost in enumerate(cost_to_pickup):
+            total_cost = cost_to_drop + cost + cost_to_deliver[i]
+            if total_cost < min_cost:
+                min_cost = total_cost
+                pickup_location = pos_and_or_of_pickup[i]
+        return min_cost, pickup_location
 
     def find_plan_cost_inc_inf(self, start_pos_and_or, goal):
         """self.mlp.mp.get_plan doesn't allow for invalid goals -- here we say invalid goals have infinite cost"""
@@ -1005,6 +1248,195 @@ class ToMModel(Agent):
         goal_location = tuple([sum(x) for x in zip(list(motion_goal[0]), list(motion_goal[1]))])
         return goal_location
 
+    def remove_others_current_task_from_list(self, task_priority_list, info, state, look_ahead_steps=1):
+        """Take the task list, then observe what the other agent is likely doing and remove this task from the list."""
+
+        other_player = info['other_player']
+
+        if other_player.has_object():
+
+            # Special case: If other is holding an onion, assume they'll deliver it, and leave list unchanged:
+            if other_player.get_object().name == 'soup':
+                task = {'special_case_deliver_soup': None}
+                return task_priority_list, task
+
+            elif look_ahead_steps == 1:
+                # Returning "None" because if look_ahead=1 then we will do the greedy task regardless (look ahead = 1
+                # only for agent B)
+                return self.cross_task_off_list_if_appears_first(other_player, task_priority_list, info, state), None
+            elif look_ahead_steps > 1:
+                return self.cross_task_off_list_if_appears_anywhere(other_player, task_priority_list, info, state,
+                                                                     look_ahead_steps)
+            else:
+                raise ValueError
+
+        else:
+            # See if any of the 1st tasks on list are within the field of view of the agent; if so, cross off list:
+            object_goals, object_tasks = self.find_objects_for_tasks(task_priority_list[0], info)
+            # If they don't have an object 1st on the list, but we do, then don't assume they're doing that task:
+            object_goals, object_tasks = self.remove_tasks_if_were_holding_object(object_goals, object_tasks, info)
+            task = self.find_task_for_object_in_field_of_view(other_player, object_goals, object_tasks)
+            return self.cross_task_off_list(task_priority_list, task), task
+
+    def cross_task_off_list_if_appears_first(self, other_player, task_priority_list, info, state):
+        # Find if object is 1st on list and if it only appears once on the list
+        count_object_first_on_list, tasks_with_object = self.find_if_object_in_task_list(other_player.get_object(),
+                                                                                         task_priority_list[0])
+        if count_object_first_on_list == 0:
+            # The object held by the other player is not first on the list, so we can just keep the list as it is.
+            print("The object held by the other player is not first on the list, so we can just keep the list as it is")
+            return task_priority_list
+
+        elif count_object_first_on_list == 1:
+            # Assume other agent is doing this task, so cross it off the list
+            print("Assume other agent is doing the 1st task on list, so cross it off the list")
+            return self.cross_task_off_list(task_priority_list, tasks_with_object[0])
+
+        elif count_object_first_on_list == 2:
+            # Find which task in tasks_with_object has a lower cost
+            print("2 options for which task other could be doing: cross their lowest cost one off the list")
+            lowest_cost_task = self.find_lowest_cost_task(tasks_with_object, info, state, find_own_cost=False)
+            return self.cross_task_off_list(task_priority_list, lowest_cost_task)
+
+    def cross_task_off_list_if_appears_anywhere(self, other_player, task_priority_list, info, state, look_ahead_steps):
+
+        for i in range(look_ahead_steps):
+
+            count_object_on_list, tasks_with_object = self.find_if_object_in_task_list(other_player.get_object(),
+                                                                                             task_priority_list[i])
+            if count_object_on_list == 1:
+
+                return self.cross_task_off_list(task_priority_list, tasks_with_object[0]), tasks_with_object[0]
+
+            elif count_object_on_list == 2:
+                lowest_cost_task = self.find_lowest_cost_task(tasks_with_object, info, state, find_own_cost=False)
+                return self.cross_task_off_list(task_priority_list, lowest_cost_task), lowest_cost_task
+
+        # The object held by other_player is not on the task list up to look_ahead_steps, so keep the list as it is:
+        return task_priority_list, None
+
+
+    def remove_tasks_if_were_holding_object(self, object_goals, object_tasks, info):
+        """If we're already holding one of the objects, then ignore the other player"""
+        object_goals_new, object_tasks_new = [], []
+        for i, task in enumerate(object_tasks):
+            task_name = list(task.keys())[0]
+
+            if info['player'].has_object():
+                if task_name == 'deliver_onion':
+                    if not info['player'].get_object().name == 'onion':
+                        object_goals_new.append(object_goals[i])
+                        object_tasks_new.append(task)
+                elif task_name == 'deliver_soup':
+                    if not info['player'].get_object().name == 'dish':
+                        object_goals_new.append(object_goals[i])
+                        object_tasks_new.append(task)
+            else:
+                object_goals_new.append(object_goals[i])
+                object_tasks_new.append(task)
+
+        return object_goals_new, object_tasks_new
+
+    def find_task_for_object_in_field_of_view(self, player, object_goals, objects_tasks):
+        """Find which of the objects are within player's 180 degree field of view, and return the associated task"""
+        min_cost = np.Inf
+        task_to_do = None
+        for i, object_goal in enumerate(object_goals):
+            within_field_of_view = False
+
+            # Manually find if each object is within 180 degree view of player:
+            if player.orientation == (1, 0):
+                # Facing Right. So we need the object's goal location's first coordinate to be > the player's first
+                # position coordinate.
+                if object_goal[0][0] >= player.position[0]:
+                    within_field_of_view = True
+            elif player.orientation == (-1, 0):  # Facing L
+                if object_goal[0][0] <= player.position[0]:
+                    within_field_of_view = True
+            elif player.orientation == (0, 1):  # Facing D
+                if object_goal[0][1] >= player.position[1]:
+                    within_field_of_view = True
+            elif player.orientation == (0, -1):  # Facing U
+                if object_goal[0][1] <= player.position[1]:
+                    within_field_of_view = True
+            else:
+                raise ValueError("Orientation not recognised")
+
+            if within_field_of_view:
+                # Now check if the object is the closest:
+
+                cost = self.find_plan_cost_inc_inf(player.pos_and_or, object_goals[i])
+                if cost < min_cost:
+                    min_cost = cost
+                    task_to_do = objects_tasks[i]
+
+        return task_to_do
+
+    def find_objects_for_tasks(self, task_list, info):
+        """Return all objects and their "goals" for all tasks on task_list"""
+        object_goals, object_tasks = [], []
+        for task in task_list:
+            task_name = list(task.keys())[0]
+            if task_name == 'deliver_onion':
+                motion_goals = info["am"].pickup_onion_actions(info["counter_objects"])
+                for goal in motion_goals:
+                    object_goals.append(goal)
+                    object_tasks.append(task)
+            elif task_name == 'deliver_soup':
+                motion_goals = info["am"].pickup_dish_actions(info["counter_objects"])
+                for goal in motion_goals:
+                    object_goals.append(goal)
+                    object_tasks.append(task)
+            elif task_name == 'soup_from_counter':
+                motion_goals = info["am"].pickup_counter_soup_actions(info["counter_objects"])
+                for goal in motion_goals:
+                    object_goals.append(goal)
+                    object_tasks.append(task)
+            else:
+                raise ValueError("Task not recognised")
+
+        return object_goals, object_tasks
+
+    def cross_task_off_list(self, task_priority_list, task):
+        """Cross task off the task_priority list then return the amended list"""
+        for i, tasks in enumerate(task_priority_list):
+            if task in tasks:
+                task_priority_list[i].remove(task)
+                if task_priority_list[i] == []:  # If this priority task is now empty, then remove from task list:
+                    task_priority_list.remove([])
+
+                    # If this priority task is now empty, and i==0, then we can't do the top priority task:
+                    if i == 0:
+                        self.doing_lower_priority_task = True
+
+                # We want to remove the task from the list only once, so exit here:
+                return task_priority_list
+
+        return task_priority_list
+
+    def find_if_object_in_task_list(self, object, task_list):
+        """
+        Returns:    Number of times object is on the list of objects associated with a task on task_list
+                    List of tasks for which the object appears
+        """
+        tasks_with_object = []
+
+        for task in task_list:
+            task_name = list(task.keys())[0]
+            if task_name == 'deliver_onion':
+                task_objects = ['onion']
+                if object.name in task_objects:
+                    tasks_with_object.append(task)
+            elif task_name == 'deliver_soup':
+                task_objects = ['dish', 'soup']
+                if object.name in task_objects:
+                    tasks_with_object.append(task)
+            elif task_name == 'soup_from_counter':
+                task_objects = ['soup']
+                if object.name in task_objects:
+                    raise ValueError('We should never get here...')
+
+        return len(tasks_with_object), tasks_with_object
 
 
 #----------------------------------------------------------------------------------------------------------------------#
@@ -1023,7 +1455,7 @@ class ToMModel(Agent):
             # Only get the dish if the soup is nearly ready:
             if soup_nearly_ready:
 
-                default_motion_goals = am.pickup_dish_actions(state, counter_objects)  # (Exclude
+                default_motion_goals = am.pickup_dish_actions(counter_objects)  # (Exclude
                 # self.only_take_dispenser_dishes here because we are considering the goals for both players)
                 motion_goals, temp_dont_drop = self.revise_pickup_dish_goal_considering_other_player_and_noise(
                     player, default_motion_goals, other_player, state,
@@ -1034,7 +1466,7 @@ class ToMModel(Agent):
             # Otherwise get onion:
             elif not soup_nearly_ready:
 
-                default_motion_goals = am.pickup_onion_actions(state, counter_objects)  # (Exclude
+                default_motion_goals = am.pickup_onion_actions(counter_objects)  # (Exclude
                 # self.only_take_dispenser_onions here because we are considering the goals for both players)
                 motion_goals, temp_dont_drop = self.revise_pickup_onion_goal_considering_other_player_and_noise(
                     number_of_pots, player, default_motion_goals, other_player, state,
@@ -1093,26 +1525,30 @@ class ToMModel(Agent):
 
         return motion_goals
 
-
-
 #============== Sub-methods (mainly for ToMModel) ======================#
 
     def take_alternative_action(self):
-        """This first gives Prob(taking alternative action)=1 if perseverance=0 and Prob=0 if perseverance=1. Otherwise,
-        e.g. perseverance=_, num_items, _ = state.get_object(self.mlp.mdp.get_pot_locations()[0]).state
-            #current_list = full_list[num_items:number_of_tasks]
 
-        # if number_of_pots == 2:
-            #0.5, for the first timestep Prob~0.5, then Prob-->1 quickly as time increases. Then using this prob
-        it randomly determines if the player should take an alternative action"""
+        #TODO: Remove the old method once it's no longer in use:
+        # NEW METHOD:
+        if not self.use_OLD_ml_action:
+            return random.random() < self.compliance
 
-        Prob_taking_alternative = 1 - (1 / (np.exp(self.timesteps_stuck*10))) ** (1 - self.perseverance ** (1 / 10))
-        rand = random.random()
-        take_alternative = rand < Prob_taking_alternative
+        # OLD METHOD:
+        else:
+            """This first gives Prob(taking alternative action)=1 if perseverance=0 and Prob=0 if perseverance=1. Otherwise,
+                    e.g. perseverance=_, num_items, _ = state.get_object(self.mlp.mdp.get_pot_locations()[0]).state
+                        #current_list = full_list[num_items:number_of_tasks]
 
-        # logging.info('time stuck: {}, perserv: {}, Prob_taking_alt: {}, Taking alt: {}'.format(self.timesteps_stuck, self.perseverance, Prob_taking_alternative, take_alternative))
+                    # if number_of_pots == 2:
+                        #0.5, for the first timestep Prob~0.5, then Prob-->1 quickly as time increases. Then using this prob
+                    it randomly determines if the player should take an alternative action"""
 
-        return take_alternative
+            prob_taking_alternative = 1 - (1 / (np.exp(self.timesteps_stuck*10))) ** (1 - self.perseverance ** (1 / 10))
+            rand = random.random()
+            take_alternative = rand < prob_taking_alternative
+            # logging.info('time stuck: {}, perserv: {}, Prob_taking_alt: {}, Taking alt: {}'.format(self.timesteps_stuck, self.perseverance, Prob_taking_alternative, take_alternative))
+            return take_alternative
 
     def OLD_tasks_to_do(self, state):
         """
@@ -1178,11 +1614,10 @@ class ToMModel(Agent):
 
     def find_min_plan_cost_from_pos_or(self, motion_goals, pos_and_or):
         """
-        Given some motion goals, find the cost for the lowest cost goal, from pos_or to each motion_goal
+        Given some motion goals, find the cost for the lowest cost goal, from pos_and_or to each motion_goal
         """
         min_cost = np.Inf
-        best_goal = pos_and_or
-        #TODO: Check this: This is needed in case all motion_goals have inf cost, in which case we need a
+        best_goal = pos_and_or  # This is needed in case all motion_goals have inf cost, in which case we need a
         # best_goal but it doesn't matter what it is because if the cost in inf then best_goal will not be used
         if len(motion_goals) != 0:
             for goal in motion_goals:
@@ -1195,10 +1630,10 @@ class ToMModel(Agent):
         return min_cost, best_goal
 
     def find_plan(self, state, motion_goals):
-        # TODO: Needs a description!
+        """Find the lowest cost plan (best_action, best_goal, action_plan) from a set of motion_goals"""
 
         # Find valid actions:
-        valid_next_pos_and_ors = self.find_valid_next_pos_and_ors(state)
+        # valid_next_pos_and_ors = self.find_valid_next_pos_and_ors(state)
 
         start_pos_and_or = state.players_pos_and_or[self.agent_index]
         min_cost = np.Inf
@@ -1213,8 +1648,6 @@ class ToMModel(Agent):
         return best_action, best_goal, action_plan
 
     def find_valid_next_pos_and_ors(self, state):
-        # TODO: Needs a description!
-
         # Assuming the other agent doesn't move
         if self.agent_index == 0:
             joint_actions = list(itertools.product(Action.ALL_ACTIONS, [Action.STAY]))
@@ -1232,7 +1665,8 @@ class ToMModel(Agent):
         return valid_next_pos_and_ors
 
     def find_plan_from_start_pos_and_or(self, start_pos_and_or, motion_goals):
-        # TODO: Needs a description!
+        """Find the lowest cost plan from the set of motion goals from start_pos_and_or. Return the cost of the lowest
+        cost plan."""
 
         min_cost = np.Inf
         # best_action = None
@@ -1318,6 +1752,10 @@ class ToMModel(Agent):
                 if action_plan != ['interact']:
                     raise ValueError('Incorrect action plan chosen')
             chosen_action = action_plan[0]
+            if chosen_action == 'interact':
+                # If the chosen next step is to not move, then the action will be 'interact', so there's a risk of randomly
+                # dropping objects. So instead, just don't move.
+                chosen_action = (0, 0)
 
         return chosen_action, chosen_goal
 
@@ -1531,6 +1969,8 @@ class ToMModel(Agent):
         return best_action
 
     def take_alternative_action_if_stuck(self, best_action, state):
+        #TODO: Needs a description
+
         # Before setting self.prev_best_action = best_action, we need to determine if the prev_best_action was (0,0),
         # in which case the agent isn't stuck:
         if self.prev_best_action == (0, 0):
@@ -1657,9 +2097,10 @@ class ToMModel(Agent):
         return soups_need_onions, player_obj
 
     def remove_invalid_goals_and_clean_up(self, player, motion_goals, am, temp_dont_drop):
+
         # Remove invalid goals:
-        motion_goals = list(
-            filter(lambda goal: self.mlp.mp.is_valid_motion_start_goal_pair(player.pos_and_or, goal), motion_goals))
+        motion_goals = list(filter(lambda goal: self.mlp.mp.is_valid_motion_start_goal_pair(player.pos_and_or,
+                                                                                                goal), motion_goals))
 
         # If no goals, then just go to nearest feature
         if len(motion_goals) == 0:
@@ -1733,14 +2174,14 @@ class ToMModel(Agent):
             logging.info('Making the wrong decision!')
 
             if current_goal == 'dish':
-                motion_goals = am.pickup_onion_actions(state, counter_objects)
+                motion_goals = am.pickup_onion_actions(counter_objects)
             elif current_goal == 'onion':
-                motion_goals = am.pickup_dish_actions(state, counter_objects)
+                motion_goals = am.pickup_dish_actions(counter_objects)
             elif current_goal == 'soup':
                 if random.random() > 0.5:
-                    motion_goals = am.pickup_dish_actions(state, counter_objects)
+                    motion_goals = am.pickup_dish_actions(counter_objects)
                 else:
-                    motion_goals = am.pickup_onion_actions(state, counter_objects)
+                    motion_goals = am.pickup_onion_actions(counter_objects)
 
             elif current_goal == 'hold_onion':
                 if random.random() > 0.5:
@@ -1778,11 +2219,11 @@ class ToMModel(Agent):
         if random.random() > self.teamwork:
             logging.info('Overwriting motion_goal with the greedy option')
             if greedy_goal == 'pickup_dish':
-                motion_goals = am.pickup_dish_actions(state, counter_objects, self.only_take_dispenser_dishes)
+                motion_goals = am.pickup_dish_actions(counter_objects, self.only_take_dispenser_dishes)
                 motion_goals = self.sometimes_make_wrong_decision(motion_goals, state, counter_objects, am,
                                                                   current_goal='dish')
             elif greedy_goal == 'pickup_onion':
-                motion_goals = am.pickup_onion_actions(state, counter_objects, self.only_take_dispenser_onions)
+                motion_goals = am.pickup_onion_actions(counter_objects, self.only_take_dispenser_onions)
                 motion_goals = self.sometimes_make_wrong_decision(motion_goals, state, counter_objects, am,
                                                                   current_goal='onion')
             elif greedy_goal == 'drop_or_use_onion':
@@ -1844,7 +2285,7 @@ class ToMModel(Agent):
             if (not other_has_onion) and (
                     others_min_cost >= own_min_cost):  # TODO: make it random if others_min_cost = own_min_cost ?
                 logging.info('Getting an onion: assume in better position that other player')
-                motion_goals = am.pickup_onion_actions(state, counter_objects, self.only_take_dispenser_onions)
+                motion_goals = am.pickup_onion_actions(counter_objects, self.only_take_dispenser_onions)
                 motion_goals = self.sometimes_make_wrong_decision(motion_goals, state, counter_objects, am,
                                                                   current_goal='onion')
 
@@ -1855,13 +2296,13 @@ class ToMModel(Agent):
 
                 if tasks[0][1] == 'fetch_onion':  # tasks[0][1] is the next task (when there's one pot)
                     logging.info('Next task: onion')
-                    motion_goals = am.pickup_onion_actions(state, counter_objects, self.only_take_dispenser_onions)
+                    motion_goals = am.pickup_onion_actions(counter_objects, self.only_take_dispenser_onions)
                     motion_goals = self.sometimes_make_wrong_decision(motion_goals, state, counter_objects, am,
                                                                       current_goal='onion')
 
                 elif tasks[0][1] == 'fetch_dish':
                     logging.info('Next task: dish')
-                    motion_goals = am.pickup_dish_actions(state, counter_objects, self.only_take_dispenser_dishes)
+                    motion_goals = am.pickup_dish_actions(counter_objects, self.only_take_dispenser_dishes)
                     motion_goals = self.sometimes_make_wrong_decision(motion_goals, state, counter_objects, am,
                                                                       current_goal='dish')
                     logging.info('Dish shouldnt be dropped, so set temp_dont_drop = True')
@@ -1869,7 +2310,7 @@ class ToMModel(Agent):
 
         elif number_of_pots == 2:
             # Get an onion regardless: there's always a pot needing an onion (because 'not soup_nearly_ready')
-            motion_goals = am.pickup_onion_actions(state, counter_objects, self.only_take_dispenser_onions)
+            motion_goals = am.pickup_onion_actions(counter_objects, self.only_take_dispenser_onions)
             motion_goals = self.sometimes_make_wrong_decision(motion_goals, state, counter_objects, am,
                                                               current_goal='onion')
         else:
@@ -1890,7 +2331,7 @@ class ToMModel(Agent):
         if (not other_has_dish) and (others_min_cost >= own_min_cost):
 
             logging.info('Getting the dish: assume in better position that other player')
-            motion_goals = am.pickup_dish_actions(state, counter_objects, self.only_take_dispenser_dishes)
+            motion_goals = am.pickup_dish_actions(counter_objects, self.only_take_dispenser_dishes)
             motion_goals = self.sometimes_make_wrong_decision(motion_goals, state, counter_objects, am,
                                                               current_goal='dish')
 
@@ -1906,7 +2347,7 @@ class ToMModel(Agent):
             if number_of_pots == 1:
                 # Next task will always be onion
                 logging.info('Next task: onion')
-                motion_goals = am.pickup_onion_actions(state, counter_objects, self.only_take_dispenser_onions)
+                motion_goals = am.pickup_onion_actions(counter_objects, self.only_take_dispenser_onions)
                 motion_goals = self.sometimes_make_wrong_decision(motion_goals, state, counter_objects, am,
                                                                   current_goal='onion')
                 logging.info('Onion shouldnt be dropped, so set temp_dont_drop = True')
@@ -1917,14 +2358,14 @@ class ToMModel(Agent):
                 if (tasks[0][0] == 'fetch_onion') or (tasks[1][0] == 'fetch_onion'):
                     logging.info('Next task: onion')
                     # Next task will be onion
-                    motion_goals = am.pickup_onion_actions(state, counter_objects, self.only_take_dispenser_onions)
+                    motion_goals = am.pickup_onion_actions(counter_objects, self.only_take_dispenser_onions)
                     motion_goals = self.sometimes_make_wrong_decision(motion_goals, state, counter_objects, am,
                                                                       current_goal='onion')
 
                 elif (tasks[0][0] == 'fetch_dish') and (tasks[1][0] == 'fetch_dish'):
                     logging.info('Next task: dish')
                     # Next task will be dish
-                    motion_goals = am.pickup_dish_actions(state, counter_objects, self.only_take_dispenser_dishes)
+                    motion_goals = am.pickup_dish_actions(counter_objects, self.only_take_dispenser_dishes)
                     motion_goals = self.sometimes_make_wrong_decision(motion_goals, state, counter_objects, am,
                                                                       current_goal='dish')
                 else:
@@ -1939,7 +2380,7 @@ class ToMModel(Agent):
         # strictly) closer"""
         if 'soup' in counter_objects:
 
-            default_motion_goals = am.pickup_counter_soup_actions(state, counter_objects)
+            default_motion_goals = am.pickup_counter_soup_actions(counter_objects)
             own_min_cost, others_min_cost = self.find_min_cost_of_achieving_goal(player, default_motion_goals,
                                                                                  other_player, state)
             if others_min_cost >= own_min_cost:
@@ -2285,7 +2726,7 @@ class ToMModel(Agent):
 #
 #                 """Get the dish... unless other player is better placed"""
 #
-#                 default_motion_goals = am.pickup_dish_actions(state, counter_objects)
+#                 default_motion_goals = am.pickup_dish_actions(counter_objects)
 #
 #                 # Remove invalid goals:
 #                 own_motion_goals = list(filter(lambda goal: self.mlp.mp.is_valid_motion_start_goal_pair(player.pos_and_or, goal), default_motion_goals))
@@ -2317,7 +2758,7 @@ class ToMModel(Agent):
 #                     if number_of_pots == 1:
 #                         # Next task will always be onion
 #                         logging.info('Next task: onion')
-#                         motion_goals = am.pickup_onion_actions(state, counter_objects)
+#                         motion_goals = am.pickup_onion_actions(counter_objects)
 #
 #                         logging.info('Onion shouldnt be dropped, so set temp_dont_drop = True')
 #                         temp_dont_drop = True
@@ -2328,13 +2769,13 @@ class ToMModel(Agent):
 #
 #                             logging.info('Next task: onion')
 #                             # Next task will be onion
-#                             motion_goals = am.pickup_onion_actions(state, counter_objects)
+#                             motion_goals = am.pickup_onion_actions(counter_objects)
 #
 #                         elif (tasks[0][0] == 'fetch_dish') and (tasks[1][0] == 'fetch_dish'):
 #
 #                             logging.info('Next task: dish')
 #                             # Next task will be dish
-#                             motion_goals = am.pickup_dish_actions(state, counter_objects)
+#                             motion_goals = am.pickup_dish_actions(counter_objects)
 #
 #                         else:
 #                             raise ValueError('Failed logic')
@@ -2354,7 +2795,7 @@ class ToMModel(Agent):
 #                 """If there are two pots, then we can only get inside this 'if' when both pots have onion first on the list
 #                 of tasks, so we can always get an onion! For 1 pot then just look what's next on the list"""
 #
-#                 default_motion_goals = am.pickup_onion_actions(state, counter_objects)
+#                 default_motion_goals = am.pickup_onion_actions(counter_objects)
 #
 #                 # ASSUMING TWO POTS MAX THROUGHOUT
 #                 if number_of_pots == 1:
@@ -2388,11 +2829,11 @@ class ToMModel(Agent):
 #
 #                         if tasks[0][1] == 'fetch_onion':  # tasks[0][1] is the next task (when there's one pot)
 #                             logging.info('Next task: onion')
-#                             motion_goals = am.pickup_onion_actions(state, counter_objects)
+#                             motion_goals = am.pickup_onion_actions(counter_objects)
 #
 #                         elif tasks[0][1] == 'fetch_dish':
 #                             logging.info('Next task: dish')
-#                             motion_goals = am.pickup_onion_actions(state, counter_objects)
+#                             motion_goals = am.pickup_onion_actions(counter_objects)
 #
 #                             logging.info('Dish shouldnt be dropped, so set temp_dont_drop = True')
 #                             temp_dont_drop = True
@@ -2416,7 +2857,7 @@ class ToMModel(Agent):
 #             # UNLESS other player (strictly) is closer
 #             if 'soup' in counter_objects:
 #
-#                 default_motion_goals = am.pickup_counter_soup_actions(state, counter_objects)
+#                 default_motion_goals = am.pickup_counter_soup_actions(counter_objects)
 #
 #                 # Remove invalid goals of getting an onion:
 #                 own_motion_goals = list(
@@ -2618,22 +3059,22 @@ class ToMModel(Agent):
 #         # if not player.has_object():
 #         #
 #         #     if soup_nearly_ready:  # PK removed "and not other_has_dish"
-#         #         motion_goals = am.pickup_dish_actions(state, counter_objects)
+#         #         motion_goals = am.pickup_dish_actions(counter_objects)
 #         #     else:
 #         #         next_order = None
 #         #         if len(state.order_list) > 1:
 #         #             next_order = state.order_list[1]
 #         #
 #         #         if next_order == 'onion':
-#         #             motion_goals = am.pickup_onion_actions(state, counter_objects)
+#         #             motion_goals = am.pickup_onion_actions(counter_objects)
 #         #         elif next_order == 'tomato':
-#         #             motion_goals = am.pickup_tomato_actions(state, counter_objects)
+#         #             motion_goals = am.pickup_tomato_actions(counter_objects)
 #         #         elif next_order is None or next_order == 'any':
-#         #             motion_goals = am.pickup_onion_actions(state, counter_objects) + am.pickup_tomato_actions(state, counter_objects)
+#         #             motion_goals = am.pickup_onion_actions(counter_objects) + am.pickup_tomato_actions(counter_objects)
 #
 #             # # If there's a soup on the counter, then override other goals and get the soup
 #             # if 'soup' in counter_objects:
-#             #     motion_goals = am.pickup_counter_soup_actions(state, counter_objects)
+#             #     motion_goals = am.pickup_counter_soup_actions(counter_objects)
 #
 #         # else:
 #         #

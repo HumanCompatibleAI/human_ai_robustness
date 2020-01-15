@@ -31,8 +31,8 @@ def make_agent_pair(mlp):
     # retain_goals0 = random.random()
     retain_goals0 = 0.9
     # wrong_decisions0 = random.random()**30
-    wrong_decisions0 = 0
-    wrong_decisions1 = 0.5
+    wrong_decisions0 = 0.2
+    wrong_decisions1 = 0.2
     # thinking_prob0 = 1 - random.random()**30
     thinking_prob0 = 1
     # path_teamwork0 = 1 - random.random()**2
@@ -87,7 +87,7 @@ if __name__ == "__main__" :
 
     DISPLAY = True
     start_order_list = ["any"]*20
-    horizon = 2000
+    horizon = 400
     explosion_time = 500
     r_shaping = 0
     cook_time = 5
@@ -137,6 +137,7 @@ if __name__ == "__main__" :
     # Doing this means that all counter locations are allowed to have objects dropped on them AND be "goals" (I think!)
     no_counters_params['counter_drop'] = mdp.get_counter_locations()
     no_counters_params['counter_goals'] = mdp.get_counter_locations()
+
 
     mlp = MediumLevelPlanner.from_pickle_or_compute(mdp, no_counters_params, force_compute=False)
 

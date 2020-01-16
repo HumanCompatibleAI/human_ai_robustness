@@ -257,9 +257,9 @@ class ToMModel(Agent):
     """
 
     def __init__(self, mlp, player_index,
-                 perseverance=0.5, teamwork=0.8, retain_goals=0.8, wrong_decisions=0.02, thinking_prob=0.8,
+                 compliance=0.5, teamwork=0.8, retain_goals=0.8, wrong_decisions=0.02, prob_thinking_not_moving=0.2,
                  path_teamwork=0.8, rationality_coefficient=3, prob_pausing=0.5, use_OLD_ml_action=True,
-                 personality_type=[0.25,0.25,0.25,0.25], look_ahead_steps=4):
+                 personality_type=[0,0,1,0], look_ahead_steps=4):
         self.mlp = mlp
         self.agent_index = player_index
         self.mdp = self.mlp.mdp
@@ -279,17 +279,17 @@ class ToMModel(Agent):
         ## "Personality" parameters ##
 
         # Motion-level parmas:
+        self.compliance = compliance  # compliance = 0 means it always tries to go where it wants, even when stuck
         #TODO: Remove perseverance once I stop using the old fitted params:
-        self.perseverance = perseverance  # perseverance = 1 means the agent always tries to go where it want to do, even when it's stuck
-        self.compliance = 1 - self.perseverance
+        self.perseverance = 1 - self.compliance
         self.path_teamwork = path_teamwork  # Prob of considering the other agent's location in the path choice
         self.rationality_coefficient = rationality_coefficient  # Setting to 0 means random actions; inf means always takes
-        # lowest cost path. In practice inf ~ 100
+        # lowest cost path. In practice choose 20 for fully rational (if it's too large, e.g. 100, we get rounding errors)
         self.prob_pausing = prob_pausing # Probability of pausing on a given timestep, instead of acting. From a
         # quick initial look at the human data, the humans pause very approx 50% of the time
-        self.thinking_prob = thinking_prob  # After achieving a goal (e.g. fetching onion) the agent waits to "think".
-        # thinking_prob is the probability (p) of moving on during this "thinking time". Expected value of a geometrically
-        # distributed random variable is 1/p, so set p to e.g. 0.25?
+        self.prob_thinking_not_moving = prob_thinking_not_moving  # After achieving a goal (e.g. fetching onion) the agent
+        # waits to "think". self.prob_thinking_not_moving is the probability of thinking instead of moving on
+        # during this "thinking time". PARAM HAS CHANGED: prob_thinking_not_moving = 1 - thinking_prob
 
         # Higher level strategy:
         self.retain_goals = retain_goals  # Prob of keeping the previous goal each timestep (rather than re-calculating)
@@ -456,7 +456,7 @@ class ToMModel(Agent):
                 logging.info('Getting a new motion goal...')
 
                 if (self.prev_best_action == 'interact' or self.prev_best_action == (0,0)) \
-                        and (random.random() > self.thinking_prob):
+                        and (random.random() < self.prob_thinking_not_moving):
 
                     logging.info('Agent is pausing to "think"...')
                     best_action = (0,0)

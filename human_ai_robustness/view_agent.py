@@ -24,32 +24,24 @@ from overcooked_ai_py.agents.benchmarking import AgentEvaluator
 
 def make_agent_pair(mlp):
     # Make agents:
-    # perseverance0 = random.random()
-    perseverance0 = 0.5
-    # teamwork0 = random.random()
-    teamwork0 = 0.5
-    # retain_goals0 = random.random()
+    prob_thinking_not_moving0 = 0
     retain_goals0 = 0.9
-    # wrong_decisions0 = random.random()**30
-    wrong_decisions0 = 0.2
-    wrong_decisions1 = 0.2
-    # thinking_prob0 = 1 - random.random()**30
-    thinking_prob0 = 1
-    # path_teamwork0 = 1 - random.random()**2
-    path_teamwork0 = 0.5
-    # rat_coeff0 = 2+random.random()*8
-    rat_coeff0 = 3
+    path_teamwork0 = 1
+    rat_coeff0 = 20
     prob_pausing0 = 0
-    a0 = ToMModel(mlp, player_index=0, perseverance=perseverance0, teamwork=teamwork0,
-                  retain_goals=retain_goals0, wrong_decisions=wrong_decisions0,
-                  thinking_prob=thinking_prob0, prob_pausing=prob_pausing0,
-                  path_teamwork=path_teamwork0, rationality_coefficient=rat_coeff0)
-    a1 = ToMModel(mlp, player_index=1, perseverance=perseverance0, teamwork=teamwork0,
-                  retain_goals=retain_goals0, wrong_decisions=wrong_decisions1,
-                  thinking_prob=thinking_prob0, prob_pausing=prob_pausing0,
-                  path_teamwork=path_teamwork0, rationality_coefficient=rat_coeff0)
+    compliance0 = 0.5
+    personality_type0 = [0, 0, 1, 0]
+    look_ahead_steps0 = 4
+    a0 = ToMModel(mlp, player_index=0, compliance=compliance0, retain_goals=retain_goals0,
+                  prob_thinking_not_moving=prob_thinking_not_moving0, prob_pausing=prob_pausing0,
+                  path_teamwork=path_teamwork0, rationality_coefficient=rat_coeff0,
+                  personality_type=personality_type0, look_ahead_steps=look_ahead_steps0)
+    a1 = ToMModel(mlp, player_index=1, compliance=compliance0, retain_goals=retain_goals0,
+                  prob_thinking_not_moving=prob_thinking_not_moving0, prob_pausing=prob_pausing0,
+                  path_teamwork=path_teamwork0, rationality_coefficient=rat_coeff0,
+                  personality_type=personality_type0, look_ahead_steps=look_ahead_steps0)
     a0.use_OLD_ml_action = False
-    a1.use_OLD_ml_action = True
+    a1.use_OLD_ml_action = False
     # a0 = ToMModel(mlp, player_index=0, perseverance=0.9, teamwork=1, retain_goals=0.9,
     #                                  wrong_decisions=0.02, thinking_prob=1, path_teamwork=1, rationality_coefficient=2)
     # a1 = GreedyHumanModel_pk(mlp, player_index=0, perseverance=0.8)

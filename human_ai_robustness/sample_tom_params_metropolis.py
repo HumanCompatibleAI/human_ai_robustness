@@ -457,7 +457,7 @@ def acceptance_function(initial_log_prob, candidate_log_prob):
     """Determine if we are to accept or reject the new candidate params; if we accept then set params[
     'PERSON_PARAMS_TOM'] to the new params"""
     acceptance_ratio = np.exp(candidate_log_prob - initial_log_prob)
-    print('acceptance_ratio: {}'.format(acceptance_ratio))
+    logging.info('acceptance_ratio: {}'.format(acceptance_ratio))
     if np.random.rand() <= acceptance_ratio:
         for i, pparam in enumerate(params['PERSON_PARAMS_TOM']):
             params['PERSON_PARAMS_TOM'][pparam] = params['PERSON_PARAMS_TOMeps'][pparam + 'eps']
@@ -488,8 +488,8 @@ def generate_candidate_params(params, epsilon_sd, step_size):
             new_param = convert_back_from_logit(new_param_logit, pparam)
             person_params_tom_eps[pparam + 'eps'] = new_param
 
-    print('Old params: {}'.format(person_params_tom))
-    print('New params: {}'.format(person_params_tom_eps))
+    logging.info('Old params: {}'.format(person_params_tom))
+    logging.info('New params: {}'.format(person_params_tom_eps))
 
 def convert_to_logit(param_value, pparam):
     """First convert any parameters that aren't probs to probs; then convert to logit"""
@@ -525,14 +525,14 @@ def pick_random_step(epsilon_sd, params, base_leaning_rate):
     # Turn into random unit vector:
     if params["ensure_random_direction"]:
 
-        print('Unnormed length = {}'.format(np.sqrt(sum(epsilon ** 2))))
+        logging.info('Unnormed length = {}'.format(np.sqrt(sum(epsilon ** 2))))
 
         # Make random vector from Gaussian sd=1
         random_gauss_vect = np.random.normal(scale=1, size=len(params['PERSON_PARAMS_TOM']))
         length = np.sqrt(sum(random_gauss_vect ** 2))
         unit_vect = random_gauss_vect / length
         epsilon = step_size * unit_vect
-        print('ep final length = {}'.format(np.sqrt(sum(epsilon ** 2))))
+        logging.info('ep final length = {}'.format(np.sqrt(sum(epsilon ** 2))))
 
     return epsilon
 

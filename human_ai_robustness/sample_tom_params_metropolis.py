@@ -2,9 +2,9 @@ import time
 from argparse import ArgumentParser
 from human_ai_coord.human_aware_rl.human.process_dataframes import get_trajs_from_data
 from human_ai_robustness.pbt_hms import ToMAgent
-from overcooked_ai_py.mdp.overcooked_mdp import OvercookedGridworld
+from human_ai_coord.overcooked_ai.overcooked_ai_py.mdp.overcooked_mdp import OvercookedGridworld
 from human_ai_robustness.agent import GreedyHumanModel_pk
-from overcooked_ai_py.planning.planners import MediumLevelPlanner
+from human_ai_coord.overcooked_ai.overcooked_ai_py.planning.planners import MediumLevelPlanner
 import logging
 import numpy as np
 from collections import Counter

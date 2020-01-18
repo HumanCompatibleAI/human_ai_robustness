@@ -30,16 +30,19 @@ def make_agent_pair(mlp):
     rat_coeff0 = 20
     prob_pausing0 = 0
     compliance0 = 0.5
-    personality_type0 = [0, 0, 1, 0]
+    prob_greedy0 = 0
+    prob_obs_other0 = 0
     look_ahead_steps0 = 4
-    a0 = ToMModel(mlp, player_index=0, compliance=compliance0, retain_goals=retain_goals0,
+    a0 = ToMModel(mlp, compliance=compliance0, retain_goals=retain_goals0,
                   prob_thinking_not_moving=prob_thinking_not_moving0, prob_pausing=prob_pausing0,
                   path_teamwork=path_teamwork0, rationality_coefficient=rat_coeff0,
-                  personality_type=personality_type0, look_ahead_steps=look_ahead_steps0)
-    a1 = ToMModel(mlp, player_index=1, compliance=compliance0, retain_goals=retain_goals0,
+                  prob_greedy=prob_greedy0, prob_obs_other=prob_obs_other0, look_ahead_steps=look_ahead_steps0)
+    a0.set_agent_index(0)
+    a1 = ToMModel(mlp, compliance=compliance0, retain_goals=retain_goals0,
                   prob_thinking_not_moving=prob_thinking_not_moving0, prob_pausing=prob_pausing0,
                   path_teamwork=path_teamwork0, rationality_coefficient=rat_coeff0,
-                  personality_type=personality_type0, look_ahead_steps=look_ahead_steps0)
+                  prob_greedy=prob_greedy0, prob_obs_other=prob_obs_other0, look_ahead_steps=look_ahead_steps0)
+    a1.set_agent_index(1)
     a0.use_OLD_ml_action = False
     a1.use_OLD_ml_action = False
     # a0 = ToMModel(mlp, player_index=0, perseverance=0.9, teamwork=1, retain_goals=0.9,

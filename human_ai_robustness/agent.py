@@ -30,13 +30,16 @@ class GreedyHumanModel_pk(Agent):
 
     """
 
-    def __init__(self, mlp, player_index, perseverance=0.5):
+    def __init__(self, mlp, perseverance=0.5):
         self.mlp = mlp
-        self.agent_index = player_index
         self.mdp = self.mlp.mdp
         self.prev_state = None
         self.timesteps_stuck = 0  # Count how many times there's a clash with the other player
         self.perseverance = perseverance
+
+    def reset(self):
+        self.timesteps_stuck = 0
+        self.prev_state = None
 
     def action(self, state):
         motion_goals = self.ml_action(state)
@@ -256,28 +259,17 @@ class ToMModel(Agent):
     - Take a sub-optimal first action with Boltzmann rational probability
     """
 
-    def __init__(self, mlp, player_index,
+    def __init__(self, mlp,
                  compliance=0.5, teamwork=0.8, retain_goals=0.8, wrong_decisions=0.02, prob_thinking_not_moving=0.2,
-                 path_teamwork=0.8, rationality_coefficient=3, prob_pausing=0.5, use_OLD_ml_action=True,
-                 personality_type=[0,0,1,0], look_ahead_steps=4):
+                 path_teamwork=0.8, rationality_coefficient=3, prob_pausing=0.5, use_OLD_ml_action=False,
+                 prob_greedy=0, prob_obs_other=0, look_ahead_steps=4):
         self.mlp = mlp
-        self.agent_index = player_index
         self.mdp = self.mlp.mdp
-
-        self.prev_state = None
-        self.timesteps_stuck = 0  # Count how many times there's a clash with the other player
-        self.dont_drop = False
-        self.prev_motion_goal = None
-        self.prev_best_action = None
-        self.only_take_dispenser_onions = False  # Only used for layout Forced Coordination: when an onion is
-        # deliberately dropped on a shared counter, then from then on only take onions from the dispenser
-        self.only_take_dispenser_dishes = False  # Ditto
-
-        self.GHM = GreedyHumanModel_pk(self.mlp, player_index=1 - self.agent_index)  # For ToM of other players
+        self.GHM = GreedyHumanModel_pk(self.mlp)  # For ToM of other players
+        self.reset()
         self.human_model = True
 
         ## "Personality" parameters ##
-
         # Motion-level parmas:
         self.compliance = compliance  # compliance = 0 means it always tries to go where it wants, even when stuck
         #TODO: Remove perseverance once I stop using the old fitted params:
@@ -291,9 +283,10 @@ class ToMModel(Agent):
         # waits to "think". self.prob_thinking_not_moving is the probability of thinking instead of moving on
         # during this "thinking time". PARAM HAS CHANGED: prob_thinking_not_moving = 1 - thinking_prob
 
-        # Higher level strategy:
+        # Higher level strategy:  (Note: prob_greedy and prob_obs_other will be converted into personality types A-D)
         self.retain_goals = retain_goals  # Prob of keeping the previous goal each timestep (rather than re-calculating)
-        self.personality_type = personality_type  # Probability vector of the probability of being type A, B, C, D
+        self.prob_greedy = prob_greedy  # Prob of having greedy personality type (as opposed to finding team strategies)
+        self.prob_obs_other = prob_obs_other  # Prob of factoring in the other's likely goals during decision making
         self.look_ahead_steps = look_ahead_steps  # How many steps to look ahead when planning. Choose 2 or 4 (1
         # makes A=C, 3~2, and >4 pointless? Should be >1 (required by function remove_others_current_task_from_list)
 
@@ -304,6 +297,10 @@ class ToMModel(Agent):
         self.teamwork = teamwork  # teamwork = 0 should make this agent similar to GreedyHuman
         self.use_OLD_ml_action = use_OLD_ml_action
 
+    def set_agent_index(self, agent_index):
+        super().set_agent_index(agent_index)
+        self.GHM.set_agent_index(1 - agent_index)
+
     def reset(self):
         # Reset agent -- wipe it's history
         self.prev_state = None
@@ -313,8 +310,7 @@ class ToMModel(Agent):
         self.prev_best_action = None
         self.only_take_dispenser_onions = False
         self.only_take_dispenser_dishes = False
-        self.GHM.timesteps_stuck = 0
-        self.GHM.prev_state = None
+        self.GHM.reset()
 
     def randomly_set_tom_params(self, num_toms, other_agent_idx, tom_params):
         """
@@ -437,6 +433,9 @@ class ToMModel(Agent):
 
         return run_info
 
+    #TODO: Perhaps add a function to output a prob dist over actions (i.e. move the code from fit_TOMs_to_data --
+    # although we can't directly use that code because that has a pop of parallel agents, to respect the different
+    # distories that might have arisen!)
     def action(self, state):
 
         self.display_game_during_training(state)
@@ -519,7 +518,11 @@ class ToMModel(Agent):
             motion_goals = info['am'].deliver_soup_actions()
 
         else:
-            # Choose which personality type to use; then choose motion_goals
+            # Construct probabilities of being one of the four personality type, A-D:
+            self.personality_type = [self.prob_greedy*(1-self.prob_obs_other),
+                                     self.prob_greedy*self.prob_obs_other,
+                                     (1-self.prob_greedy)*(1-self.prob_obs_other),
+                                     (1-self.prob_greedy)*self.prob_obs_other]
             personality_type_to_use = np.random.choice(['A', 'B', 'C', 'D'], 1, p=self.personality_type)
             #TODO: Make this into a helper function, or just find a more elegant way to do this!:
             if personality_type_to_use == 'A':
@@ -558,7 +561,7 @@ class ToMModel(Agent):
                     self.calculate_next_priority_tasks(sim_pot_states_dict, sim_counter_objects)
             task_priority_list.append(tasks_this_priority)
 
-        print('Task list: ', task_priority_list)
+        logging.info('Task list: ', task_priority_list)
         return task_priority_list
 
     def calculate_next_priority_tasks(self, sim_pot_states_dict, sim_counter_objects):
@@ -689,9 +692,9 @@ class ToMModel(Agent):
         """This agent does the first task on the list, regardless of what the other agent is doing"""
         tasks_to_do = task_priority_list[0]  # This could be a list of several tasks
         task_to_do = self.find_lowest_cost_task(tasks_to_do, info, state)
-        print('Chosen task to do: {}'.format(task_to_do))
+        logging.info('Chosen task to do: {}'.format(task_to_do))
         motion_goals = self.find_motion_goals_for_task(state, info, task_to_do)
-        print('Chosen motion_goals (agent type A): {}'.format(motion_goals))
+        logging.info('Chosen motion_goals (agent type A): {}'.format(motion_goals))
 
         return motion_goals
 
@@ -701,14 +704,14 @@ class ToMModel(Agent):
         # If other player has soup, then just assume they are delivering it, and leave the task list unchanged
         if not (info['other_player'].has_object() and info['other_player'].get_object().name == 'soup'):
             task_priority_list, _ = self.remove_others_current_task_from_list(task_priority_list, info, state)
-            print('Revised task priority list: {}'.format(task_priority_list))
+            logging.info('Revised task priority list: {}'.format(task_priority_list))
 
         # Now we have a revised task list, do the greedy action:
         tasks_to_do = task_priority_list[0]  # This could be a list of several tasks
         task_to_do = self.find_lowest_cost_task(tasks_to_do, info, state)
-        print('Chosen task to do: {}'.format(task_to_do))
+        logging.info('Chosen task to do: {}'.format(task_to_do))
         motion_goals = self.find_motion_goals_for_task(state, info, task_to_do)
-        print('Chosen motion_goals (agent type B): {}'.format(motion_goals))
+        logging.info('Chosen motion_goals (agent type B): {}'.format(motion_goals))
 
         return motion_goals
 
@@ -733,7 +736,7 @@ class ToMModel(Agent):
                                                                 others_cost, others_sim_pos_and_or,
                                                                 others_sim_held_object, sim_counter_objects)
 
-        print('Chosen motion_goals (agent type C): {}'.format(motion_goals))
+        logging.info('Chosen motion_goals (agent type C): {}'.format(motion_goals))
         return motion_goals
 
     def choose_goals_type_D(self, state, task_priority_list, info, look_ahead_steps):
@@ -743,7 +746,7 @@ class ToMModel(Agent):
 
         task_priority_list, task_removed = self.remove_others_current_task_from_list(task_priority_list, info, state,
                                                                                      look_ahead_steps=look_ahead_steps)
-        print('Task removed: {}; Revised task priority list: {}'.format(task_removed, task_priority_list))
+        logging.info('Task removed: {}; Revised task priority list: {}'.format(task_removed, task_priority_list))
 
         if task_removed is not None:
             # Find min cost and final pos_or of other agent doing the task_removed:
@@ -763,7 +766,7 @@ class ToMModel(Agent):
         motion_goals =  self.find_motion_goal_for_best_team_strategy(task_priority_list, info, state, look_ahead_steps,
                                     others_cost, others_sim_pos_and_or, others_sim_held_object, sim_counter_objects)
 
-        print('Chosen motion_goals (agent type D): {}'.format(motion_goals))
+        logging.info('Chosen motion_goals (agent type D): {}'.format(motion_goals))
         return motion_goals
 
     def find_motion_goal_for_best_team_strategy(self, task_priority_list, info, state, look_ahead_steps,
@@ -802,7 +805,7 @@ class ToMModel(Agent):
             if own_min_cost <= others_total_cost:
                 if i > 0:
                     self.doing_lower_priority_task = True
-                print('Chosen task to do: {} (task #{})'.format(own_task, i))
+                logging.info('Chosen task to do: {} (task #{})'.format(own_task, i))
                 return self.find_motion_goals_for_task(state, info, own_task)
 
         # If the other player always has a lower cost, then motion_goals=[]:
@@ -962,7 +965,7 @@ class ToMModel(Agent):
 
     def move_adjacent_to_goal(self, motion_goals):
         """Instead of moving to the motion_goals, move to an adjacent location"""
-        print("Other is doing the 1st task on the list, so we're heading NEXT to the motion_goal, so we don't obstruct")
+        logging.info("Other is doing the 1st task on the list, so we're heading NEXT to the motion_goal, so we don't obstruct")
         list_of_lists = [self.mlp.mp._get_possible_motion_goals_for_feature(goal[0]) for goal in motion_goals]
         adjacent_goals = [item for sublist in list_of_lists for item in sublist]
         return adjacent_goals
@@ -1284,17 +1287,17 @@ class ToMModel(Agent):
                                                                                          task_priority_list[0])
         if count_object_first_on_list == 0:
             # The object held by the other player is not first on the list, so we can just keep the list as it is.
-            print("The object held by the other player is not first on the list, so we can just keep the list as it is")
+            logging.info("The object held by the other player is not first on the list, so we can just keep the list as it is")
             return task_priority_list
 
         elif count_object_first_on_list == 1:
             # Assume other agent is doing this task, so cross it off the list
-            print("Assume other agent is doing the 1st task on list, so cross it off the list")
+            logging.info("Assume other agent is doing the 1st task on list, so cross it off the list")
             return self.cross_task_off_list(task_priority_list, tasks_with_object[0])
 
         elif count_object_first_on_list == 2:
             # Find which task in tasks_with_object has a lower cost
-            print("2 options for which task other could be doing: cross their lowest cost one off the list")
+            logging.info("2 options for which task other could be doing: cross their lowest cost one off the list")
             lowest_cost_task = self.find_lowest_cost_task(tasks_with_object, info, state, find_own_cost=False)
             return self.cross_task_off_list(task_priority_list, lowest_cost_task)
 
@@ -1931,7 +1934,7 @@ class ToMModel(Agent):
             self.display
             overcooked_env = OvercookedEnv(self.mdp)
             overcooked_env.state = state
-            print('TRAINING GAME WITH HM. HM index: {}'.format(self.agent_index))
+            print('TRAINING GAME WITH TOM. TOM index: {}'.format(self.agent_index))
             print(overcooked_env)
         except:
             AttributeError  # self.display = False

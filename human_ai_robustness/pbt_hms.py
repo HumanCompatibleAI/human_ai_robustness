@@ -29,7 +29,6 @@ from human_aware_rl.baselines_utils import create_model, get_vectorized_gym_env,
 from human_ai_robustness.human_ai_robustness_utils import LinearAnnealerZeroToOne
 from human_aware_rl.imitation.behavioural_cloning import get_bc_agent_from_saved
 from human_ai_robustness.import_person_params import import_person_params
-from human_aware_rl.utils import convert_layout_names_if_required
 
 # Suppress warnings:
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'  # This surpresses tf errors, mainly this one was getting in the way: (E
@@ -40,35 +39,43 @@ os.environ['KMP_WARNINGS'] = 'off'  # This is meant to suppress the "OMP: Info #
 
 
 class ToMAgent(object):
-    """A human-model agent. This class should mimic the necessary parts of PPOAgent."""
+    """A theory-of-mind-model agent. This class should mimic the necessary parts of PPOAgent."""
 
-    def __init__(self, start_params, hm_number, player_index=99, agent_name=None):
+    def __init__(self, start_params, player_index, tom_number, agent_name=None):
         self.params = start_params
         self.agent_name = agent_name
         self.player_index = player_index
-        self.hm_number = hm_number  # Give each HM a unique number, so that the personality parameters can be extracted
+        self.tom_number = tom_number  # Give each TOM a unique number, so that the personality parameters can be extracted
         self.human_model = True
         # from params
         # self.logs = start_logs if start_logs is not None else {...}  # We don't need logs for the human models?
 
         # Personality parameters: (See agent.py for definitions)
-        self.perseverance = self.params['PERSON_PARAMS_HM{}'.format(hm_number)]['PERSEVERANCE_HM{}'.format(hm_number)]
-        self.teamwork = self.params['PERSON_PARAMS_HM{}'.format(hm_number)]['TEAMWORK_HM{}'.format(hm_number)]
-        self.retain_goals = self.params['PERSON_PARAMS_HM{}'.format(hm_number)]['RETAIN_GOALS_HM{}'.format(hm_number)]
-        self.wrong_decisions = self.params['PERSON_PARAMS_HM{}'.format(hm_number)][
-            'WRONG_DECISIONS_HM{}'.format(hm_number)]
-        self.thinking_prob = self.params['PERSON_PARAMS_HM{}'.format(hm_number)]['THINKING_PROB_HM{}'.format(hm_number)]
-        self.path_teamwork = self.params['PERSON_PARAMS_HM{}'.format(hm_number)]['PATH_TEAMWORK_HM{}'.format(hm_number)]
-        self.rationality_coeff = self.params['PERSON_PARAMS_HM{}'.format(hm_number)][
-            'RATIONALITY_COEFF_HM{}'.format(hm_number)]
-        self.prob_pausing = self.params['PERSON_PARAMS_HM{}'.format(hm_number)]['PROB_PAUSING_HM{}'.format(hm_number)]
+        self.compliance = self.params['PERSON_PARAMS_TOM{}'.format(tom_number)]['COMPLIANCE_TOM{}'.format(tom_number)]
+        self.retain_goals = self.params['PERSON_PARAMS_TOM{}'.format(tom_number)]['RETAIN_GOALS_TOM{}'.format(tom_number)]
+        self.prob_thinking_not_moving = self.params['PERSON_PARAMS_TOM{}'.format(tom_number)]['PROB_THINK_TOM{}'.format(tom_number)]
+        self.path_teamwork = self.params['PERSON_PARAMS_TOM{}'.format(tom_number)]['PATH_TEAMWORK_TOM{}'.format(tom_number)]
+        self.rationality_coeff = self.params['PERSON_PARAMS_TOM{}'.format(tom_number)]['RAT_COEFF_TOM{}'.format(tom_number)]
+        self.prob_pausing = self.params['PERSON_PARAMS_TOM{}'.format(tom_number)]['PROB_PAUSING_TOM{}'.format(tom_number)]
+
+        self.prob_greedy = self.params['PERSON_PARAMS_TOM{}'.format(tom_number)]['PROB_GREEDY_TOM{}'.format(tom_number)]
+        self.prob_obs_other = self.params['PERSON_PARAMS_TOM{}'.format(tom_number)]['PROB_OBS_OTHER_TOM{}'.format(tom_number)]
+        self.look_ahead_steps = self.params['PERSON_PARAMS_TOM{}'.format(tom_number)]['LOOK_AHEAD_STEPS_TOM{}'.format(tom_number)]
+
+        # Old params, not currently used:
+        # self.wrong_decisions = self.params['PERSON_PARAMS_TOM{}'.format(tom_number)][
+        #     'WRONG_DECISIONS_TOM{}'.format(tom_number)]
+        # self.teamwork = self.params['PERSON_PARAMS_TOM{}'.format(tom_number)]['TEAMWORK_TOM{}'.format(tom_number)]
+
 
     def get_agent(self, mlp):
-        return ToMModel(mlp=mlp, player_index=self.player_index, perseverance=self.perseverance,
-                        teamwork=self.teamwork, retain_goals=self.retain_goals,
-                        wrong_decisions=self.wrong_decisions, thinking_prob=self.thinking_prob,
-                        path_teamwork=self.path_teamwork, rationality_coefficient=self.rationality_coeff,
-                        prob_pausing=self.prob_pausing)
+        model = ToMModel(mlp=mlp, compliance=self.compliance,
+                 retain_goals=self.retain_goals, prob_thinking_not_moving=self.prob_thinking_not_moving,
+                 path_teamwork=self.path_teamwork, rationality_coefficient=self.rationality_coeff,
+                 prob_pausing=self.prob_pausing, prob_greedy=self.prob_greedy,
+                 prob_obs_other=self.prob_obs_other, look_ahead_steps=self.look_ahead_steps)
+        model.set_agent_index(self.player_index)
+        return model
 
     def get_multi_agent(self, mlp):
         """Get sim_threads number of agents, for use in training the models"""

@@ -404,7 +404,10 @@ def iterate_metropolis_sampling(params, mlp, expert_trajs, num_ep_to_use, epsilo
 
     accepted = acceptance_function(initial_log_prob, candidate_log_prob)
 
-    print_sampling_info(params, start_time, step_number, total_number_steps, accepted, accepted_history, step_size)
+    step_size = print_sampling_info(params, start_time, step_number, total_number_steps, accepted, accepted_history,
+                                  step_size)
+
+    return step_size
 
 
 def print_sampling_info(params, start_time, step_number, total_number_steps, accepted, accepted_history, step_size):
@@ -426,7 +429,7 @@ def print_sampling_info(params, start_time, step_number, total_number_steps, acc
         else:
             step_size += 0.01
         print('New step size: {}'.format(step_size))
-
+    return step_size
 
 def find_log_prob_data_given_params(expert_trajs, multi_tom_agent, num_ep_to_use):
     """Find the probability that the TOM with params in multi_tom_agent reproduces the data -- i.e. the prob that all
@@ -554,7 +557,7 @@ if __name__ == "__main__":
     """
     parser = ArgumentParser()
     parser.add_argument("-l", "--layout",
-                        help="Layout, (Choose from: simple, scenario1_s, schelling_s, unident_s, random1)",
+                        help="Layout, (Choose from: cramped_room etc)",
                         required=True)
     parser.add_argument("-p", "--params", help="Starting params (all params get this value). OR set to 9 to get "
                                                "random values for the starting params", required=False,
@@ -724,7 +727,7 @@ if __name__ == "__main__":
         accepted_history = [1]*23 + [0]*77  # Wiki recommends acceptance should be 23% (for a Gaussian dist!)
         start_time = time.time()
         for step_number in range(np.int(total_number_steps)):
-            iterate_metropolis_sampling(params, mlp, expert_trajs, num_ep_to_use, epsilon_sd,
+            step_size = iterate_metropolis_sampling(params, mlp, expert_trajs, num_ep_to_use, epsilon_sd,
                                             start_time, step_number, total_number_steps, accepted_history, step_size)
 
     elif run_type == 'zeroth':

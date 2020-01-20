@@ -8,6 +8,8 @@ from overcooked_ai_py.planning.planners import MediumLevelPlanner
 import logging
 import numpy as np
 from collections import Counter
+from human_aware_rl.data_dir import DATA_DIR
+from human_aware_rl.utils import create_dir_if_not_exists
 # np.seterr(divide='ignore', invalid='ignore')  # Suppress error about diving by zero
 
 """
@@ -385,7 +387,7 @@ def find_gradient_and_step_multi_tom(params, mlp, expert_trajs, num_ep_to_use, l
 #------------ Metropolis sampling -----------#
 
 def iterate_metropolis_sampling(params, mlp, expert_trajs, num_ep_to_use, epsilon_sd, start_time, step_number,
-                                total_number_steps, accepted_history, step_size):
+                                total_number_steps, accepted_history, step_size, save_filename):
     """Randomly sample a new candidate set of params, calculate ratio of the probabilities that the new:old params
     recover the data, then accepts or reject the candidate params."""
 
@@ -404,13 +406,14 @@ def iterate_metropolis_sampling(params, mlp, expert_trajs, num_ep_to_use, epsilo
 
     accepted = acceptance_function(initial_log_prob, candidate_log_prob)
 
-    step_size = print_sampling_info(params, start_time, step_number, total_number_steps, accepted, accepted_history,
-                                  step_size)
+    step_size = print_save_sampling_info(params, start_time, step_number, total_number_steps, accepted,
+                                         accepted_history, step_size, save_filename)
 
     return step_size
 
 
-def print_sampling_info(params, start_time, step_number, total_number_steps, accepted, accepted_history, step_size):
+def print_save_sampling_info(params, start_time, step_number, total_number_steps, accepted, accepted_history,
+                             step_size, save_filename):
     """Print relevant information about the sampling algorithm and the sampled params"""
 
     display_steps = 10
@@ -418,17 +421,20 @@ def print_sampling_info(params, start_time, step_number, total_number_steps, acc
     accepted_history[step_number % len(accepted_history)] = accepted
 
     if step_number % display_steps == 0:
-        #TODO: SAVE TO FILE:
-        print(params['PERSON_PARAMS_TOM'])
         print('Completed {} steps in time {} mins'.format(step_number, round((time.time() - start_time)/60)))
-
+        print(params['PERSON_PARAMS_TOM'])
         prop_accepted = np.mean(accepted_history)
         print('Proportion accepted: {}'.format(prop_accepted))
         if prop_accepted < 0.23:
             step_size -= 0.01  # If the step size was 0, then we would always accept
         else:
             step_size += 0.01
-        print('New step size: {}'.format(step_size))
+        print('New step size: {}\n'.format(step_size))
+
+        #TODO: it would be much more elegant to do this using logging; or use helper functions in utils:
+        with open(save_filename, 'a') as f:
+            f.write('Completed {} steps in time {} mins. PPARAMS: {} \n'.format(step_number, round((time.time() -
+                                                                    start_time)/60), str(params['PERSON_PARAMS_TOM'])))
     return step_size
 
 def find_log_prob_data_given_params(expert_trajs, multi_tom_agent, num_ep_to_use):
@@ -722,13 +728,17 @@ if __name__ == "__main__":
     print('Prob of data-agent taking ZERO action, (0,0): {}; Number states when data-agent acts: {}'.format(
         prob_data_doesnt_act, number_states_with_acting))
 
+    DIR = DATA_DIR + 'metropolis/'
+    create_dir_if_not_exists(DIR)
+    save_filename = DIR + time.strftime('%d-%m_%H:%M:%S') + '.txt'
+
     if run_type == 'met':
         # Metropolis sampling to find TOM params:
         accepted_history = [1]*23 + [0]*77  # Wiki recommends acceptance should be 23% (for a Gaussian dist!)
         start_time = time.time()
         for step_number in range(np.int(total_number_steps)):
             step_size = iterate_metropolis_sampling(params, mlp, expert_trajs, num_ep_to_use, epsilon_sd,
-                                            start_time, step_number, total_number_steps, accepted_history, step_size)
+                            start_time, step_number, total_number_steps, accepted_history, step_size, save_filename)
 
     elif run_type == 'zeroth':
         # Optimise the params to fit the data:

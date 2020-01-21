@@ -433,12 +433,25 @@ def print_save_sampling_info(params, start_time, step_number, total_number_steps
 
         #TODO: it would be much more elegant to do this using logging; or use helper functions in utils:
         with open(info_filename, 'a') as f:
-            f.write('Completed {} steps in time {} mins; Log prob: {}; PPARAMS:\n{}\n'.format(step_number,
-                                    round((time.time() - start_time)/60), log_prob, str(params['PERSON_PARAMS_TOM'])))
+            f.write('Completed {} steps in time {} mins; Log prob: {}\n'.format(step_number,
+                                    round((time.time() - start_time)/60), log_prob))
+            # f.write('PPARAMS: {}\n'.format(str(params['PERSON_PARAMS_TOM'])))
+
+    # Save the best likelihood result:
+    if step_number == 0:
+        params["highest_likelihood"] = -np.inf
+    if log_prob > params["highest_likelihood"]:
+        params["highest_likelihood"] = log_prob
+        with open(info_filename, 'a') as f:
+            f.write('\nNew highest likelihood: {}; Best likelihood PPARAMS: {}\n'.format(
+                params["highest_likelihood"], str(params['PERSON_PARAMS_TOM'])))
+        print('\nNew highest likelihood: {}; Best likelihood PPARAMS: {}\n'.format(
+                params["highest_likelihood"], str(params['PERSON_PARAMS_TOM'])))
 
     if step_number % params["save_sample_freq"] == 0 and step_number >= params["burn_in_period"]:
         with open(params_filename, 'a') as f:
             f.write('{},\n'.format(str(params['PERSON_PARAMS_TOM'])))
+
     return step_size
 
 def find_log_prob_data_given_params(expert_trajs, multi_tom_agent, num_ep_to_use):
@@ -754,7 +767,7 @@ if __name__ == "__main__":
                     '{}, {}, {}, {}, {}, {}'.format(layout, starting_params, num_ep_to_use,
                     base_learning_rate, step_size, epsilon_sd, ensure_random_direction, number_toms,
                                                                         total_number_steps, run_type))
-        f.write('Prob of data-agent taking ZERO action, (0,0): {}; Number states when data-agent acts: {}'.format(
+        f.write('\nProb of data-agent taking ZERO action, (0,0): {}; Number states when data-agent acts: {}\n'.format(
                     prob_data_doesnt_act, number_states_with_acting))
 
     if run_type == 'met':

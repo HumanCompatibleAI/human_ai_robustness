@@ -53,7 +53,7 @@ class ToMAgent(object):
         # Personality parameters: (See agent.py for definitions)
         self.compliance = self.params['PERSON_PARAMS_TOM{}'.format(tom_number)]['COMPLIANCE_TOM{}'.format(tom_number)]
         self.retain_goals = self.params['PERSON_PARAMS_TOM{}'.format(tom_number)]['RETAIN_GOALS_TOM{}'.format(tom_number)]
-        self.prob_thinking_not_moving = self.params['PERSON_PARAMS_TOM{}'.format(tom_number)]['PROB_THINK_TOM{}'.format(tom_number)]
+        self.prob_thinking_not_moving = self.params['PERSON_PARAMS_TOM{}'.format(tom_number)]['PROB_THINKING_NOT_MOVING_TOM{}'.format(tom_number)]
         self.path_teamwork = self.params['PERSON_PARAMS_TOM{}'.format(tom_number)]['PATH_TEAMWORK_TOM{}'.format(tom_number)]
         self.rationality_coeff = self.params['PERSON_PARAMS_TOM{}'.format(tom_number)]['RAT_COEFF_TOM{}'.format(tom_number)]
         self.prob_pausing = self.params['PERSON_PARAMS_TOM{}'.format(tom_number)]['PROB_PAUSING_TOM{}'.format(tom_number)]

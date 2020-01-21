@@ -387,7 +387,7 @@ def find_gradient_and_step_multi_tom(params, mlp, expert_trajs, num_ep_to_use, l
 #------------ Metropolis sampling -----------#
 
 def iterate_metropolis_sampling(params, mlp, expert_trajs, num_ep_to_use, epsilon_sd, start_time, step_number,
-                                total_number_steps, accepted_history, step_size, save_filename):
+                                total_number_steps, accepted_history, step_size, info_filename, params_filename):
     """Randomly sample a new candidate set of params, calculate ratio of the probabilities that the new:old params
     recover the data, then accepts or reject the candidate params."""
 
@@ -407,13 +407,13 @@ def iterate_metropolis_sampling(params, mlp, expert_trajs, num_ep_to_use, epsilo
     accepted, log_prob = acceptance_function(initial_log_prob, candidate_log_prob)
 
     step_size = print_save_sampling_info(params, start_time, step_number, total_number_steps, accepted,
-                                         accepted_history, step_size, save_filename, log_prob)
+                                         accepted_history, step_size, info_filename, params_filename, log_prob)
 
     return step_size
 
 
 def print_save_sampling_info(params, start_time, step_number, total_number_steps, accepted, accepted_history,
-                             step_size, save_filename, log_prob):
+                             step_size, info_filename, params_filename, log_prob):
     """Print relevant information about the sampling algorithm and the sampled params"""
 
     display_steps = 10
@@ -432,9 +432,13 @@ def print_save_sampling_info(params, start_time, step_number, total_number_steps
         print('New log prob: {}; New step size: {}\n'.format(log_prob, step_size))
 
         #TODO: it would be much more elegant to do this using logging; or use helper functions in utils:
-        with open(save_filename, 'a') as f:
+        with open(info_filename, 'a') as f:
             f.write('Completed {} steps in time {} mins; Log prob: {}; PPARAMS:\n{}\n'.format(step_number,
                                     round((time.time() - start_time)/60), log_prob, str(params['PERSON_PARAMS_TOM'])))
+
+    if step_number % params["save_sample_freq"] == 0 and step_number >= params["burn_in_period"]:
+        with open(params_filename, 'a') as f:
+            f.write('{},\n'.format(str(params['PERSON_PARAMS_TOM'])))
     return step_size
 
 def find_log_prob_data_given_params(expert_trajs, multi_tom_agent, num_ep_to_use):
@@ -590,6 +594,10 @@ if __name__ == "__main__":
     parser.add_argument("-r", "--ensure_random_direction",
                         help="Should make extra sure that the random search direction is not biased towards corners "
                              "of the hypercube.", required=False, default=False, type=bool)
+    parser.add_argument("-sf", "--save_sample_freq", help="We save every save_sample_freq'th sample (e.g. if it's 10 "
+                        "we save every 10th sample)", required=False, default=50, type=int)
+    parser.add_argument("-bp", "--burn_in_period", help="Only save samples after this number of iterations",
+                        required=False, default=1000, type=int)
 
     args = parser.parse_args()
     layout = args.layout
@@ -606,6 +614,8 @@ if __name__ == "__main__":
     number_toms = args.num_toms
     total_number_steps = args.num_grad_steps  # Number of steps to do in gradient decent
     run_type = args.run_type
+    save_sample_freq = args.save_sample_freq
+    burn_in_period = args.burn_in_period
     # -----------------------------#
 
     logging.basicConfig(format='%(levelname)s:%(message)s', level=logging.ERROR)
@@ -640,7 +650,7 @@ if __name__ == "__main__":
             "PROB_GREEDY_TOM": np.random.rand(),
             "PROB_OBS_OTHER_TOM": np.random.rand(),
             "LOOK_AHEAD_STEPS_TOM": np.random.rand()*3+1.5,
-            "PROB_THINK_TOM": 1,
+            "PROB_THINKING_NOT_MOVING_TOM": 0,
             "PROB_PAUSING_TOM": 99  # This will be modified within the code. Setting to 99 gives an error if it's not
         }
     else:
@@ -652,7 +662,7 @@ if __name__ == "__main__":
             "PROB_GREEDY_TOM": starting_params,
             "PROB_OBS_OTHER_TOM": starting_params,
             "LOOK_AHEAD_STEPS_TOM": starting_params*3+1.5,
-            "PROB_THINK_TOM": 1,
+            "PROB_THINKING_NOT_MOVING_TOM": 0,
             "PROB_PAUSING_TOM": 99  # This will be modified within the code. Setting to 99 gives an error if it's not
         }
 
@@ -665,12 +675,12 @@ if __name__ == "__main__":
         "PROB_GREEDY_TOMeps": 9,
         "PROB_OBS_OTHER_TOMeps": 9,
         "LOOK_AHEAD_STEPS_TOMeps": 9,
-        "PROB_THINK_TOMeps": 9,
+        "PROB_THINKING_NOT_MOVING_TOMeps": 9,
         "PROB_PAUSING_TOMeps": 9
     }
 
     # Keep some of the person params fixed. E.g. put {"PROB_PAUSING_TOM"}
-    PERSON_PARAMS_FIXED = {"PROB_PAUSING_TOM", "PROB_THINK_TOM"}
+    PERSON_PARAMS_FIXED = {"PROB_PAUSING_TOM", "PROB_THINKING_NOT_MOVING_TOM"}
 
     # Need some params to create TOM agent:
     LAYOUT_NAME = train_mdps[0]
@@ -702,6 +712,8 @@ if __name__ == "__main__":
         "COUNTER_PICKUP": COUNTER_PICKUP,
         "SAME_MOTION_GOALS": SAME_MOTION_GOALS,
         "ensure_random_direction": ensure_random_direction,
+        "save_sample_freq": save_sample_freq,
+        "burn_in_period": burn_in_period,
         "PERSON_PARAMScheck": None,
         "PROB_RANDOM_ACTION": 0.06  # This is needed because during metropolis sampling we assume that there is
         # always >0.01 chance of taking each action -- so our agent needs to reflect this
@@ -732,47 +744,52 @@ if __name__ == "__main__":
 
     DIR = DATA_DIR + 'metropolis/'
     create_dir_if_not_exists(DIR)
-    save_filename = DIR + LAYOUT_NAME + '_' + time.strftime('%d-%m_%H:%M:%S') + '.txt'
+    info_filename = DIR + LAYOUT_NAME + '_' + time.strftime('%d-%m_%H:%M:%S') + '.txt'
+    params_filename = DIR + 'TOM_PARAMS_' + LAYOUT_NAME + '_' + time.strftime('%d-%m_%H:%M:%S') + '.txt'
 
     #TODO: Use a more advanced way of doing this (e.g. logging??):
-    with open(save_filename, 'a') as f:
+    with open(info_filename, 'a') as f:
         f.write('Settings, in this order: layout, starting_params, num_ep_to_use, base_learning_rate, step_size, '
                     'epsilon_sd, ensure_random_direction, number_toms, total_number_steps, run_type:\n{}, {}, {}, {}, '
                     '{}, {}, {}, {}, {}, {}'.format(layout, starting_params, num_ep_to_use,
                     base_learning_rate, step_size, epsilon_sd, ensure_random_direction, number_toms,
                                                                         total_number_steps, run_type))
+        f.write('Prob of data-agent taking ZERO action, (0,0): {}; Number states when data-agent acts: {}'.format(
+                    prob_data_doesnt_act, number_states_with_acting))
 
     if run_type == 'met':
         # Metropolis sampling to find TOM params:
         accepted_history = ([1]+3*[0])*25  # Wiki recommends acceptance should be 23% (for a Gaussian dist!)
         start_time = time.time()
         for step_number in range(np.int(total_number_steps)):
+            #TODO: Many of these inputs should be put in "params"
             step_size = iterate_metropolis_sampling(params, mlp, expert_trajs, num_ep_to_use, epsilon_sd,
-                            start_time, step_number, total_number_steps, accepted_history, step_size, save_filename)
-
-    elif run_type == 'zeroth':
-        # Optimise the params to fit the data:
-        start_time = time.time()
-        # For each gradient decent step, find the gradient and step:
-        for step_number in range(np.int(total_number_steps)):
-            find_gradient_and_step_multi_tom(params, mlp, expert_trajs, num_ep_to_use, lr, epsilon_sd,
-                                            start_time, step_number, total_number_steps)
-    elif run_type == 'acc':
-        raise ValueError("Not done yet!")
-        # Just find the top-1 and top-2 accuracy:
-
-        # PERSON_PARAMS_TOMcheck = {"COMPLIANCE_TOMcheck": 0.8, "TEAMWORK_TOMcheck": 0.7,
-        #     "RETAIN_GOALS_TOMcheck": 0.6, "WRONG_DECISIONS_TOMcheck": 0.1, "THINKING_PROB_TOMcheck": 0.5,
-        #     "PATH_TEAMWORK_TOMcheck": 0.4, "RATIONALITY_COEFF_TOMcheck": 3, "PROB_PAUSING_TOMcheck": 0.2}
-        # params["PERSON_PARAMS_TOMcheck"] = PERSON_PARAMS_TOMcheck
-        tom_number = 'check'
-        multi_tom_agent = ToMAgent(params, tom_number).get_multi_agent(mlp)
-        start_time = time.time()
-        top_1_acc, top_2_acc = find_top_12_accuracy(actions_from_data, expert_trajs, multi_tom_agent, num_ep_to_use,
-                                                    number_states_with_acting)
-
-        print('\nTop-1 accuracy: {}; Top-2 accuracy: {}; Finished acc calc in time {} secs'.format(
-                                                                top_1_acc, top_2_acc, round(time.time() - start_time)))
+                            start_time, step_number, total_number_steps, accepted_history, step_size,
+                            info_filename, params_filename)
+    #
+    # elif run_type == 'zeroth':
+    #     # Optimise the params to fit the data:
+    #     start_time = time.time()
+    #     # For each gradient decent step, find the gradient and step:
+    #     for step_number in range(np.int(total_number_steps)):
+    #         find_gradient_and_step_multi_tom(params, mlp, expert_trajs, num_ep_to_use, lr, epsilon_sd,
+    #                                         start_time, step_number, total_number_steps)
+    # elif run_type == 'acc':
+    #     raise ValueError("Not done yet!")
+    #     # Just find the top-1 and top-2 accuracy:
+    #
+    #     # PERSON_PARAMS_TOMcheck = {"COMPLIANCE_TOMcheck": 0.8, "TEAMWORK_TOMcheck": 0.7,
+    #     #     "RETAIN_GOALS_TOMcheck": 0.6, "WRONG_DECISIONS_TOMcheck": 0.1, "THINKING_PROB_TOMcheck": 0.5,
+    #     #     "PATH_TEAMWORK_TOMcheck": 0.4, "RATIONALITY_COEFF_TOMcheck": 3, "PROB_PAUSING_TOMcheck": 0.2}
+    #     # params["PERSON_PARAMS_TOMcheck"] = PERSON_PARAMS_TOMcheck
+    #     tom_number = 'check'
+    #     multi_tom_agent = ToMAgent(params, tom_number).get_multi_agent(mlp)
+    #     start_time = time.time()
+    #     top_1_acc, top_2_acc = find_top_12_accuracy(actions_from_data, expert_trajs, multi_tom_agent, num_ep_to_use,
+    #                                                 number_states_with_acting)
+    #
+    #     print('\nTop-1 accuracy: {}; Top-2 accuracy: {}; Finished acc calc in time {} secs'.format(
+    #                                                             top_1_acc, top_2_acc, round(time.time() - start_time)))
 
     print('\nend')
 

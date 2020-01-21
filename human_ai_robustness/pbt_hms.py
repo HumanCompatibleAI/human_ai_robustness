@@ -62,6 +62,8 @@ class ToMAgent(object):
         self.prob_obs_other = self.params['PERSON_PARAMS_TOM{}'.format(tom_number)]['PROB_OBS_OTHER_TOM{}'.format(tom_number)]
         self.look_ahead_steps = self.params['PERSON_PARAMS_TOM{}'.format(tom_number)]['LOOK_AHEAD_STEPS_TOM{}'.format(tom_number)]
 
+        self.prob_random_action = self.params['PROB_RANDOM_ACTION']
+
         # Old params, not currently used:
         # self.wrong_decisions = self.params['PERSON_PARAMS_TOM{}'.format(tom_number)][
         #     'WRONG_DECISIONS_TOM{}'.format(tom_number)]
@@ -69,7 +71,7 @@ class ToMAgent(object):
 
 
     def get_agent(self, mlp):
-        model = ToMModel(mlp=mlp, compliance=self.compliance,
+        model = ToMModel(mlp=mlp, prob_random_action=self.prob_random_action, compliance=self.compliance,
                  retain_goals=self.retain_goals, prob_thinking_not_moving=self.prob_thinking_not_moving,
                  path_teamwork=self.path_teamwork, rationality_coefficient=self.rationality_coeff,
                  prob_pausing=self.prob_pausing, prob_greedy=self.prob_greedy,

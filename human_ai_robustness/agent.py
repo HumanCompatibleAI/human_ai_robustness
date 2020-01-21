@@ -259,7 +259,7 @@ class ToMModel(Agent):
     - Take a sub-optimal first action with Boltzmann rational probability
     """
 
-    def __init__(self, mlp,
+    def __init__(self, mlp, prob_random_action,
                  compliance=0.5, teamwork=0.8, retain_goals=0.8, wrong_decisions=0.02, prob_thinking_not_moving=0.2,
                  path_teamwork=0.8, rationality_coefficient=3, prob_pausing=0.5, use_OLD_ml_action=False,
                  prob_greedy=0, prob_obs_other=0, look_ahead_steps=4):
@@ -282,6 +282,7 @@ class ToMModel(Agent):
         self.prob_thinking_not_moving = prob_thinking_not_moving  # After achieving a goal (e.g. fetching onion) the agent
         # waits to "think". self.prob_thinking_not_moving is the probability of thinking instead of moving on
         # during this "thinking time". PARAM HAS CHANGED: prob_thinking_not_moving = 1 - thinking_prob
+        self.prob_random_action = prob_random_action  # Randomly return one of the 6 actions, with this prob
 
         # Higher level strategy:  (Note: prob_greedy and prob_obs_other will be converted into personality types A-D)
         self.retain_goals = retain_goals  # Prob of keeping the previous goal each timestep (rather than re-calculating)
@@ -486,6 +487,8 @@ class ToMModel(Agent):
         else:
             logging.info('Agent pausing')
             best_action = (0,0)
+
+        best_action = self.choose_random_action(self.prob_random_action, best_action)
 
         return best_action, {}
 
@@ -1441,6 +1444,13 @@ class ToMModel(Agent):
 
         return len(tasks_with_object), tasks_with_object
 
+    def choose_random_action(self, prob_random_action, action):
+        """Choose a random action from the 6 possible actions (ignore whether actions are possible or not)"""
+        if np.random.rand() < prob_random_action:
+            return np.random.choice(Action.ALL_ACTIONS)
+        else:
+            return action
+
 
 #----------------------------------------------------------------------------------------------------------------------#
 
@@ -1691,10 +1701,13 @@ class ToMModel(Agent):
         exponent = [-y*temperature for y in x]
         #TODO: We take -ve exponents because we want to prioritise the smallest costs. Is taking -ve a good way to do it??
 
-        # if np.isnan(np.sum(np.exp(exponent), axis=0)) or np.sum(np.exp(exponent), axis=0) == 0:
-            # print('Dividing by zero or NaN in function boltz_rationality')
-
-        return np.exp(exponent) / np.sum(np.exp(exponent), axis=0)
+        if np.inf in x:
+            for i, y in enumerate(x):
+                if y == np.inf:
+                    exponent[i] = -1000
+        # More mathematically stable version that what I had before:
+        e_x = np.exp(exponent - np.max(exponent))
+        return e_x / e_x.sum()
 
     def find_plan_boltz_rational(self, state, motion_goals):
         # TODO: Needs a description!

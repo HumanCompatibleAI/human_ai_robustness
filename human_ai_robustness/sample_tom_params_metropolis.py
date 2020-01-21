@@ -23,6 +23,7 @@ def choose_tom_actions(expert_trajs, tom_agent, num_ep_to_use):
     """
     Take a human model with given parameters, then use this to choose one action for every state in the data.
     Correction: now we only find one action for each state in which the data acts!
+    Note that the TOM odel retains a memory of previous plans/actions/other info
     :return: tom_actions, a list of lists of actions chosen by the TOM
     """
 
@@ -36,7 +37,6 @@ def choose_tom_actions(expert_trajs, tom_agent, num_ep_to_use):
 
         tom_agent.set_agent_index(expert_trajs['metadatas']['ep_agent_idxs'][i])
         tom_agent.reset()
-
         tom_agent.look_ahead_steps = int(np.round(tom_agent.look_ahead_steps))
 
         # For each state in the episode trajectory:
@@ -702,7 +702,9 @@ if __name__ == "__main__":
         "COUNTER_PICKUP": COUNTER_PICKUP,
         "SAME_MOTION_GOALS": SAME_MOTION_GOALS,
         "ensure_random_direction": ensure_random_direction,
-        "PERSON_PARAMScheck": None
+        "PERSON_PARAMScheck": None,
+        "PROB_RANDOM_ACTION": 0.06  # This is needed because during metropolis sampling we assume that there is
+        # always >0.01 chance of taking each action -- so our agent needs to reflect this
     }  # Using same format as pbt_toms_v2
 
     mdp = OvercookedGridworld.from_layout_name(**params["MDP_PARAMS"])
@@ -734,7 +736,7 @@ if __name__ == "__main__":
 
     if run_type == 'met':
         # Metropolis sampling to find TOM params:
-        accepted_history = [1]*23 + [0]*77  # Wiki recommends acceptance should be 23% (for a Gaussian dist!)
+        accepted_history = ([1]+3*[0])*25  # Wiki recommends acceptance should be 23% (for a Gaussian dist!)
         start_time = time.time()
         for step_number in range(np.int(total_number_steps)):
             step_size = iterate_metropolis_sampling(params, mlp, expert_trajs, num_ep_to_use, epsilon_sd,

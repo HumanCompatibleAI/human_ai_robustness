@@ -404,16 +404,16 @@ def iterate_metropolis_sampling(params, mlp, expert_trajs, num_ep_to_use, epsilo
 
     candidate_log_prob = find_log_prob_data_given_params(expert_trajs, multi_tom_agent_cand, num_ep_to_use)
 
-    accepted = acceptance_function(initial_log_prob, candidate_log_prob)
+    accepted, log_prob = acceptance_function(initial_log_prob, candidate_log_prob)
 
     step_size = print_save_sampling_info(params, start_time, step_number, total_number_steps, accepted,
-                                         accepted_history, step_size, save_filename)
+                                         accepted_history, step_size, save_filename, log_prob)
 
     return step_size
 
 
 def print_save_sampling_info(params, start_time, step_number, total_number_steps, accepted, accepted_history,
-                             step_size, save_filename):
+                             step_size, save_filename, log_prob):
     """Print relevant information about the sampling algorithm and the sampled params"""
 
     display_steps = 10
@@ -429,12 +429,12 @@ def print_save_sampling_info(params, start_time, step_number, total_number_steps
             step_size -= 0.01  # If the step size was 0, then we would always accept
         else:
             step_size += 0.01
-        print('New step size: {}\n'.format(step_size))
+        print('New log prob: {}; New step size: {}\n'.format(log_prob, step_size))
 
         #TODO: it would be much more elegant to do this using logging; or use helper functions in utils:
         with open(save_filename, 'a') as f:
-            f.write('Completed {} steps in time {} mins. PPARAMS: {} \n'.format(step_number, round((time.time() -
-                                                                    start_time)/60), str(params['PERSON_PARAMS_TOM'])))
+            f.write('Completed {} steps in time {} mins; Log prob: {}; PPARAMS: {} \n'.format(step_number,
+                                    round((time.time() - start_time)/60), log_prob, str(params['PERSON_PARAMS_TOM'])))
     return step_size
 
 def find_log_prob_data_given_params(expert_trajs, multi_tom_agent, num_ep_to_use):
@@ -470,9 +470,9 @@ def acceptance_function(initial_log_prob, candidate_log_prob):
     if np.random.rand() <= acceptance_ratio:
         for i, pparam in enumerate(params['PERSON_PARAMS_TOM']):
             params['PERSON_PARAMS_TOM'][pparam] = params['PERSON_PARAMS_TOMeps'][pparam + 'eps']
-        return 1
+        return 1, candidate_log_prob
     else:
-        return 0
+        return 0, initial_log_prob
 
 def generate_candidate_params(params, epsilon_sd, step_size):
     """First pick epsilon -- a random Gaussian vector (need a better description of this!). Then for each personality
@@ -732,7 +732,15 @@ if __name__ == "__main__":
 
     DIR = DATA_DIR + 'metropolis/'
     create_dir_if_not_exists(DIR)
-    save_filename = DIR + time.strftime('%d-%m_%H:%M:%S') + '.txt'
+    save_filename = DIR + LAYOUT_NAME + '_' + time.strftime('%d-%m_%H:%M:%S') + '.txt'
+
+    #TODO: Use a more advanced way of doing this (e.g. logging??):
+    with open(save_filename, 'a') as f:
+        f.write('Settings, in this order: layout, starting_params, num_ep_to_use, base_learning_rate, step_size, '
+                    'epsilon_sd, ensure_random_direction, number_toms, total_number_steps, run_type:\n{}, {}, {}, {}, '
+                    '{}, {}, {}, {}, {}, {}'.format(layout, starting_params, num_ep_to_use,
+                    base_learning_rate, step_size, epsilon_sd, ensure_random_direction, number_toms,
+                                                                        total_number_steps, run_type))
 
     if run_type == 'met':
         # Metropolis sampling to find TOM params:

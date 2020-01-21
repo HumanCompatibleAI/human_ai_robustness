@@ -433,7 +433,7 @@ def print_save_sampling_info(params, start_time, step_number, total_number_steps
 
         #TODO: it would be much more elegant to do this using logging; or use helper functions in utils:
         with open(save_filename, 'a') as f:
-            f.write('Completed {} steps in time {} mins; Log prob: {}; PPARAMS: {} \n'.format(step_number,
+            f.write('Completed {} steps in time {} mins; Log prob: {}; PPARAMS:\n{}\n'.format(step_number,
                                     round((time.time() - start_time)/60), log_prob, str(params['PERSON_PARAMS_TOM'])))
     return step_size
 

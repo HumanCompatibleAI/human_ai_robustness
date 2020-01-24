@@ -38,7 +38,7 @@ lr_annealing_l = {
 }
 
 sp_horizon_l = {
-    "croom": [5e5, 3e6],
+    "croom": [5e5,3e6],
     # "aa": [1e6, 7e6],
     # "cring": [2e6, 6e6],
     # "fc": [2e6, 6e6],
@@ -68,19 +68,19 @@ def layout_codes(layout_name):
     if layout_name == 'cramped_room':
         return 'croom'
 
-def make_command(gpu_id, run_name, layout_code, layout_name, lr, seed, additional_params, testing=False):
+def make_command(gpu_id, ex_name, layout_code, layout_name, lr, seed, additional_params, testing=False):
     """Returns a bash command"""
     # if testing:
-    #     return 'CUDA_VISIBLE_DEVICES={} python ppo/ppo.py with RUN_NAME="{}" layout_name="{}" LR={:1.2e} ' \
+    #     return 'CUDA_VISIBLE_DEVICES={} python ppo/ppo.py with EX_NAME="{}" layout_name="{}" LR={:1.2e} ' \
     #            'OTHER_AGENT_TYPE="{}" SEEDS="{}" SELF_PLAY_HORIZON="[0, 1200]" TIMESTAMP_DIR=False ' \
                # 'ENVIRONMENT_TYPE="Overcooked" {} WAIT_TIME={} LOCAL_TESTING=True\n'.format(
-            # gpu_id, run_name, layout_name, lr, other_agent_type, seeds, extras, sleep_time
+            # gpu_id, ex_name, layout_name, lr, other_agent_type, seeds, extras, sleep_time
         # )
 
-    return 'CUDA_VISIBLE_DEVICES={} python ppo/ppo_tom.py with RUN_NAME="{}" layout_name="{}" REW_SHAPING_HORIZON={:1.2e} ' \
+    return 'CUDA_VISIBLE_DEVICES={} python ppo/ppo_tom.py with EX_NAME="{}" layout_name="{}" REW_SHAPING_HORIZON={:1.2e} ' \
            'PPO_RUN_TOT_TIMESTEPS={:1.2e} LR={:1.2e} SEEDS=[{}] MINIBATCHES={} LR_ANNEALING={} ' \
            'SELF_PLAY_HORIZON={}'.format(
-            gpu_id, run_name, layout_name, shaping_horizon_l[layout_code], ppo_timesteps_l[layout_code], lr, seed,
+            gpu_id, ex_name, layout_name, shaping_horizon_l[layout_code], ppo_timesteps_l[layout_code], lr, seed,
             minibatches_l[layout_code], lr_annealing_l[layout_code], sp_horizon_l[layout_code]) + additional_params + '\n'
 
 def flush_command_buffer(commands, runs_count, experiments_dir):
@@ -133,7 +133,7 @@ for layout_name in layout_names:
             for i, param_to_loop_value in enumerate(param_to_loop_values):
 
                 gpu_id = runs_count % NUM_GPUS + 1
-                run_name = '{}_s{}_{}'.format(layout_code, seed, i)
+                ex_name = '{}_s{}_{}'.format(layout_code, seed, i)
 
                 additional_params = ' {}={}'.format(param_to_loop, param_to_loop_value)
 
@@ -142,7 +142,7 @@ for layout_name in layout_names:
                     sim_threads = param_to_loop_value // 400  # 400 is the horizon
                     additional_params += ' sim_threads={}'.format(sim_threads)
 
-                commands += make_command(gpu_id, run_name, layout_code, layout_name, lr, seed, additional_params,
+                commands += make_command(gpu_id, ex_name, layout_code, layout_name, lr, seed, additional_params,
                                          testing=testing)
                 runs_count += 1
                 # sleep_time = (runs_count % sleep_index_reset) * sleep_offset

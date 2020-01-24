@@ -319,24 +319,24 @@ class ToMModel(Agent):
         params in tom_params.
         """
         tom_params_choice = np.random.randint(0, num_toms)
-        self.perseverance = tom_params[tom_params_choice]["PERSEVERANCE_HM{}".format(tom_params_choice)]
-        self.teamwork = tom_params[tom_params_choice]["TEAMWORK_HM{}".format(tom_params_choice)]
-        self.retain_goals = tom_params[tom_params_choice]["RETAIN_GOALS_HM{}".format(tom_params_choice)]
-        self.wrong_decisions = tom_params[tom_params_choice]["WRONG_DECISIONS_HM{}".format(tom_params_choice)]
-        self.thinking_prob = tom_params[tom_params_choice]["THINKING_PROB_HM{}".format(tom_params_choice)]
-        self.path_teamwork = tom_params[tom_params_choice]["PATH_TEAMWORK_HM{}".format(tom_params_choice)]
-        self.rationality_coefficient = tom_params[tom_params_choice][
-            "RATIONALITY_COEFF_HM{}".format(tom_params_choice)]
-        self.prob_pausing = tom_params[tom_params_choice]["PROB_PAUSING_HM{}".format(tom_params_choice)]
-        # Set the index for the agent:
-        self.agent_index = other_agent_idx
-        self.GHM.agent_index = 1 - other_agent_idx
-        # Reset the "history" of the agent:
+
+        self.compliance = tom_params[tom_params_choice]["COMPLIANCE_TOM"]
+        self.retain_goals = tom_params[tom_params_choice]["RETAIN_GOALS_TOM"]
+        self.prob_thinking_not_moving = tom_params[tom_params_choice]["PROB_THINKING_NOT_MOVING_TOM"]
+        self.path_teamwork = tom_params[tom_params_choice]["PATH_TEAMWORK_TOM"]
+        self.rationality_coefficient = tom_params[tom_params_choice]["RAT_COEFF_TOM"]
+        self.prob_pausing = tom_params[tom_params_choice]["PROB_PAUSING_TOM"]
+        self.prob_greedy = tom_params[tom_params_choice]["PROB_GREEDY_TOM"]
+        self.prob_obs_other = tom_params[tom_params_choice]["PROB_OBS_OTHER_TOM"]
+        self.look_ahead_steps = round(tom_params[tom_params_choice]["LOOK_AHEAD_STEPS_TOM"])
+
+        # Reset the "history" of the agent, and set the index:
         self.reset()
+        self.set_agent_index(other_agent_idx)
         return tom_params_choice
 
     #TODO: This function can/should be neatened up:
-    def eval_and_viz_tom(self, additional_params, env, model,run_info):
+    def eval_and_viz_tom(self, additional_params, env, ppo_agent, run_info):
         """
         The ppo agent will play with a selection of other agents, to evaluate performance, including TOMs with
         params 0 and 1 (who they'll also train with), and two different BC agents. They all play with both indices.
@@ -353,15 +353,40 @@ class ToMModel(Agent):
         mdp_gen_params = additional_params["mdp_generation_params"]
         mdp_fn = LayoutGenerator.mdp_gen_fn_from_dict(mdp_params=mdp_params, **mdp_gen_params)
         overcooked_env = OvercookedEnv(mdp=mdp_fn, **additional_params["env_params"])
+        NO_COUNTERS_PARAMS['counter_drop'] = overcooked_env.mdp.get_counter_locations()
+        NO_COUNTERS_PARAMS['counter_goals'] = overcooked_env.mdp.get_counter_locations()
         mlp = MediumLevelPlanner.from_pickle_or_compute(overcooked_env.mdp, NO_COUNTERS_PARAMS, force_compute=True)
 
-        ppo_agent = get_agent_from_model(model, additional_params["sim_threads"], is_joint_action=False)
         ppo_agent.set_mdp(overcooked_env.mdp)
 
-        if not additional_params["LOCAL_TESTING"]:  # Only evaluate with all 8 agents when not doing local testing
+        # if not additional_params["LOCAL_TESTING"]:  # Only evaluate with all 8 agents when not doing local testing
 
-            # Loop over both indices and 2 different TOM params
-            for ppo_index in range(2):
+        # Loop over both indices and 2 different TOM params
+        for ppo_index in range(2):
+
+            for bc_number in range(2):
+
+                print('\nPPO index {} | Playing with BC{}\n'.format(ppo_index, bc_number))
+
+                bc_agent = env.bc_agent0 if bc_number == 0 else env.bc_agent1
+
+                if ppo_index == 0:
+                    agent_pair = AgentPair(ppo_agent, bc_agent)
+                elif ppo_index == 1:
+                    agent_pair = AgentPair(bc_agent, ppo_agent)
+
+                trajs = overcooked_env.get_rollouts(agent_pair, num_games=additional_params["NUM_EVAL_GAMES"],
+                                                    final_state=False, display=False)  # reward shaping not needed
+                sparse_rews = trajs["ep_returns"]
+                avg_sparse_rew = np.mean(sparse_rews)
+
+                run_info["rew_ppo_idx{}_bc{}".format(ppo_index, bc_number)].append(avg_sparse_rew)
+
+                # To observe play:
+                if display_eval_games:
+                    overcooked_env.get_rollouts(agent_pair, num_games=1, final_state=False, display=True)
+
+            if not additional_params["EVAL_WITH_BC_ONLY"]:
                 for tom_number in range(2):
 
                     tom_index = 1 - ppo_index
@@ -384,53 +409,30 @@ class ToMModel(Agent):
                     if display_eval_games:
                         overcooked_env.get_rollouts(agent_pair, num_games=1, final_state=False, display=True)
 
-                if additional_params["EVAL_WITH_BC"]:
-                    for bc_number in range(2):
-
-                        print('\nPPO index {} | Playing with BC{}\n'.format(ppo_index, bc_number))
-
-                        bc_agent = env.bc_agent0 if bc_number == 0 else env.bc_agent1
-
-                        if ppo_index == 0:
-                            agent_pair = AgentPair(ppo_agent, bc_agent)
-                        elif ppo_index == 1:
-                            agent_pair = AgentPair(bc_agent, ppo_agent)
-
-                        trajs = overcooked_env.get_rollouts(agent_pair, num_games=additional_params["NUM_EVAL_GAMES"],
-                                                            final_state=False, display=False)  # reward shaping not needed
-                        sparse_rews = trajs["ep_returns"]
-                        avg_sparse_rew = np.mean(sparse_rews)
-
-                        run_info["rew_ppo_idx{}_bc{}".format(ppo_index, bc_number)].append(avg_sparse_rew)
-
-                        # To observe play:
-                        if display_eval_games:
-                            overcooked_env.get_rollouts(agent_pair, num_games=1, final_state=False, display=True)
-
-        elif additional_params["LOCAL_TESTING"]:
-
-            ppo_index = 0
-            tom_index = 1 - ppo_index
-            tom_number = 0
-
-            print('\nPPO index {} | Playing with TOM{}\n'.format(ppo_index, tom_number))
-            tom_agent = make_tom_model(env, mlp, tom_number, tom_index)
-
-            if ppo_index == 0:
-                agent_pair = AgentPair(ppo_agent, tom_agent)
-            elif ppo_index == 1:
-                agent_pair = AgentPair(tom_agent, ppo_agent)
-
-            trajs = overcooked_env.get_rollouts(agent_pair, num_games=additional_params["NUM_EVAL_GAMES"],
-                                                final_state=False, display=False)  # reward shaping not needed
-            sparse_rews = trajs["ep_returns"]
-            avg_sparse_rew = np.mean(sparse_rews)
-
-            run_info["rew_ppo_idx{}_tom{}".format(ppo_index, tom_number)].append(avg_sparse_rew)
-
-            # To observe play:
-            if display_eval_games:
-                overcooked_env.get_rollouts(agent_pair, num_games=1, final_state=False, display=True)
+        # elif additional_params["LOCAL_TESTING"]:
+        #
+        #     ppo_index = 0
+        #     tom_index = 1 - ppo_index
+        #     tom_number = 0
+        #
+        #     print('\nPPO index {} | Playing with TOM{}\n'.format(ppo_index, tom_number))
+        #     tom_agent = make_tom_model(env, mlp, tom_number, tom_index)
+        #
+        #     if ppo_index == 0:
+        #         agent_pair = AgentPair(ppo_agent, tom_agent)
+        #     elif ppo_index == 1:
+        #         agent_pair = AgentPair(tom_agent, ppo_agent)
+        #
+        #     trajs = overcooked_env.get_rollouts(agent_pair, num_games=additional_params["NUM_EVAL_GAMES"],
+        #                                         final_state=False, display=False)  # reward shaping not needed
+        #     sparse_rews = trajs["ep_returns"]
+        #     avg_sparse_rew = np.mean(sparse_rews)
+        #
+        #     run_info["rew_ppo_idx{}_tom{}".format(ppo_index, tom_number)].append(avg_sparse_rew)
+        #
+        #     # To observe play:
+        #     if display_eval_games:
+        #         overcooked_env.get_rollouts(agent_pair, num_games=1, final_state=False, display=True)
 
         return run_info
 
@@ -808,6 +810,8 @@ class ToMModel(Agent):
             if own_min_cost <= others_total_cost:
                 if i > 0:
                     self.doing_lower_priority_task = True
+                elif i == 0:
+                    self.doing_lower_priority_task = None  # Reset here just in case
                 logging.info('Chosen task to do: {} (task #{})'.format(own_task, i))
                 return self.find_motion_goals_for_task(state, info, own_task)
 
@@ -916,8 +920,8 @@ class ToMModel(Agent):
                 # Special case: If not doing the top priority task, then don't go all the way to the goal.
                 # BUT in asymmetric_advantages we can't get in the way, so ignore this:
                 if self.doing_lower_priority_task and self.mdp.layout_name != 'asymmetric_advantages':
-                    # This will return all positions that face the final motion_goal:
-                    return self.move_adjacent_to_goal(motion_goals)
+                    # Move to the nearest counter/feature to the goal:
+                    return self.move_close_to_goal(motion_goals, pot_location, info['player'].pos_and_or, info["am"])
 
             elif info['player_obj'].name == 'dish':
 
@@ -945,8 +949,8 @@ class ToMModel(Agent):
                 # Special case: If not doing the top priority task, then don't go all the way to the goal:
                 # BUT in asymmetric_advantages we can't get in the way, so ignore this:
                 if self.doing_lower_priority_task and self.mdp.layout_name != 'asymmetric_advantages':
-                    # This will return all positions that face the final motion_goal
-                    return self.move_adjacent_to_goal(motion_goals)
+                    # This will return positions close to the final motion_goal
+                    return self.move_close_to_goal(motion_goals, pot_location, info['player'].pos_and_or, info["am"])
 
             elif info['player_obj'].name == 'soup':
 
@@ -966,12 +970,14 @@ class ToMModel(Agent):
 
         return motion_goals
 
-    def move_adjacent_to_goal(self, motion_goals):
+    def move_close_to_goal(self, motion_goals, goal_location, player_pos_and_or, am):
         """Instead of moving to the motion_goals, move to an adjacent location"""
-        logging.info("Other is doing the 1st task on the list, so we're heading NEXT to the motion_goal, so we don't obstruct")
-        list_of_lists = [self.mlp.mp._get_possible_motion_goals_for_feature(goal[0]) for goal in motion_goals]
-        adjacent_goals = [item for sublist in list_of_lists for item in sublist]
-        return adjacent_goals
+        logging.info("Other is doing the 1st task on the list, so we're heading near to the motion_goal, so we don't obstruct")
+
+        # First find closest motion goal to the player:
+        _, closest_motion_goal = self.find_min_plan_cost_from_pos_or(motion_goals, player_pos_and_or)
+
+        return am.go_to_closest_feature_or_counter_to_goal(closest_motion_goal, goal_location)
 
     def find_cost_of_single_task(self, task, task_goal, find_own_cost=True,
                                  first_action_info=False, subsequent_action_info=False,
@@ -1951,6 +1957,11 @@ class ToMModel(Agent):
             print(overcooked_env)
         except:
             AttributeError  # self.display = False
+
+    def display_game_state(self, state):
+        overcooked_env = OvercookedEnv(self.mdp)
+        overcooked_env.state = state
+        print(overcooked_env)
 
     def fix_invalid_prev_motion_goal(self, state):
         # Check motion goal is valid; if not, set to None AND set best action to None:

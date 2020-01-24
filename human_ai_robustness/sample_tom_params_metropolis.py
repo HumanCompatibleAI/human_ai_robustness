@@ -606,7 +606,7 @@ if __name__ == "__main__":
     # This gives problems with the BOOL for some reason:
     parser.add_argument("-r", "--ensure_random_direction",
                         help="Should make extra sure that the random search direction is not biased towards corners "
-                             "of the hypercube.", required=False, default=False, type=bool)
+                             "of the hypercube.", required=False, default=True, type=bool)
     parser.add_argument("-sf", "--save_sample_freq", help="We save every save_sample_freq'th sample (e.g. if it's 10 "
                         "we save every 10th sample)", required=False, default=50, type=int)
     parser.add_argument("-bp", "--burn_in_period", help="Only save samples after this number of iterations",

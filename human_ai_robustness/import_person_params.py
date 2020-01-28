@@ -63,10 +63,10 @@ def import_person_params(LAYOUT_NAME, num_toms):
 
         if num_toms == 1:
             # Highest likelihood up to 3000 samples. Likelihood: -6882.077083590233:
-            TOM_PARAMS = {'COMPLIANCE_TOM': 0.003920177690096145, 'RETAIN_GOALS_TOM': 0.011236255489439234,
+            TOM_PARAMS = [{'COMPLIANCE_TOM': 0.003920177690096145, 'RETAIN_GOALS_TOM': 0.011236255489439234,
                       'PATH_TEAMWORK_TOM': 0.9996778491381633, 'RAT_COEFF_TOM': 2.33082707500696,
                       'PROB_GREEDY_TOM': 0.29368132854047974, 'PROB_OBS_OTHER_TOM': 1.910602714319524e-06,
-                      'LOOK_AHEAD_STEPS_TOM': 4.239114016673311, 'PROB_THINKING_NOT_MOVING_TOM': 0, 'PROB_PAUSING_TOM': PROB_PAUSING}
+                      'LOOK_AHEAD_STEPS_TOM': 4.239114016673311, 'PROB_THINKING_NOT_MOVING_TOM': 0, 'PROB_PAUSING_TOM': PROB_PAUSING}]
 
         # HIGHEST_LIKELIHOOD = [{'New highest likelihood': -6882.077083590233}, {'COMPLIANCE_TOM': 0.003920177690096145, 'RETAIN_GOALS_TOM': 0.011236255489439234, 'PATH_TEAMWORK_TOM': 0.9996778491381633, 'RAT_COEFF_TOM': 2.33082707500696, 'PROB_GREEDY_TOM': 0.29368132854047974, 'PROB_OBS_OTHER_TOM': 1.910602714319524e-06, 'LOOK_AHEAD_STEPS_TOM': 4.239114016673311, 'PROB_THINKING_NOT_MOVING_TOM': 0, 'PROB_PAUSING_TOM': 99}]
 
@@ -229,11 +229,11 @@ def import_person_params(LAYOUT_NAME, num_toms):
 
         if num_toms == 1:
             # Highest likelihood up to 3000 samples. Likelihood: -13296.146491064497:
-            TOM_PARAMS = {'COMPLIANCE_TOM': 0.18810570495303125, 'RETAIN_GOALS_TOM': 0.1465381826700523,
+            TOM_PARAMS = [{'COMPLIANCE_TOM': 0.18810570495303125, 'RETAIN_GOALS_TOM': 0.1465381826700523,
                       'PATH_TEAMWORK_TOM': 0.9999999996311908, 'RAT_COEFF_TOM': 16.49350058152645,
                       'PROB_GREEDY_TOM': 0.21057219122957613, 'PROB_OBS_OTHER_TOM': 0.48096074068776434,
                       'LOOK_AHEAD_STEPS_TOM': 4.4999999077600075, 'PROB_THINKING_NOT_MOVING_TOM': 0,
-                      'PROB_PAUSING_TOM': PROB_PAUSING}
+                      'PROB_PAUSING_TOM': PROB_PAUSING}]
 
                 # OLD (before new TOMs, and before using metropolis sampling:
         # # HM0: Fitting with settings -nh 3 -p 0.5
@@ -346,11 +346,11 @@ def import_person_params(LAYOUT_NAME, num_toms):
 
         if num_toms == 1:
             # Highest likelihood up to 3000 samples. Likelihood: -17921.932272682305
-            TOM_PARAMS = {'COMPLIANCE_TOM': 0.2646342605002149, 'RETAIN_GOALS_TOM': 0.010708449749251368,
+            TOM_PARAMS = [{'COMPLIANCE_TOM': 0.2646342605002149, 'RETAIN_GOALS_TOM': 0.010708449749251368,
                           'PATH_TEAMWORK_TOM': 0.4371879185279047, 'RAT_COEFF_TOM': 18.106521401923274,
                           'PROB_GREEDY_TOM': 0.3877372924867373, 'PROB_OBS_OTHER_TOM': 0.1867037186130322,
                           'LOOK_AHEAD_STEPS_TOM': 3.2141783158401314, 'PROB_THINKING_NOT_MOVING_TOM': 0,
-                          'PROB_PAUSING_TOM': PROB_PAUSING}
+                          'PROB_PAUSING_TOM': PROB_PAUSING}]
 
         # # OLD (before new TOMs, and before using metropolis sampling:
         # # From p0:
@@ -436,11 +436,11 @@ def import_person_params(LAYOUT_NAME, num_toms):
 
         if num_toms == 1:
             # Highest likelihood up to 3000 samples. Likelihood: -14921.55667607874
-            TOM_PARAMS = {'COMPLIANCE_TOM': 0.22539833701285775, 'RETAIN_GOALS_TOM': 3.885110977163834e-13,
+            TOM_PARAMS = [{'COMPLIANCE_TOM': 0.22539833701285775, 'RETAIN_GOALS_TOM': 3.885110977163834e-13,
                       'PATH_TEAMWORK_TOM': 0.7562684786967098, 'RAT_COEFF_TOM': 19.999999999967933,
                       'PROB_GREEDY_TOM': 0.5716194260999599, 'PROB_OBS_OTHER_TOM': 0.1330860714823573,
                       'LOOK_AHEAD_STEPS_TOM': 1.5000024536934997, 'PROB_THINKING_NOT_MOVING_TOM': 0,
-                      'PROB_PAUSING_TOM': 99}
+                      'PROB_PAUSING_TOM': PROB_PAUSING}]
 
         # OLD (before new TOMs, and before using metropolis sampling:
         # # From p0:

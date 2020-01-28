@@ -1267,7 +1267,7 @@ class ToMModel(Agent):
 
         if other_player.has_object():
 
-            # Special case: If other is holding an onion, assume they'll deliver it, and leave list unchanged:
+            # Special case: If other is holding a soup, assume they'll deliver it, and leave list unchanged:
             if other_player.get_object().name == 'soup':
                 task = {'special_case_deliver_soup': None}
                 return task_priority_list, task

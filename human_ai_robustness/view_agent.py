@@ -30,8 +30,8 @@ def make_agent_pair(mlp):
     rat_coeff0 = 20
     prob_pausing0 = 0
     compliance0 = 0.5
-    prob_greedy0 = 0.5
-    prob_obs_other0 = 0.5
+    prob_greedy0 = 0
+    prob_obs_other0 = 1
     look_ahead_steps0 = 4
 
     rat_coeff1=1
@@ -84,8 +84,8 @@ if __name__ == "__main__" :
     P, Obj = PlayerState, ObjectState
 
     DISPLAY = True
-    start_order_list = ["any"]*20
-    horizon = 400
+    start_order_list = ["any"]*2000
+    horizon = 40000
     explosion_time = 500
     r_shaping = 0
     cook_time = 5

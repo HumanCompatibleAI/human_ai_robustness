@@ -84,8 +84,8 @@ if __name__ == "__main__" :
     P, Obj = PlayerState, ObjectState
 
     DISPLAY = True
-    start_order_list = ["any"]*2000
-    horizon = 40000
+    start_order_list = ["any"]*20
+    horizon = 400
     explosion_time = 500
     r_shaping = 0
     cook_time = 5
@@ -99,7 +99,7 @@ if __name__ == "__main__" :
         'same_motion_goals': True
     }
 
-    if layout == 'asy':
+    if layout == 'aa':
         start_state = OvercookedState([P((2, 2), n), P((5, 2), n)], {}, order_list=start_order_list)
         mdp = OvercookedGridworld.from_layout_name('asymmetric_advantages', start_order_list=start_order_list,
                                                    cook_time=cook_time, rew_shaping_params=None)
@@ -109,22 +109,22 @@ if __name__ == "__main__" :
     #     mdp = OvercookedGridworld.from_layout_name('scenario1_s', start_order_list=start_order_list,
     #                                                cook_time=cook_time, rew_shaping_params=None)
     #     mdp_params = {"layout_name": "scenario1_s", "start_order_list": start_order_list, "cook_time": cook_time}
-    elif layout == 'coo':
+    elif layout == 'cring':
         start_state = OvercookedState([P((1, 2), n), P((1, 1), n)], {}, order_list=start_order_list)
         mdp = OvercookedGridworld.from_layout_name('coordination_ring', start_order_list=start_order_list,
                                                    cook_time=cook_time, rew_shaping_params=None)
         mdp_params = {"layout_name": "coordination_ring", "start_order_list": start_order_list, "cook_time": cook_time}
-    elif layout == 'for':
+    elif layout == 'fc':
         start_state = OvercookedState([P((1, 2), n), P((3, 2), n)], {}, order_list=start_order_list)
         mdp = OvercookedGridworld.from_layout_name('forced_coordination', start_order_list=start_order_list,
                                                    cook_time=cook_time, rew_shaping_params=None)
         mdp_params = {"layout_name": "forced_coordination", "start_order_list": start_order_list, "cook_time": cook_time}
-    elif layout == 'cou':
+    elif layout == 'cc':
         start_state = OvercookedState([P((1, 2), n), P((6, 2), n)], {}, order_list=start_order_list)
         mdp = OvercookedGridworld.from_layout_name('counter_circuit', start_order_list=start_order_list,
                                                    cook_time=cook_time, rew_shaping_params=None)
         mdp_params = {"layout_name": "counter_circuit", "start_order_list": start_order_list, "cook_time": cook_time}
-    elif layout == 'cra':
+    elif layout == 'croom':
         start_state = OvercookedState([P((2, 2), n), P((2, 1), n)], {}, order_list=start_order_list)
         mdp = OvercookedGridworld.from_layout_name('cramped_room', start_order_list=start_order_list,
                                                    cook_time=cook_time, rew_shaping_params=None)

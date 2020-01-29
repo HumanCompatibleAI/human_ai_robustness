@@ -17,6 +17,9 @@ DOWN = 274
 LEFT = 276
 SPACEBAR = 32
 
+cook_time = 5
+start_order_list = 20 * ['any']
+
 no_counters_params = {
     'start_orientations': False,
     'wait_allowed': False,
@@ -94,7 +97,7 @@ class App:
 
 
     def step_env(self, my_action):
-        agent_action = self.agent.action(self.env.state)
+        agent_action, _ = self.agent.action(self.env.state)
         # other_agent_action = Direction.STAY
 
         if self.agent_idx == 0:
@@ -133,69 +136,67 @@ class App:
         self.on_cleanup()
  
 def setup_game(run_type, run_dir, cfg_run_dir, run_seed, agent_num, player_idx):
-    if run_type in ["pbt", "ppo"]:
-        # TODO: Add testing for this
-        run_path = "data/" + run_type + "_runs/" + run_dir + "/seed_{}".format(run_seed)
-        # TODO: use get_config_from_pbt_dir if will be split up for the two cases
-        config = load_dict_from_file(run_path + "/config")
+    # if run_type in ["pbt", "ppo"]:
+    #     # TODO: Add testing for this
+    #     run_path = "data/" + run_type + "_runs/" + run_dir + "/seed_{}".format(run_seed)
+    #     # TODO: use get_config_from_pbt_dir if will be split up for the two cases
+    #     config = load_dict_from_file(run_path + "/config")
+    #
+    #     agent_folder = run_path + '/agent' + str(agent_num)
+    #     agent_to_load_path = agent_folder + "/pbt_iter" + str(get_max_iter(agent_folder))
+    #     agent = get_agent_from_saved_model(agent_to_load_path, config["SIM_THREADS"])
+    #
+    #     if config["FIXED_MDP"]:
+    #         layout_name = config["FIXED_MDP"]
+    #         layout_filepath = "data/layouts/{}.layout".format(layout_name)
+    #         mdp = OvercookedGridworld.from_file(layout_filepath, config["ORDER_GOAL"], config["EXPLOSION_TIME"], rew_shaping_params=None)
+    #         env = OvercookedEnv(mdp)
+    #     else:
+    #         env = setup_mdp_env(display=False, **config)
+    #
+    # elif run_type == "bc":
+    #     config = get_config_from_pbt_dir(cfg_run_dir)
+    #
+    #     # Modifications from original pbt config
+    #     config["ENV_HORIZON"] = 1000
+    #
+    #     gym_env, _ = get_env_and_policy_fn(config)
+    #     env = gym_env.base_env
+    #
+    #     model_path = run_dir #'data/bc_runs/test_BC'
+    #     agent = get_agent_from_saved_BC(cfg_run_dir, model_path, stochastic=True)
 
-        agent_folder = run_path + '/agent' + str(agent_num)
-        agent_to_load_path = agent_folder + "/pbt_iter" + str(get_max_iter(agent_folder))
-        agent = get_agent_from_saved_model(agent_to_load_path, config["SIM_THREADS"])
-
-        if config["FIXED_MDP"]:
-            layout_name = config["FIXED_MDP"]
-            layout_filepath = "data/layouts/{}.layout".format(layout_name)
-            mdp = OvercookedGridworld.from_file(layout_filepath, config["ORDER_GOAL"], config["EXPLOSION_TIME"], rew_shaping_params=None)
-            env = OvercookedEnv(mdp)
-        else:
-            env = setup_mdp_env(display=False, **config)
-
-    elif run_type == "bc":
-        config = get_config_from_pbt_dir(cfg_run_dir)
-
-        # Modifications from original pbt config
-        config["ENV_HORIZON"] = 1000
-
-        gym_env, _ = get_env_and_policy_fn(config)
-        env = gym_env.base_env
-    
-        model_path = run_dir #'data/bc_runs/test_BC'
-        agent = get_agent_from_saved_BC(cfg_run_dir, model_path, stochastic=True)
-
-    elif run_type == "hardcoded":
-
-        cook_time = 5
+    if run_type == "hardcoded":
 
         # if layout == 'sc1':
         #
         #     # Setup mdp
-        #     mdp = OvercookedGridworld.from_layout_name('scenario1_s', start_order_list=["any", "any", "any"],
+        #     mdp = OvercookedGridworld.from_layout_name('scenario1_s', start_order_list=start_order_list,
         #                                                cook_time=cook_time, rew_shaping_params=None)
 
-        if layout == 'uni':
+        if layout == 'aa':
 
             # start_state = OvercookedState([P((2, 2), n), P((5, 2), n)], {}, order_list=start_order_list)
             # Setup mdp
-            mdp = OvercookedGridworld.from_layout_name('asymmetric_advantages', start_order_list=["any", "any", "any"],
+            mdp = OvercookedGridworld.from_layout_name('asymmetric_advantages', start_order_list=start_order_list,
                                                        cook_time=cook_time, rew_shaping_params=None)
 
-        elif layout == 'sim':
+        elif layout == 'croom':
 
             # Setup mdp
-            mdp = OvercookedGridworld.from_layout_name('cramped_room', start_order_list=["any", "any", "any"],
+            mdp = OvercookedGridworld.from_layout_name('cramped_room', start_order_list=start_order_list,
                                                        cook_time=cook_time, rew_shaping_params=None)
 
-        elif layout == 'ran':
+        elif layout == 'cring':
 
             # Setup mdp
-            mdp = OvercookedGridworld.from_layout_name('coordination_ring', start_order_list=["any", "any", "any"],
+            mdp = OvercookedGridworld.from_layout_name('coordination_ring', start_order_list=start_order_list,
                                                        cook_time=cook_time, rew_shaping_params=None)
 
         # elif layout == 'sch':
         #
         #     # Setup mdp
-        #     mdp = OvercookedGridworld.from_layout_name('schelling_s', start_order_list=["any", "any", "any"],
+        #     mdp = OvercookedGridworld.from_layout_name('schelling_s', start_order_list=start_order_list,
         #                                                cook_time=cook_time, rew_shaping_params=None)
 
         else:
@@ -215,26 +216,21 @@ def setup_game(run_type, run_dir, cfg_run_dir, run_seed, agent_num, player_idx):
         # path_teamwork0 = 1 - random.random() **2
         # rat_coeff0 = 1+random.random()*3
 
-        perseverance0 = 0
-        teamwork0 = 0.5
-        retain_goals0 = 0.8
-        wrong_decisions0 = 0.05
-        thinking_prob0 = 0.5
-        path_teamwork0 = 0.3
-        rat_coeff0 = 1.5
-        prob_pausing0 = 0.3
+        prob_thinking_not_moving0 = 0
+        retain_goals0 = 0.9
+        path_teamwork0 = 1
+        rat_coeff0 = 20
+        prob_pausing0 = 0
+        compliance0 = 0.5
+        prob_greedy0 = 0
+        prob_obs_other0 = 1
+        look_ahead_steps0 = 4
 
-
-        agent = ToMModel(mlp, player_index=0, perseverance=perseverance0, teamwork=teamwork0,
-                         retain_goals=retain_goals0, wrong_decisions=wrong_decisions0,
-                         thinking_prob=thinking_prob0, path_teamwork=path_teamwork0,
-                         rationality_coefficient=rat_coeff0, prob_pausing=prob_pausing0)
-
-        agent.use_OLD_ml_action = False
-
-        print('Ply 1: tw: {:.1f}, retain: {:.1f}, wrong dec: {:.1f}, think: {:.1f}, path_tw: {:.1f}, rat: {:.1f}'.
-              format(teamwork0, retain_goals0, wrong_decisions0, thinking_prob0, path_teamwork0,
-                     rat_coeff0))
+        agent = ToMModel(mlp, prob_random_action=0.06, compliance=compliance0, retain_goals=retain_goals0,
+                      prob_thinking_not_moving=prob_thinking_not_moving0, prob_pausing=prob_pausing0,
+                      path_teamwork=path_teamwork0, rationality_coefficient=rat_coeff0,
+                      prob_greedy=prob_greedy0, prob_obs_other=prob_obs_other0, look_ahead_steps=look_ahead_steps0)
+        agent.set_agent_index(0)
 
     else:
         raise ValueError("Unrecognized run type")
@@ -260,7 +256,7 @@ if __name__ == "__main__" :
     parser.add_argument("-s", "--seed", dest="seed", default=0)
     parser.add_argument("-a", "--agent_num", dest="agent_num", default=0)
     parser.add_argument("-i", "--idx", dest="idx", default=0)
-    parser.add_argument("-l", "--layout", default='sim')
+    parser.add_argument("-l", "--layout", default='croom')
 
     args = parser.parse_args()
     run_type, run_dir, cfg_run_dir, run_seed, agent_num, player_idx, layout = args.type, args.run, args.cfg, \

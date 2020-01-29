@@ -756,7 +756,7 @@ class ToMModel(Agent):
         if task_removed is not None:
             # Find min cost and final pos_or of other agent doing the task_removed:
             others_cost, others_sim_pos_and_or, sim_counter_objects, _ = self.find_min_cost_of_task(task_removed,
-                                                info["am"], find_own_cost=False, first_action_info=[state, info])
+                                        info["am"], find_own_cost=False, first_action_info=[state, info])
             others_sim_held_object = None
         else:
             others_cost = 0
@@ -790,7 +790,7 @@ class ToMModel(Agent):
             own_min_cost = np.Inf
             for task in task_priority_list[i]:
                 cost, _, _, task_goal = self.find_min_cost_of_task(task, am, find_own_cost=True,
-                                        first_action_info=[state, info], sim_counter_objects=sim_counter_objects)
+                                        sim_counter_objects=sim_counter_objects, first_action_info=[state, info])
                 if cost < own_min_cost:
                     own_min_cost = cost
                     own_task = task
@@ -800,9 +800,8 @@ class ToMModel(Agent):
             for j in range(i+1):
                 for task in task_priority_list[j]:
                     cost, others_sim_pos_and_or, sim_counter_objects, _ = self.find_min_cost_of_task(task,
-                                            am, find_own_cost=False,
-                                            subsequent_action_info=[others_sim_pos_and_or, others_sim_held_object, am],
-                                            sim_counter_objects=sim_counter_objects)
+                                            am, find_own_cost=False, sim_counter_objects=sim_counter_objects,
+                                            subsequent_action_info=[others_sim_pos_and_or, others_sim_held_object, am])
                     others_sim_held_object = None  # After doing a full task, they won't be holding an object
                     others_total_cost += cost
 
@@ -818,8 +817,8 @@ class ToMModel(Agent):
         # If the other player always has a lower cost, then motion_goals=[]:
         return []
 
-    def find_min_cost_of_task(self, task, am, find_own_cost, first_action_info=False, subsequent_action_info=False,
-                              sim_counter_objects=defaultdict(list, {'onion': []})):
+    def find_min_cost_of_task(self, task, am, find_own_cost, sim_counter_objects=None,
+                              first_action_info=False, subsequent_action_info=False):
         """Task removed might have several task_goals, so here we find the goal with the lowest cost, and return the
         goal and the cost and simulated pos/or and counter objects."""
 
@@ -1399,6 +1398,8 @@ class ToMModel(Agent):
                 for goal in motion_goals:
                     object_goals.append(goal)
                     object_tasks.append(task)
+            # TODO: The elif below is sloppy: it returns all motion goals for ALL soups on the counter, not just the specific one given by 'task'. E.g.
+            #  if the task is soup at (1, 0), then below will also return goals for any other soup!
             elif task_name == 'soup_from_counter':
                 motion_goals = info["am"].pickup_counter_soup_actions(info["counter_objects"])
                 for goal in motion_goals:

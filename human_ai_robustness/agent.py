@@ -1441,13 +1441,14 @@ class ToMModel(Agent):
                 if object.name in task_objects:
                     tasks_with_object.append(task)
             elif task_name == 'deliver_soup':
-                task_objects = ['dish', 'soup']
+                task_objects = ['dish']
                 if object.name in task_objects:
                     tasks_with_object.append(task)
             elif task_name == 'soup_from_counter':
                 task_objects = ['soup']
                 if object.name in task_objects:
-                    raise ValueError('We should never get here...')
+                    raise ValueError('We should never get here... Also, if theyre holding a soup then they cant deliver '
+                                     'a counter soup without dropping the soup theyre holding!')
 
         return len(tasks_with_object), tasks_with_object
 

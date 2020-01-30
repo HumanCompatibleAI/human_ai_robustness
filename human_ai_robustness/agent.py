@@ -806,7 +806,7 @@ class ToMModel(Agent):
                     others_total_cost += cost
 
             # If own cost is less than for the other player doing ALL tasks up to this point, then do the task:
-            if own_min_cost <= others_total_cost:
+            if (own_min_cost < np.Inf) and (own_min_cost <= others_total_cost):
                 if i > 0:
                     self.doing_lower_priority_task = True
                 elif i == 0:

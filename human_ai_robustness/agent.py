@@ -843,7 +843,9 @@ class ToMModel(Agent):
         if lowest_cost < np.Inf:
             return lowest_cost, sim_pos_and_or, sim_counter_objects, lowest_cost_task_goal
         else:
-            return lowest_cost, None, defaultdict(list, {'onion': []}), None
+            #TODO: This shouldn't be needed (try to fix it)... but we're setting sim_pos_and_or for inf cost tasks
+            pos_and_or = self.find_pos_and_or(find_own_cost, first_action_info, subsequent_action_info)
+            return lowest_cost, pos_and_or, defaultdict(list, {'onion': []}), None
 
     def find_motion_goals_for_task(self, state, info, task_to_do):
         """Find the motion goals for doing the task_to_do"""
@@ -978,6 +980,19 @@ class ToMModel(Agent):
 
         return am.go_to_closest_feature_or_counter_to_goal(closest_motion_goal, goal_location)
 
+    def find_pos_and_or(self, find_own_cost, first_action_info, subsequent_action_info):
+        """Return the pos_and_or given in either first_ or subsequent_ action_info"""
+        if first_action_info:
+            _, info = first_action_info
+            if find_own_cost:
+                player = info['player']
+            else:
+                player = info['other_player']
+            pos_and_or = player.pos_and_or
+        elif subsequent_action_info:
+            pos_and_or, _, _ = subsequent_action_info
+        return pos_and_or
+
     def find_cost_of_single_task(self, task, task_goal, find_own_cost=True,
                                  first_action_info=False, subsequent_action_info=False,
                                  sim_counter_objects=None):
@@ -1020,6 +1035,13 @@ class ToMModel(Agent):
 
         task_name = list(task.keys())[0]
         # If task goal is valid then calculate cost, if not then give cost = Inf
+        #TODO: TEMP for debug:
+        if self.mlp.mp.is_valid_motion_start_goal_pair(sim_pos_and_or, task_goal) == 'ERROR!':
+            overcooked_env = OvercookedEnv(self.mdp)
+            overcooked_env.state = state
+            print(overcooked_env)
+            raise ValueError(overcooked_env, 'agent_index={}, task={}, task_goal={}, find_own_cost={}, first_action_info={}, subsequent_action_info={}, sim_counter_objects={}'.format(
+                self.agent_index, task, task_goal, find_own_cost, first_action_info, subsequent_action_info, sim_counter_objects))
         if not self.mlp.mp.is_valid_motion_start_goal_pair(sim_pos_and_or, task_goal):
             cost = np.Inf
             final_pos_and_or = sim_pos_and_or
@@ -1040,6 +1062,7 @@ class ToMModel(Agent):
                 # Wrong object, so drop it first:
                 if first_action_info:
                     motion_goals = info["am"].place_obj_on_counter_actions(state)
+                #TODO: This might be causing issues; and it's not an ideal solution:
                 else:  # Here we don't have the state info, so we simplify by considering all counters:
                     all_counters = self.mdp.get_counter_locations()
                     motion_goals = am._get_ml_actions_for_positions(all_counters)
@@ -1053,6 +1076,7 @@ class ToMModel(Agent):
 
                 # Cost to pick up the soup:
                 cost_to_pick_up = self.find_plan_cost_inc_inf(sim_pos_and_or, task_goal)
+                #TODO: Note that this will be set even if the cost is infinite. Change to only set this if cost is finite?
                 sim_pos_and_or = task_goal
 
                 # Cost to deliver the soup:

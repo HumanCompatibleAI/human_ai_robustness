@@ -285,6 +285,7 @@ class ToMModel(Agent):
         self.prob_random_action = prob_random_action  # Randomly return one of the 6 actions, with this prob
 
         # Higher level strategy:  (Note: prob_greedy and prob_obs_other will be converted into personality types A-D)
+        #TODO: retain_goals should be renamed to "inertia"?
         self.retain_goals = retain_goals  # Prob of keeping the previous goal each timestep (rather than re-calculating)
         self.prob_greedy = prob_greedy  # Prob of having greedy personality type (as opposed to finding team strategies)
         self.prob_obs_other = prob_obs_other  # Prob of factoring in the other's likely goals during decision making
@@ -704,7 +705,7 @@ class ToMModel(Agent):
         return motion_goals
 
     def choose_goals_type_B(self, state, task_priority_list, info):
-        """This agent identifies other agent’s current task and plans in isolation after that"""
+        """This agent identifies the other agent’s current task and plans in isolation after that"""
 
         # If other player has soup, then just assume they are delivering it, and leave the task list unchanged
         if not (info['other_player'].has_object() and info['other_player'].get_object().name == 'soup'):
@@ -1035,13 +1036,6 @@ class ToMModel(Agent):
 
         task_name = list(task.keys())[0]
         # If task goal is valid then calculate cost, if not then give cost = Inf
-        #TODO: TEMP for debug:
-        if self.mlp.mp.is_valid_motion_start_goal_pair(sim_pos_and_or, task_goal) == 'ERROR!':
-            overcooked_env = OvercookedEnv(self.mdp)
-            overcooked_env.state = state
-            print(overcooked_env)
-            raise ValueError(overcooked_env, 'agent_index={}, task={}, task_goal={}, find_own_cost={}, first_action_info={}, subsequent_action_info={}, sim_counter_objects={}'.format(
-                self.agent_index, task, task_goal, find_own_cost, first_action_info, subsequent_action_info, sim_counter_objects))
         if not self.mlp.mp.is_valid_motion_start_goal_pair(sim_pos_and_or, task_goal):
             cost = np.Inf
             final_pos_and_or = sim_pos_and_or

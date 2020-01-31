@@ -1,4 +1,5 @@
-import pygame, random, time
+import pygame
+import random
 from argparse import ArgumentParser
 
 from overcooked_ai_py.agents.agent import StayAgent, RandomAgent, AgentFromPolicy
@@ -6,13 +7,9 @@ from human_ai_robustness.agent import GreedyHumanModel_pk, ToMModel
 from overcooked_ai_py.mdp.overcooked_mdp import OvercookedGridworld, Direction, Action
 from overcooked_ai_py.mdp.overcooked_env import OvercookedEnv
 from overcooked_ai_py.planning.planners import MediumLevelPlanner
-from overcooked_ai_py.utils import load_dict_from_file  # , get_max_iter
+from overcooked_ai_py.utils import load_dict_from_file #, get_max_iter
 
 from human_aware_rl.utils import get_max_iter
-
-from concurrent.futures import ThreadPoolExecutor
-
-pool = ThreadPoolExecutor(3)
 
 UP = 273
 RIGHT = 275
@@ -20,9 +17,8 @@ DOWN = 274
 LEFT = 276
 SPACEBAR = 32
 
-cook_time = 20
-start_order_list = 5 * ['any']
-step_time_ms = 150
+cook_time = 5
+start_order_list = 20 * ['any']
 
 no_counters_params = {
     'start_orientations': False,
@@ -42,115 +38,93 @@ one_counter_params = {
     'same_motion_goals': True
 }
 
-
 class App:
     """Class to run an Overcooked Gridworld game, leaving one of the players as fixed.
     Useful for debugging. Most of the code from http://pygametutorials.wikidot.com/tutorials-basic."""
-
-    def __init__(self, env, agent, my_index):
+    def __init__(self, env, agent, player_idx):
         self._running = True
         self._display_surf = None
         self.env = env
         self.agent = agent
-        self.my_index = my_index
-        self.other_index = 1 - self.my_index
+        self.agent_idx = player_idx
         self.size = self.weight, self.height = 1, 1
-        self.future_action = None
-        self.done = False
 
     def on_init(self):
         pygame.init()
 
-        # self.agent.set_mdp(self.env.mdp)
+        # Adding pre-trained agent as teammate
+        self.agent.set_agent_index(self.agent_idx)
+        self.agent.set_mdp(self.env.mdp)
 
         print(self.env)
         self._display_surf = pygame.display.set_mode(self.size, pygame.HWSURFACE | pygame.DOUBLEBUF)
         self._running = True
-
+ 
     def on_event(self, event):
-        if (event is not None and event.type == pygame.QUIT) or self.done:
+        done = False
+
+        if event.type == pygame.KEYDOWN:
+            pressed_key = event.dict['key']
+            action = None
+
+            if pressed_key == UP or pressed_key == ord('w'):
+                action = Direction.NORTH
+            elif pressed_key == RIGHT or pressed_key == ord('d'):
+                action = Direction.EAST
+            elif pressed_key == DOWN or pressed_key == ord('s'):
+                action = Direction.SOUTH
+            elif pressed_key == LEFT or pressed_key == ord('a'):
+                action = Direction.WEST
+            elif pressed_key == SPACEBAR:
+                action = Action.INTERACT
+                
+            if action in Action.ALL_ACTIONS:
+                done = self.step_env(action)
+
+        if event.type == pygame.QUIT or done:
             self._running = False
-        elif event is None or event.type == pygame.KEYDOWN:
-            if event is None:
-                action = Action.STAY
-            elif event.type == pygame.KEYDOWN:
-                pressed_key = event.dict['key']
-                action = None
 
-                if pressed_key == UP or pressed_key == ord('w'):
-                    action = Direction.NORTH
-                elif pressed_key == RIGHT or pressed_key == ord('d'):
-                    action = Direction.EAST
-                elif pressed_key == DOWN or pressed_key == ord('s'):
-                    action = Direction.SOUTH
-                elif pressed_key == LEFT or pressed_key == ord('a'):
-                    action = Direction.WEST
-                elif pressed_key == SPACEBAR:
-                    action = Action.INTERACT
-
-            # If the wrong key is pressed then just stay
-            if action not in Action.ALL_ACTIONS:
-                action = Action.STAY
-
-            self.done = self.step_env(action)
 
     def step_env(self, my_action):
-        if self.future_action is None:
-            agent_action, _ = self.agent.action(self.env.state)
-        else:
-            # print(self.future_action.done())
-            while not self.future_action.done():
-                # print('waiting')
-                pass
-            agent_action = self.future_action.result()[0]
+        agent_action, _ = self.agent.action(self.env.state)
+        # other_agent_action = Direction.STAY
 
-        if self.my_index == 0:
-            joint_action = (my_action, agent_action)
-        else:
+        if self.agent_idx == 0:
             joint_action = (agent_action, my_action)
+        else:
+            joint_action = (my_action, agent_action)
 
         s_t, r_t, done, info = self.env.step(joint_action)
 
-        self.future_action = pool.submit(self.agent.action, (self.env.state))
-        print("Time: {}".format(self.env.t))
         print(self.env)
+        # Changed from this: print("Curr reward: (sparse)", r_t, "\t(dense)", info["dense_r"])
+        print("Curr reward: (sparse)", r_t, "\t(dense)", info["shaped_r"])
+        print("Time: {}".format(self.env.t))
+        # process_observations([next_state], self.env.mdp, 0, debug=True)
+        # print("Pos", next_state.player_positions[1])
+        # print("Heuristic: ", self.hlp.hard_heuristic_fn(next_state, 1))
         return done
 
     def on_loop(self):
-        if len(self.events_log) != 0:
-            self.on_event(self.events_log.pop(0))
-        else:
-            self.on_event(None)
-
+        pass
     def on_render(self):
         pass
 
     def on_cleanup(self):
         pygame.quit()
-
+ 
     def on_execute(self):
         if self.on_init() == False:
             self._running = False
-
-        prev_timestep = -1
-        self.events_log = []
-
-        self.start_time = time.time()
-        while (self._running):
-            ms_since_start = (time.time() - self.start_time) * 1000
-            self.curr_timestep = ms_since_start // step_time_ms
-
-            self.events_log.extend(pygame.event.get(pygame.KEYDOWN))
-            if prev_timestep < self.curr_timestep:
-                self.on_loop()
-
-            prev_timestep = self.curr_timestep
-            pygame.event.clear(eventtype=pygame.KEYUP)  # Clear KEYUP events from the events queue, as we don't use these
-
+ 
+        while( self._running ):
+            for event in pygame.event.get():
+                self.on_event(event)
+            self.on_loop()
             self.on_render()
         self.on_cleanup()
-
-def setup_game(run_type, run_dir, cfg_run_dir, run_seed, agent_num, agent_index):
+ 
+def setup_game(run_type, run_dir, cfg_run_dir, run_seed, agent_num, player_idx):
     # if run_type in ["pbt", "ppo"]:
     #     # TODO: Add testing for this
     #     run_path = "data/" + run_type + "_runs/" + run_dir + "/seed_{}".format(run_seed)
@@ -181,21 +155,42 @@ def setup_game(run_type, run_dir, cfg_run_dir, run_seed, agent_num, agent_index)
     #     model_path = run_dir #'data/bc_runs/test_BC'
     #     agent = get_agent_from_saved_BC(cfg_run_dir, model_path, stochastic=True)
 
-    if run_type == "tom":
+    if run_type == "hardcoded":
+
+        # if layout == 'sc1':
+        #
+        #     # Setup mdp
+        #     mdp = OvercookedGridworld.from_layout_name('scenario1_s', start_order_list=start_order_list,
+        #                                                cook_time=cook_time, rew_shaping_params=None)
 
         if layout == 'aa':
-            layout_name = 'asymmetric_advantages'
+
+            # start_state = OvercookedState([P((2, 2), n), P((5, 2), n)], {}, order_list=start_order_list)
+            # Setup mdp
+            mdp = OvercookedGridworld.from_layout_name('asymmetric_advantages', start_order_list=start_order_list,
+                                                       cook_time=cook_time, rew_shaping_params=None)
+
         elif layout == 'croom':
-            layout_name = 'cramped_room'
+
+            # Setup mdp
+            mdp = OvercookedGridworld.from_layout_name('cramped_room', start_order_list=start_order_list,
+                                                       cook_time=cook_time, rew_shaping_params=None)
+
         elif layout == 'cring':
-            layout_name = 'coordination_ring'
-        elif layout == 'cc':
-            layout_name = 'counter_circuit'
+
+            # Setup mdp
+            mdp = OvercookedGridworld.from_layout_name('coordination_ring', start_order_list=start_order_list,
+                                                       cook_time=cook_time, rew_shaping_params=None)
+
+        # elif layout == 'sch':
+        #
+        #     # Setup mdp
+        #     mdp = OvercookedGridworld.from_layout_name('schelling_s', start_order_list=start_order_list,
+        #                                                cook_time=cook_time, rew_shaping_params=None)
+
         else:
             raise ValueError('layout not recognised')
 
-        mdp = OvercookedGridworld.from_layout_name(layout_name, start_order_list=start_order_list,
-                                                   cook_time=cook_time, rew_shaping_params=None)
         env = OvercookedEnv(mdp)
         # Doing this means that all counter locations are allowed to have objects dropped on them AND be "goals" (I think!)
         no_counters_params['counter_drop'] = mdp.get_counter_locations()
@@ -214,50 +209,52 @@ def setup_game(run_type, run_dir, cfg_run_dir, run_seed, agent_num, agent_index)
         retain_goals0 = 0.9
         path_teamwork0 = 1
         rat_coeff0 = 20
-        prob_pausing0 = 0.7
+        prob_pausing0 = 0
         compliance0 = 0.5
-        prob_greedy0 = 0.5
-        prob_obs_other0 = 0.5
+        prob_greedy0 = 0
+        prob_obs_other0 = 1
         look_ahead_steps0 = 4
 
         agent = ToMModel(mlp, prob_random_action=0.06, compliance=compliance0, retain_goals=retain_goals0,
-                         prob_thinking_not_moving=prob_thinking_not_moving0, prob_pausing=prob_pausing0,
-                         path_teamwork=path_teamwork0, rationality_coefficient=rat_coeff0,
-                         prob_greedy=prob_greedy0, prob_obs_other=prob_obs_other0, look_ahead_steps=look_ahead_steps0)
-        agent.set_agent_index(agent_index)
-        agent.use_OLD_ml_action = False
+                      prob_thinking_not_moving=prob_thinking_not_moving0, prob_pausing=prob_pausing0,
+                      path_teamwork=path_teamwork0, rationality_coefficient=rat_coeff0,
+                      prob_greedy=prob_greedy0, prob_obs_other=prob_obs_other0, look_ahead_steps=look_ahead_steps0)
+        agent.set_agent_index(0)
+        agent.wrong_decisions = 0.3
+        agent.use_OLD_ml_action = True
 
     else:
         raise ValueError("Unrecognized run type")
 
-    return env, agent
+    return env, agent, player_idx
 
-
-if __name__ == "__main__":
+if __name__ == "__main__" :
     """
-    python human_ai_robustness/overcooked_interactive.py -t tom -l croom -i 0
+    Sample commands
+    -> hardcoded
+    python mdp/overcooked_interactive.py -t hardcoded -l sim
     """
     parser = ArgumentParser()
     # parser.add_argument("-l", "--fixed_mdp", dest="layout",
     #                     help="name of the layout to be played as found in data/layouts",
     #                     required=True)
     parser.add_argument("-t", "--type", dest="type",
-                        help="type of run, (i.e. pbt, bc, ppo, tom, etc)", required=False, default="tom")
+                        help="type of run, (i.e. pbt, bc, ppo, hardcoded, etc)", required=True)
     parser.add_argument("-r", "--run_dir", dest="run",
-                        help="name of run dir in data/*_runs/", required=False, default="test")
+                        help="name of run dir in data/*_runs/", required=True)
     parser.add_argument("-c", "--config_run_dir", dest="cfg",
                         help="name of run dir in data/*_runs/", required=False)
     parser.add_argument("-s", "--seed", dest="seed", default=0)
     parser.add_argument("-a", "--agent_num", dest="agent_num", default=0)
-    parser.add_argument("-i", "--index", dest="my_index", default=0)
+    parser.add_argument("-i", "--idx", dest="idx", default=0)
     parser.add_argument("-l", "--layout", default='croom')
 
     args = parser.parse_args()
-    run_type, run_dir, cfg_run_dir, run_seed, agent_num, my_index, layout = args.type, args.run, args.cfg, \
-                                                                              int(args.seed), int(args.agent_num), \
-                                                                              int(args.my_index), args.layout
-    other_index = 1 - my_index
-    env, agent = setup_game(run_type, run_dir, cfg_run_dir, run_seed, agent_num, other_index)
+    run_type, run_dir, cfg_run_dir, run_seed, agent_num, player_idx, layout = args.type, args.run, args.cfg, \
+                                                                             int(args.seed), int(args.agent_num), \
+                                                                              int(args.idx), args.layout
 
-    theApp = App(env, agent, my_index)
+    env, agent, player_idx = setup_game(run_type, run_dir, cfg_run_dir, run_seed, agent_num, player_idx)
+    
+    theApp = App(env, agent, player_idx)
     theApp.on_execute()

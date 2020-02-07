@@ -21,7 +21,7 @@ LEFT = 276
 SPACEBAR = 32
 
 cook_time = 20
-start_order_list = 5 * ['any']
+start_order_list = 100 * ['any']
 step_time_ms = 150
 
 no_counters_params = {
@@ -47,7 +47,7 @@ class App:
     """Class to run an Overcooked Gridworld game, leaving one of the players as fixed.
     Useful for debugging. Most of the code from http://pygametutorials.wikidot.com/tutorials-basic."""
 
-    def __init__(self, env, agent, my_index):
+    def __init__(self, env, agent, my_index, time_limit):
         self._running = True
         self._display_surf = None
         self.env = env
@@ -57,6 +57,7 @@ class App:
         self.size = self.weight, self.height = 1, 1
         self.future_action = None
         self.done = False
+        self.time_limit = time_limit
 
     def on_init(self):
         pygame.init()
@@ -68,7 +69,8 @@ class App:
         self._running = True
 
     def on_event(self, event):
-        if (event is not None and event.type == pygame.QUIT) or self.done:
+        s_since_start = (time.time() - self.start_time)
+        if (event is not None and event.type == pygame.QUIT) or self.done or (s_since_start > self.time_limit):
             self._running = False
         elif event is None or event.type == pygame.KEYDOWN:
             if event is None:
@@ -112,13 +114,16 @@ class App:
         s_t, r_t, done, info = self.env.step(joint_action)
 
         self.future_action = pool.submit(self.agent.action, (self.env.state))
-        print("Time: {}".format(self.env.t))
+        time_left = round(self.time_limit - (time.time() - self.start_time))
+        print("Time left: {}".format(time_left))
         print(self.env)
         return done
 
     def on_loop(self):
         if len(self.events_log) != 0:
-            self.on_event(self.events_log.pop(0))
+            event = self.events_log.pop(0)
+            self.events_log = []
+            self.on_event(event)
         else:
             self.on_event(None)
 
@@ -251,13 +256,14 @@ if __name__ == "__main__":
     parser.add_argument("-a", "--agent_num", dest="agent_num", default=0)
     parser.add_argument("-i", "--index", dest="my_index", default=0)
     parser.add_argument("-l", "--layout", default='croom')
+    parser.add_argument("-tm", "--time_limit", default=30, type=float)
 
     args = parser.parse_args()
-    run_type, run_dir, cfg_run_dir, run_seed, agent_num, my_index, layout = args.type, args.run, args.cfg, \
-                                                                              int(args.seed), int(args.agent_num), \
-                                                                              int(args.my_index), args.layout
+    run_type, run_dir, cfg_run_dir, run_seed, agent_num, my_index, layout, time_limit = args.type, args.run, args.cfg, \
+                                                                  int(args.seed), int(args.agent_num), \
+                                                                  int(args.my_index), args.layout, args.time_limit
     other_index = 1 - my_index
     env, agent = setup_game(run_type, run_dir, cfg_run_dir, run_seed, agent_num, other_index)
 
-    theApp = App(env, agent, my_index)
+    theApp = App(env, agent, my_index, time_limit)
     theApp.on_execute()

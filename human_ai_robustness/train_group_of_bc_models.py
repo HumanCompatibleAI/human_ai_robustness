@@ -11,6 +11,8 @@ params_cring = {"layout_name": "coordination_ring", "num_epochs": 120, "lr": 1e-
 params_cc = {"layout_name": "counter_circuit", "num_epochs": 110, "lr": 1e-3, "adam_eps":1e-8}
 all_params = [params_croom, params_aa, params_cring, params_cc]
 
+all_params_test = [{"layout_name": "cramped_room", "num_epochs": 2, "lr": 1e-3, "adam_eps":1e-8}]
+
 if __name__ == "__main__":
     """
     """
@@ -22,10 +24,13 @@ if __name__ == "__main__":
     parser.add_argument("-ns", "--num_seeds", dest="num_seeds",
                         help="Number of seeds -- i.e. number of bc models to train", required=True, type=int)
     # parser.add_argument("-tm", "--time_limit", default=30, type=float)
-    # parser.add_argument("-pd", "--ppo_dir", required=False, type=str)
+    parser.add_argument("-t", "--test", required=False, default=False)
 
     args = parser.parse_args()
-    num_seeds = args.num_seeds
+    num_seeds, test = args.num_seeds, args.test
+
+    if test: all_params = all_params_test
 
     seeds = list(np.random.randint(0, 10000, size=num_seeds))
     train_bc_models(all_params, seeds, data_subset="train", prefix="", evaluation=True)
+    print('Seeds of the trained models:\n{}'.format(seeds))

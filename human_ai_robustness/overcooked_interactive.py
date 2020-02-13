@@ -1,6 +1,7 @@
 import pygame, random, time
 from argparse import ArgumentParser
 
+from human_aware_rl.imitation.behavioural_cloning import get_bc_agent_from_saved
 from overcooked_ai_py.agents.agent import StayAgent, RandomAgent, AgentFromPolicy
 from human_ai_robustness.agent import GreedyHumanModel_pk, ToMModel
 from overcooked_ai_py.mdp.overcooked_mdp import OvercookedGridworld, Direction, Action
@@ -155,7 +156,7 @@ class App:
             self.on_render()
         self.on_cleanup()
 
-def setup_game(run_type, ppo_dir, seed, agent_num, agent_index):
+def setup_game(run_type, model_dir, seed, agent_num, agent_index):
 
     # if run_type in ["pbt", "ppo"]:
     #     # TODO: Add testing for this
@@ -205,7 +206,7 @@ def setup_game(run_type, ppo_dir, seed, agent_num, agent_index):
 
     if run_type == "ppo":
         base_dir = '/home/pmzpk/Documents/hr_coordination_from_server_ONEDRIVE/'
-        dir = base_dir + ppo_dir + '/'
+        dir = base_dir + model_dir + '/'
         from human_aware_rl.ppo.ppo_tom import get_ppo_agent
         agent, _ = get_ppo_agent(dir, seed, best=True)
         agent.set_agent_index(agent_index)
@@ -243,6 +244,12 @@ def setup_game(run_type, ppo_dir, seed, agent_num, agent_index):
         agent.set_agent_index(agent_index)
         agent.use_OLD_ml_action = False
 
+    elif run_type == "bc":
+
+        agent, _ = get_bc_agent_from_saved(model_dir, True)
+        agent.set_agent_index(agent_index)
+        agent.set_mdp(mdp)
+
     else:
         raise ValueError("Unrecognized run type")
 
@@ -268,14 +275,15 @@ if __name__ == "__main__":
     parser.add_argument("-i", "--index", dest="my_index", default=0)
     parser.add_argument("-l", "--layout", default='croom')
     parser.add_argument("-tm", "--time_limit", default=30, type=float)
-    parser.add_argument("-pd", "--ppo_dir", required=False, type=str)
+    parser.add_argument("-m", "--model_dir", required=False, type=str, help="For ppo, give expt_name/run_name, e.g. "
+            "'hp_tune_cc_cring/cc_0'. For BC, give the name of the saved model, e.g. 'cramped_room_bc_train_seed103'")
 
     args = parser.parse_args()
-    run_type, ppo_dir, cfg_run_dir, run_seed, agent_num, my_index, layout, time_limit = args.type, args.ppo_dir, args.cfg, \
+    run_type, model_dir, cfg_run_dir, run_seed, agent_num, my_index, layout, time_limit = args.type, args.model_dir, args.cfg, \
                                                                   int(args.seed), int(args.agent_num), \
                                                                   int(args.my_index), args.layout, args.time_limit
     other_index = 1 - my_index
-    env, agent = setup_game(run_type, ppo_dir, run_seed, agent_num, other_index)
+    env, agent = setup_game(run_type, model_dir, run_seed, agent_num, other_index)
 
     theApp = App(env, agent, my_index, time_limit)
     theApp.on_execute()

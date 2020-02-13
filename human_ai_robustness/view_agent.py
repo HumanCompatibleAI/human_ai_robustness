@@ -150,5 +150,3 @@ if __name__ == "__main__" :
     ap = make_agent_pair(mlp)
     a_eval = AgentEvaluator(mdp_params=mdp_params, env_params=env_params, mlp_params=mlp_params)
     a_eval.evaluate_agent_pair(ap, display=True)
-
-

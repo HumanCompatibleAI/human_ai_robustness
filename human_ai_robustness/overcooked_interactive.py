@@ -155,7 +155,8 @@ class App:
             self.on_render()
         self.on_cleanup()
 
-def setup_game(run_type, run_dir, cfg_run_dir, run_seed, agent_num, agent_index):
+def setup_game(run_type, ppo_dir, seed, agent_num, agent_index):
+
     # if run_type in ["pbt", "ppo"]:
     #     # TODO: Add testing for this
     #     run_path = "data/" + run_type + "_runs/" + run_dir + "/seed_{}".format(run_seed)
@@ -186,22 +187,32 @@ def setup_game(run_type, run_dir, cfg_run_dir, run_seed, agent_num, agent_index)
     #     model_path = run_dir #'data/bc_runs/test_BC'
     #     agent = get_agent_from_saved_BC(cfg_run_dir, model_path, stochastic=True)
 
-    if run_type == "tom":
+    #TODO: Make this a dictionary rather than "if elif":
+    if layout == 'aa':
+        layout_name = 'asymmetric_advantages'
+    elif layout == 'croom':
+        layout_name = 'cramped_room'
+    elif layout == 'cring':
+        layout_name = 'coordination_ring'
+    elif layout == 'cc':
+        layout_name = 'counter_circuit'
+    else:
+        raise ValueError('layout not recognised')
 
-        if layout == 'aa':
-            layout_name = 'asymmetric_advantages'
-        elif layout == 'croom':
-            layout_name = 'cramped_room'
-        elif layout == 'cring':
-            layout_name = 'coordination_ring'
-        elif layout == 'cc':
-            layout_name = 'counter_circuit'
-        else:
-            raise ValueError('layout not recognised')
+    mdp = OvercookedGridworld.from_layout_name(layout_name, start_order_list=start_order_list,
+                                               cook_time=cook_time, rew_shaping_params=None)
+    env = OvercookedEnv(mdp)
 
-        mdp = OvercookedGridworld.from_layout_name(layout_name, start_order_list=start_order_list,
-                                                   cook_time=cook_time, rew_shaping_params=None)
-        env = OvercookedEnv(mdp)
+    if run_type == "ppo":
+        base_dir = '/home/pmzpk/Documents/hr_coordination_from_server_ONEDRIVE/'
+        dir = base_dir + ppo_dir + '/'
+        from human_aware_rl.ppo.ppo_tom import get_ppo_agent
+        agent, _ = get_ppo_agent(dir, seed, best=True)
+        agent.set_agent_index(agent_index)
+        agent.set_mdp(mdp)
+
+    elif run_type == "tom":
+
         # Doing this means that all counter locations are allowed to have objects dropped on them AND be "goals" (I think!)
         no_counters_params['counter_drop'] = mdp.get_counter_locations()
         no_counters_params['counter_goals'] = mdp.get_counter_locations()
@@ -248,8 +259,8 @@ if __name__ == "__main__":
     #                     required=True)
     parser.add_argument("-t", "--type", dest="type",
                         help="type of run, (i.e. pbt, bc, ppo, tom, etc)", required=False, default="tom")
-    parser.add_argument("-r", "--run_dir", dest="run",
-                        help="name of run dir in data/*_runs/", required=False, default="test")
+    # parser.add_argument("-r", "--run_dir", dest="run",
+    #                     help="name of run dir in data/*_runs/", required=False, default="test")
     parser.add_argument("-c", "--config_run_dir", dest="cfg",
                         help="name of run dir in data/*_runs/", required=False)
     parser.add_argument("-s", "--seed", dest="seed", default=0)
@@ -257,13 +268,14 @@ if __name__ == "__main__":
     parser.add_argument("-i", "--index", dest="my_index", default=0)
     parser.add_argument("-l", "--layout", default='croom')
     parser.add_argument("-tm", "--time_limit", default=30, type=float)
+    parser.add_argument("-pd", "--ppo_dir", required=False, type=str)
 
     args = parser.parse_args()
-    run_type, run_dir, cfg_run_dir, run_seed, agent_num, my_index, layout, time_limit = args.type, args.run, args.cfg, \
+    run_type, ppo_dir, cfg_run_dir, run_seed, agent_num, my_index, layout, time_limit = args.type, args.ppo_dir, args.cfg, \
                                                                   int(args.seed), int(args.agent_num), \
                                                                   int(args.my_index), args.layout, args.time_limit
     other_index = 1 - my_index
-    env, agent = setup_game(run_type, run_dir, cfg_run_dir, run_seed, agent_num, other_index)
+    env, agent = setup_game(run_type, ppo_dir, run_seed, agent_num, other_index)
 
     theApp = App(env, agent, my_index, time_limit)
     theApp.on_execute()

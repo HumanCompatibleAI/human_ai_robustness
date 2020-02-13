@@ -182,11 +182,11 @@ def setup_game(run_type, run_dir, cfg_run_dir, run_seed, agent_num, player_idx):
             mdp = OvercookedGridworld.from_layout_name('coordination_ring', start_order_list=start_order_list,
                                                        cook_time=cook_time, rew_shaping_params=None)
 
-        # elif layout == 'sch':
-        #
-        #     # Setup mdp
-        #     mdp = OvercookedGridworld.from_layout_name('schelling_s', start_order_list=start_order_list,
-        #                                                cook_time=cook_time, rew_shaping_params=None)
+        elif layout == 'cc':
+
+            # Setup mdp
+            mdp = OvercookedGridworld.from_layout_name('counter_circuit', start_order_list=start_order_list,
+                                                       cook_time=cook_time, rew_shaping_params=None)
 
         else:
             raise ValueError('layout not recognised')

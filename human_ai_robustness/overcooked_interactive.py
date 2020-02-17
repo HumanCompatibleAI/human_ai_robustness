@@ -156,7 +156,7 @@ class App:
             self.on_render()
         self.on_cleanup()
 
-def setup_game(run_type, model_dir, seed, agent_num, agent_index):
+def setup_game(run_type, model_dir, seed, agent_index):
 
     # if run_type in ["pbt", "ppo"]:
     #     # TODO: Add testing for this
@@ -259,19 +259,21 @@ def setup_game(run_type, model_dir, seed, agent_num, agent_index):
 if __name__ == "__main__":
     """
     python human_ai_robustness/overcooked_interactive.py -t tom -l croom -i 0
+    
+    Example usage for ppo: "python human_ai_robustness/overcooked_interactive.py -t ppo -i 0 -l cring -tm 60 -m hp_tune_cring4/cring_7 -s 2732"
     """
     parser = ArgumentParser()
     # parser.add_argument("-l", "--fixed_mdp", dest="layout",
     #                     help="name of the layout to be played as found in data/layouts",
     #                     required=True)
     parser.add_argument("-t", "--type", dest="type",
-                        help="type of run, (i.e. pbt, bc, ppo, tom, etc)", required=False, default="tom")
+                        help="type of run, (i.e. ppo, tom, bc,...)", required=False, default="tom")
     # parser.add_argument("-r", "--run_dir", dest="run",
     #                     help="name of run dir in data/*_runs/", required=False, default="test")
-    parser.add_argument("-c", "--config_run_dir", dest="cfg",
-                        help="name of run dir in data/*_runs/", required=False)
+    # parser.add_argument("-c", "--config_run_dir", dest="cfg",
+    #                     help="name of run dir in data/*_runs/", required=False)
     parser.add_argument("-s", "--seed", dest="seed", default=0)
-    parser.add_argument("-a", "--agent_num", dest="agent_num", default=0)
+    # parser.add_argument("-a", "--agent_num", dest="agent_num", default=0)
     parser.add_argument("-i", "--index", dest="my_index", default=0)
     parser.add_argument("-l", "--layout", default='croom')
     parser.add_argument("-tm", "--time_limit", default=30, type=float)
@@ -279,11 +281,10 @@ if __name__ == "__main__":
             "'hp_tune_cc_cring/cc_0'. For BC, give the name of the saved model, e.g. 'cramped_room_bc_train_seed103'")
 
     args = parser.parse_args()
-    run_type, model_dir, cfg_run_dir, run_seed, agent_num, my_index, layout, time_limit = args.type, args.model_dir, args.cfg, \
-                                                                  int(args.seed), int(args.agent_num), \
+    run_type, model_dir, run_seed, my_index, layout, time_limit = args.type, args.model_dir, int(args.seed), \
                                                                   int(args.my_index), args.layout, args.time_limit
     other_index = 1 - my_index
-    env, agent = setup_game(run_type, model_dir, run_seed, agent_num, other_index)
+    env, agent = setup_game(run_type, model_dir, run_seed, other_index)
 
     theApp = App(env, agent, my_index, time_limit)
     theApp.on_execute()

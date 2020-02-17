@@ -1,5 +1,5 @@
 
-from human_aware_rl.ppo.ppo_tom import plot_ppo_tom
+from human_aware_rl.ppo.ppo_pop import plot_ppo_tom
 
 # SEEDS = [3264, 4859, 9225]
 SEEDS = [2732, 9845]

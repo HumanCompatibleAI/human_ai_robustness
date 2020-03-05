@@ -1095,8 +1095,6 @@ class ToMModel(Agent):
             serving_cost1 = self.find_plan_cost_inc_inf(sim_pos_and_or, valid_motion_goals[1])
             if serving_cost1 < serving_cost0:
                 return serving_cost1, valid_motion_goals[1]
-        else:
-            raise ValueError("Should be only 1 or 2 serving locations")
 
         return serving_cost0, valid_motion_goal
 

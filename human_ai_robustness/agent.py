@@ -1083,12 +1083,22 @@ class ToMModel(Agent):
         valid_motion_goals = list(
             filter(lambda goal: self.mlp.mp.is_valid_motion_start_goal_pair(sim_pos_and_or, goal),
                    motion_goals))
-        assert len(valid_motion_goals) == 1, "For all the layout this part of code was designed for, there should " \
-                                             "only be 1 valid serving location for each player"
-        valid_motion_goal = valid_motion_goals[0]
-        serving_cost = self.find_plan_cost_inc_inf(sim_pos_and_or, valid_motion_goal)
 
-        return serving_cost, valid_motion_goal
+        #TODO: This next bit should be made briefer/neater:
+
+        # Cost of first valid goal:
+        valid_motion_goal = valid_motion_goals[0]
+        serving_cost0 = self.find_plan_cost_inc_inf(sim_pos_and_or, valid_motion_goal)
+
+        # If there's a second valid goal, then choose the lowest cost one:
+        if len(valid_motion_goals) == 2:
+            serving_cost1 = self.find_plan_cost_inc_inf(sim_pos_and_or, valid_motion_goals[1])
+            if serving_cost1 < serving_cost0:
+                return serving_cost1, valid_motion_goals[1]
+        else:
+            raise ValueError("Should be only 1 or 2 serving locations")
+
+        return serving_cost0, valid_motion_goal
 
     def get_dish(self, am, sim_counter_objects, sim_pos_and_or):
         """Find cost and other details of getting the dish"""

@@ -8,10 +8,13 @@ from overcooked_ai_py.mdp.overcooked_mdp import OvercookedGridworld, Direction, 
 from overcooked_ai_py.mdp.overcooked_env import OvercookedEnv
 from overcooked_ai_py.planning.planners import MediumLevelPlanner
 from overcooked_ai_py.utils import load_dict_from_file  # , get_max_iter
+from human_aware_rl.ppo.ppo_pop import make_tom_agent
 
 from human_aware_rl.utils import get_max_iter
 
 from concurrent.futures import ThreadPoolExecutor
+
+from human_ai_robustness.import_person_params import import_person_params
 
 pool = ThreadPoolExecutor(3)
 
@@ -156,7 +159,7 @@ class App:
             self.on_render()
         self.on_cleanup()
 
-def setup_game(run_type, model_dir, seed, agent_index):
+def setup_game(run_type, model_dir, seed, agent_index, load_tom_params):
 
     # if run_type in ["pbt", "ppo"]:
     #     # TODO: Add testing for this
@@ -198,7 +201,7 @@ def setup_game(run_type, model_dir, seed, agent_index):
     elif layout == 'cc':
         layout_name = 'counter_circuit'
     else:
-        raise ValueError('layout not recognised')
+        layout_name = layout
 
     mdp = OvercookedGridworld.from_layout_name(layout_name, start_order_list=start_order_list,
                                                cook_time=cook_time, rew_shaping_params=None)
@@ -244,6 +247,16 @@ def setup_game(run_type, model_dir, seed, agent_index):
         agent.set_agent_index(agent_index)
         agent.use_OLD_ml_action = False
 
+        if load_tom_params:
+            """Here we load TOM params rather than manually specifying them"""
+            if layout_name == "schelling_s":
+                TOM_PARAMS = import_person_params("cramped_room", 1)
+            elif layout_name == "scenario1_s":
+                TOM_PARAMS = import_person_params("asymmetric_advantages", 1)
+            agent = make_tom_agent(mlp)
+            agent.set_tom_params(1, None, TOM_PARAMS, tom_params_choice=0)
+            agent.set_agent_index(agent_index)
+
     elif run_type == "bc":
 
         agent, _ = get_bc_agent_from_saved(model_dir, True)
@@ -268,6 +281,7 @@ if __name__ == "__main__":
     #                     required=True)
     parser.add_argument("-t", "--type", dest="type",
                         help="type of run, (i.e. ppo, tom, bc,...)", required=False, default="tom")
+    parser.add_argument("-lp", "--load_tom_params", dest="load_tom_params", required=False, default=0)
     # parser.add_argument("-r", "--run_dir", dest="run",
     #                     help="name of run dir in data/*_runs/", required=False, default="test")
     # parser.add_argument("-c", "--config_run_dir", dest="cfg",
@@ -281,10 +295,11 @@ if __name__ == "__main__":
             "'hp_tune_cc_cring/cc_0'. For BC, give the name of the saved model, e.g. 'cramped_room_bc_train_seed103'")
 
     args = parser.parse_args()
-    run_type, model_dir, run_seed, my_index, layout, time_limit = args.type, args.model_dir, int(args.seed), \
+    run_type, load_tom_params, model_dir, run_seed, my_index, layout, time_limit = args.type, args.load_tom_params, \
+                                                                                   args.model_dir, int(args.seed), \
                                                                   int(args.my_index), args.layout, args.time_limit
     other_index = 1 - my_index
-    env, agent = setup_game(run_type, model_dir, run_seed, other_index)
+    env, agent = setup_game(run_type, model_dir, run_seed, other_index, load_tom_params)
 
     theApp = App(env, agent, my_index, time_limit)
     theApp.on_execute()

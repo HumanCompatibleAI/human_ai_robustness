@@ -14,7 +14,7 @@ from human_aware_rl.utils import get_max_iter
 
 from concurrent.futures import ThreadPoolExecutor
 
-from human_ai_robustness.import_person_params import import_person_params
+from human_ai_robustness.import_person_params import import_person_params, import_manual_tom_params
 
 pool = ThreadPoolExecutor(3)
 
@@ -159,7 +159,7 @@ class App:
             self.on_render()
         self.on_cleanup()
 
-def setup_game(run_type, model_dir, seed, agent_index, load_tom_params):
+def setup_game(run_type, model_dir, seed, agent_index, load_tom_params, tom_number):
 
     # if run_type in ["pbt", "ppo"]:
     #     # TODO: Add testing for this
@@ -257,6 +257,15 @@ def setup_game(run_type, model_dir, seed, agent_index, load_tom_params):
             agent.set_tom_params(1, None, TOM_PARAMS, tom_params_choice=0)
             agent.set_agent_index(agent_index)
 
+        if tom_number > -1:
+            _, _, ALL_TOM_PARAMS = import_manual_tom_params()
+            agent = make_tom_agent(mlp)
+            agent.set_tom_params(None, None, [ALL_TOM_PARAMS[tom_number]], tom_params_choice=0)
+            agent.set_agent_index(agent_index)
+            print('Playing with ALL_TOM_PARAMS number {}'.format(tom_number))
+            print('TOM agent params: {}'.format(ALL_TOM_PARAMS[tom_number]))
+            input('any')
+
     elif run_type == "bc":
 
         agent, _ = get_bc_agent_from_saved(model_dir, True)
@@ -298,8 +307,12 @@ if __name__ == "__main__":
     run_type, load_tom_params, model_dir, run_seed, my_index, layout, time_limit = args.type, args.load_tom_params, \
                                                                                    args.model_dir, int(args.seed), \
                                                                   int(args.my_index), args.layout, args.time_limit
-    other_index = 1 - my_index
-    env, agent = setup_game(run_type, model_dir, run_seed, other_index, load_tom_params)
 
-    theApp = App(env, agent, my_index, time_limit)
-    theApp.on_execute()
+    for i in range(30):
+
+        if i in [14, 0]:
+            other_index = 1 - my_index
+            env, agent = setup_game(run_type, model_dir, run_seed, other_index, load_tom_params, tom_number=i)
+
+            theApp = App(env, agent, my_index, time_limit)
+            theApp.on_execute()

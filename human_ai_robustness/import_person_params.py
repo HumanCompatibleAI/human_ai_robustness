@@ -538,6 +538,8 @@ def import_manual_tom_params(layout_name, POP_SIZE):
             TRAIN_TOM_PARAMS = [ALL_TOM_PARAMS[16]]
         elif layout_name == "counter_circuit":
             TRAIN_TOM_PARAMS = [ALL_TOM_PARAMS[0]]
+        else:
+            raise ValueError("This layout doesn't have a median TOM yet")
     else:
         raise ValueError("Only currently designed for pops of 1 or 20")
 

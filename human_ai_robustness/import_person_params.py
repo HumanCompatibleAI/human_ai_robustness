@@ -530,14 +530,17 @@ def import_manual_tom_params(layout_name, POP_SIZE):
     train_indices = [i for i in all_indices if i not in val_indices]
     TRAIN_TOM_PARAMS = [ALL_TOM_PARAMS[i] for i in train_indices]
 
+    for param in VAL_TOM_PARAMS:  #TODO: Is there a one-line way to do this?
+        assert param not in TRAIN_TOM_PARAMS
+
     if POP_SIZE == 20:
         pass
     elif POP_SIZE == 1:
         # For 1-pop, choose the median TOM: the TOM which gets the median score across ALL_TOM_PARAMS:
-        if layout_name == "cramped_room":
-            TRAIN_TOM_PARAMS = [ALL_TOM_PARAMS[16]]
-        elif layout_name == "counter_circuit":
-            TRAIN_TOM_PARAMS = [ALL_TOM_PARAMS[0]]
+        if layout_name == "counter_circuit":
+            TRAIN_TOM_PARAMS = [TRAIN_TOM_PARAMS[0]]
+        elif layout_name == "asymmetric_advantages":
+            TRAIN_TOM_PARAMS = [TRAIN_TOM_PARAMS[18]]
         else:
             raise ValueError("This layout doesn't have a median TOM yet")
     else:

@@ -896,10 +896,10 @@ def make_average_results(results):
 
 def save_results(avg_dict, results, run_folder, layout):
     timestamp = time.strftime('%Y_%m_%d-%H_%M_%S_')
-    with open('/home/pmzpk/Dropbox/Pycharm_paulk444/human_ai_robustness/human_ai_robustness/data/qualitative_expts/{}_avg_dict_{}_{}.txt'
+    with open('/home/paul/research/human_ai_robustness/human_ai_robustness/data/qualitative_expts/{}_avg_dict_{}_{}.txt'
                       .format(run_folder, layout, timestamp), 'w') as json_file:
         json.dump(avg_dict, json_file)
-    with open('/home/pmzpk/Dropbox/Pycharm_paulk444/human_ai_robustness/human_ai_robustness/data/qualitative_expts/{}_results_{}_{}.txt'
+    with open('/home/paul/research/human_ai_robustness/human_ai_robustness/data/qualitative_expts/{}_results_{}_{}.txt'
                       .format(run_folder, layout, timestamp), 'w') as json_file:
         json.dump(results, json_file)
 

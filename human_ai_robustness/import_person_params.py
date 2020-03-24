@@ -542,7 +542,8 @@ def import_manual_tom_params(layout_name, POP_SIZE):
         elif layout_name == "asymmetric_advantages":
             TRAIN_TOM_PARAMS = [TRAIN_TOM_PARAMS[18]]
         else:
-            raise ValueError("This layout doesn't have a median TOM yet")
+            #TODO: Need to find the median for the other maps. For now:
+            TRAIN_TOM_PARAMS = [TRAIN_TOM_PARAMS[0]]
     else:
         raise ValueError("Only currently designed for pops of 1 or 20")
 

@@ -928,8 +928,8 @@ if __name__ == "__main__":
             if agent_from == 'neurips':
                 # From Neurips paper (random1 == cring):
                 run_names = ['ppo_sp_random1', 'ppo_bc_test_random1', 'ppo_hm_random1']
-                # seeds = [[386, 2229, 7225, 7649, 9807], [184, 2888, 4467, 7360, 7424], [1352, 3325, 5748, 8355, 8611]]
-                seeds = [[386], [184], [1352]]
+                seeds = [[386, 2229, 7225, 7649, 9807], [184, 2888, 4467, 7360, 7424], [1352, 3325, 5748, 8355, 8611]]
+                # seeds = [[386], [184], [1352]]
                 run_folder = 'agents_neurips_paper'
                 bests = [True]
                 shorten = True

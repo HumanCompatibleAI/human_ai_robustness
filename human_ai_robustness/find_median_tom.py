@@ -24,10 +24,10 @@ if __name__ == "__main__":
     # Variables to change
     layout_code = 'cc'
     NUM_GAMES = 3
-    NUM_TOMS = 30
+    NUM_TRAIN_TOMS = 20  # Only want the median agent in the training set!
     testing = False
 
-    print('Layout: {}; Games: {}; Num toms: {}'.format(layout_code, NUM_GAMES, NUM_TOMS))
+    print('Layout: {}; Games: {}; Num toms: {}'.format(layout_code, NUM_GAMES, NUM_TRAIN_TOMS))
 
     #
     if layout_code == 'aa':
@@ -52,17 +52,17 @@ if __name__ == "__main__":
     env = OvercookedEnv(mdp, horizon=400)
 
     # Make all TOMs:
-    _, _, ALL_TOM_PARAMS = import_manual_tom_params()
+    _, TRAIN_TOM_PARAMS, _ = import_manual_tom_params(layout_name, NUM_TRAIN_TOMS)
     tom_pop = []
-    assert NUM_TOMS == len(ALL_TOM_PARAMS)
-    for this_tom_params in ALL_TOM_PARAMS:
+    assert NUM_TRAIN_TOMS == len(TRAIN_TOM_PARAMS)
+    for this_tom_params in TRAIN_TOM_PARAMS:
         tom_agent = make_tom_agent(mlp)
         tom_agent.set_tom_params(None, None, [this_tom_params], tom_params_choice=0)
         tom_pop.append(tom_agent)
 
     scores = []
 
-    NUM_TOMS_USED = NUM_TOMS if not testing else 4
+    NUM_TOMS_USED = NUM_TRAIN_TOMS if not testing else 4
 
     # Find score for each TOM:
     for i in range(NUM_TOMS_USED):
@@ -99,10 +99,10 @@ if __name__ == "__main__":
                 print('Score this pair: {}'.format(avg_sparse_rew))
 
                 # View if the score was exceptional:
-                if avg_sparse_rew > 140 or avg_sparse_rew < 40:
+                if avg_sparse_rew > 300 or avg_sparse_rew < 20:
                     env.get_rollouts(agent_pair, num_games=1, final_state=False, display=True, display_until=100)
-                    print('Player agent params: {}'.format(ALL_TOM_PARAMS[i]))
-                    print('Opponent agent params: {}'.format(ALL_TOM_PARAMS[j]))
+                    print('Player agent params: {}'.format(TRAIN_TOM_PARAMS[i]))
+                    print('Opponent agent params: {}'.format(TRAIN_TOM_PARAMS[j]))
 
                 score_this_tom += avg_sparse_rew
 
@@ -120,8 +120,8 @@ if __name__ == "__main__":
     median_tom = scores.index(median_score)
 
     print("All scores: {}".format(scores))
-    print("\nWinning tom params: {}".format(ALL_TOM_PARAMS[winning_tom]))
+    print("\nWinning tom params: {}".format(TRAIN_TOM_PARAMS[winning_tom]))
     print("Layout: {}; Winning_score: {}; Winning_tom: {}".format(
                                                 layout_code, winning_score, winning_tom))
-    print("\nMedian tom params: {}".format(ALL_TOM_PARAMS[median_tom]))
+    print("\nMedian tom params: {}".format(TRAIN_TOM_PARAMS[median_tom]))
     print("Median_score: {}; Median_tom: {}".format(median_score, median_tom))

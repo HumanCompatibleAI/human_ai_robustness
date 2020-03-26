@@ -16,6 +16,7 @@ import matplotlib.pyplot as plt
 
 from human_ai_robustness.agent import ToMModel
 from human_ai_robustness.import_person_params import import_manual_tom_params
+from human_aware_rl.data_dir import DATA_DIR
 
 no_counters_params = {
     'start_orientations': False,
@@ -32,17 +33,16 @@ def find_pot_locations(layout):
     elif layout == 'coordination_ring':
         return (3, 0), (4, 1)
 
-def get_layout_horizon(layout, short_or_long):
-    if layout == 'counter_circuit':
-        if short_or_long == 'short':
-            return 10
-        elif short_or_long == 'long':
+def get_layout_horizon(layout, horizon_length):
+    if horizon_length == 'short':
+        return 10
+    elif horizon_length == 'medium':
+        return 15
+    elif horizon_length == 'long':
+        if layout == 'counter_circuit':
             return 30
-    elif layout == 'coordination_ring':
-        if short_or_long == 'short':
-            return 7
-        elif short_or_long == 'long':
-            return 20
+        elif layout == 'coordination_ring':
+            return 25
 
 def h_random_unusable_object(ppo_agent, mdp, standard_test_positions, print_info, random_tom_agent, layout):
     """
@@ -55,7 +55,7 @@ def h_random_unusable_object(ppo_agent, mdp, standard_test_positions, print_info
                 R either holds nothing or the usable object
     """
 
-    # Make the median TOM:
+    # Make the random TOM:
     tom_agent = random_tom_agent
 
     orientations = [(1, 0), (0, 1), (-1, 0), (0, -1)]
@@ -107,9 +107,6 @@ def h_random_unusable_object(ppo_agent, mdp, standard_test_positions, print_info
 
                 env = OvercookedEnv(mdp, start_state_fn=lambda : state_i)
 
-                if print_info:
-                    print('\nInitial state:\n{}'.format(env))
-
                 env.horizon = get_layout_horizon(layout, "long")
 
                 # Play with the tom agent from this state and record score
@@ -120,6 +117,7 @@ def h_random_unusable_object(ppo_agent, mdp, standard_test_positions, print_info
                 state_f = trajs["ep_observations"][0][-1]
                 env.state = state_f
                 if print_info:
+                    print('\nInitial state:\n{}'.format(OvercookedEnv(mdp, start_state_fn=lambda: state_i)))
                     print('\nFinal state:\n{}'.format(env))
                 if 'soup' in state_i.all_objects_by_type:
                     if state_i.all_objects_by_type['soup'] != state_f.all_objects_by_type['soup']:
@@ -143,8 +141,8 @@ def h_stationary_usable_object(ppo_agent, mdp, standard_test_positions, print_in
     Details:    X = O, D, S, N (x4)
                 Starting locations in standard_test_positions (STPs) (x12)
                 Pots (2 pot states for each X):
-                    if X=O, S, N: both pots empty or both with 2 onions
-                    if X=D: both pots cooked or one cooking one empty
+                    if X=O, S, N: both pots empty or both with 1 onion
+                    if X=D: both pots cooked or one cooked one empty
     """
 
     tom_agent = stationary_tom_agent
@@ -163,10 +161,10 @@ def h_stationary_usable_object(ppo_agent, mdp, standard_test_positions, print_in
 
         if object != 'dish':
             pot_states = [None,  # empty, empty
-                          [ObjectState('soup', first_pot_loc, ('onion', 2, 0)), ObjectState('soup', second_pot_loc, ('onion', 2, 0))]]  # 2 items each
+                          [ObjectState('soup', first_pot_loc, ('onion', 1, 0)), ObjectState('soup', second_pot_loc, ('onion', 1, 0))]]  # 1 onion each
         else:
             pot_states = [[ObjectState('soup', first_pot_loc, ('onion', 3, 20)), ObjectState('soup', second_pot_loc, ('onion', 3, 20))], # both cooked
-                          [ObjectState('soup', second_pot_loc, ('onion', 3, 5))]]   # empty and cooking
+                          [ObjectState('soup', second_pot_loc, ('onion', 3, 20))]]   # empty and cooked
 
         for pot_state in pot_states:
 
@@ -201,9 +199,6 @@ def h_stationary_usable_object(ppo_agent, mdp, standard_test_positions, print_in
 
                 env = OvercookedEnv(mdp, start_state_fn=lambda : state_i)
 
-                if print_info:
-                    print('\nInitial state:\n{}'.format(env))
-
                 env.horizon = get_layout_horizon(layout, "long")
 
                 # Play with the tom agent from this state and record score
@@ -214,6 +209,7 @@ def h_stationary_usable_object(ppo_agent, mdp, standard_test_positions, print_in
                 state_f = trajs["ep_observations"][0][-1]
                 env.state = state_f
                 if print_info:
+                    print('\nInitial state:\n{}'.format(OvercookedEnv(mdp, start_state_fn=lambda: state_i)))
                     print('\nFinal state:\n{}'.format(env))
                 if 'soup' in state_i.all_objects_by_type:
                     if state_i.all_objects_by_type['soup'] != state_f.all_objects_by_type['soup']:
@@ -239,7 +235,7 @@ def r_holding_wrong_object(ppo_agent, mdp, standard_test_positions, print_info, 
                 B) R has O when two Ds needed (both pots cooked)
             For both A and B:
                 Starting locations in STPs
-                Other player is the median TOM
+                Other player (H) is the median TOM
                 H has nothing
     """
 
@@ -275,11 +271,7 @@ def r_holding_wrong_object(ppo_agent, mdp, standard_test_positions, print_info, 
         mdp._check_valid_state(state_i)
 
         env = OvercookedEnv(mdp, start_state_fn=lambda: state_i)
-
-        if print_info:
-            print('\nInitial state:\n{}'.format(env))
-
-        env.horizon = get_layout_horizon(layout, "long")
+        env.horizon = get_layout_horizon(layout, "short")
 
         # Play with the tom agent from this state and record score
         agent_pair = AgentPair(ppo_agent, tom_agent)
@@ -289,6 +281,7 @@ def r_holding_wrong_object(ppo_agent, mdp, standard_test_positions, print_info, 
         state_f = trajs["ep_observations"][0][-1]
         env.state = state_f
         if print_info:
+            print('\nInitial state:\n{}'.format(OvercookedEnv(mdp, start_state_fn=lambda: state_i)))
             print('\nFinal state:\n{}'.format(env))
 
         # Success if R drops the dish:
@@ -325,11 +318,7 @@ def r_holding_wrong_object(ppo_agent, mdp, standard_test_positions, print_info, 
         mdp._check_valid_state(state_i)
 
         env = OvercookedEnv(mdp, start_state_fn=lambda: state_i)
-
-        if print_info:
-            print('\nInitial state:\n{}'.format(env))
-
-        env.horizon = get_layout_horizon(layout, "long")
+        env.horizon = get_layout_horizon(layout, "short")
 
         # Play with the tom agent from this state and record score
         agent_pair = AgentPair(ppo_agent, tom_agent)
@@ -339,6 +328,7 @@ def r_holding_wrong_object(ppo_agent, mdp, standard_test_positions, print_info, 
         state_f = trajs["ep_observations"][0][-1]
         env.state = state_f
         if print_info:
+            print('\nInitial state:\n{}'.format(OvercookedEnv(mdp, start_state_fn=lambda: state_i)))
             print('\nFinal state:\n{}'.format(env))
 
         # Success if R drops the onion:
@@ -409,12 +399,7 @@ def only_acessable_dish_on_counter(ppo_agent, mdp, print_info, stationary_tom_ag
         mdp._check_valid_state(state_i)
 
         env = OvercookedEnv(mdp, start_state_fn=lambda : state_i)
-        if print_info:
-            print('\nInitial state:\n{}'.format(env))
-
-        env.horizon = get_layout_horizon(layout, "long")
-        if print_info:
-            print('R has {} timesteps...'.format(env.horizon))
+        env.horizon = get_layout_horizon(layout, "medium")
 
         # Play with the tom agent from this state and record score
         agent_pair = AgentPair(ppo_agent, tom_agent)
@@ -424,6 +409,7 @@ def only_acessable_dish_on_counter(ppo_agent, mdp, print_info, stationary_tom_ag
         state_f = trajs["ep_observations"][0][-1]
         env.state = state_f
         if print_info:
+            print('\nInitial state:\n{}'.format(OvercookedEnv(mdp, start_state_fn=lambda: state_i)))
             print('\nFinal state:\n{}'.format(env))
 
         if (state_f.players[0].has_object() and state_f.players[0].get_object().name == 'dish') or \
@@ -457,7 +443,7 @@ def r_in_the_way(ppo_agent, mdp, print_info, median_tom_agent, layout):
     if layout == 'counter_circuit':
         r_h_locations_list = [{'r_loc': (1, 1), 'h_loc': (1, 2)},
                             {'r_loc': (6, 1), 'h_loc': (6, 2)}]
-    elif layout == 'coordiantion_ring':
+    elif layout == 'coordination_ring':
         r_h_locations_list = [{'r_loc': (2, 1), 'h_loc': (1, 1)},
                             {'r_loc': (3, 2), 'h_loc': (3, 3)}]
 
@@ -494,11 +480,7 @@ def r_in_the_way(ppo_agent, mdp, print_info, median_tom_agent, layout):
             mdp._check_valid_state(state_i)
 
             env = OvercookedEnv(mdp, start_state_fn=lambda: state_i)
-
-            if print_info:
-                print('\nInitial state:\n{}'.format(env))
-
-            env.horizon = get_layout_horizon(layout, "long")
+            env.horizon = get_layout_horizon(layout, "medium")
 
             # Play with the tom agent from this state and record score
             agent_pair = AgentPair(ppo_agent, tom_agent)
@@ -508,6 +490,7 @@ def r_in_the_way(ppo_agent, mdp, print_info, median_tom_agent, layout):
             state_f = trajs["ep_observations"][0][-1]
             env.state = state_f
             if print_info:
+                print('\nInitial state:\n{}'.format(OvercookedEnv(mdp, start_state_fn=lambda: state_i)))
                 print('\nFinal state:\n{}'.format(env))
 
             # Success if pot state changes:
@@ -541,6 +524,8 @@ def both_have_onion_1_needed(ppo_agent, mdp, print_info, stationary_tom_agent, l
     count_success = 0
     num_tests = 0
 
+    tom_or = (0, -1)  # Always face the pot
+
     if layout == 'counter_circuit':
         r_locations_list = [{'r_loc': (1, 1)}, {'r_loc': (1, 3)}, {'r_loc': (6, 1)}, {'r_loc': (6, 3)}]
     elif layout == 'coordination_ring':
@@ -556,9 +541,8 @@ def both_have_onion_1_needed(ppo_agent, mdp, print_info, stationary_tom_agent, l
             if print_info:
                 print('\nr_loc: {}; Pot state: {}\n'.format(r_loc, pot_state))
 
-            # Arbitrarily but deterministically choose orientation:
+            # Arbitrarily but deterministically choose ppo's orientation:
             ppo_or = orientations[i % 4]
-            tom_or = orientations[(i + 2) % 4]
 
             if layout == 'counter_circuit':
                 h_loc = (4, 1) if i == 0 else (3, 1)
@@ -577,10 +561,6 @@ def both_have_onion_1_needed(ppo_agent, mdp, print_info, stationary_tom_agent, l
             mdp._check_valid_state(state_i)
 
             env = OvercookedEnv(mdp, start_state_fn=lambda: state_i)
-
-            if print_info:
-                print('\nInitial state:\n{}'.format(env))
-
             env.horizon = get_layout_horizon(layout, "short")
 
             # Play with the tom agent from this state and record score
@@ -591,6 +571,7 @@ def both_have_onion_1_needed(ppo_agent, mdp, print_info, stationary_tom_agent, l
             state_f = trajs["ep_observations"][0][-1]
             env.state = state_f
             if print_info:
+                print('\nInitial state:\n{}'.format(OvercookedEnv(mdp, start_state_fn=lambda: state_i)))
                 print('\nFinal state:\n{}'.format(env))
 
             # Success if R not holding onion
@@ -666,10 +647,6 @@ def h_has_soup_o_needed(ppo_agent, mdp, print_info, median_tom_agent, layout):
             mdp._check_valid_state(state_i)
 
             env = OvercookedEnv(mdp, start_state_fn=lambda: state_i)
-
-            if print_info:
-                print('\nInitial state:\n{}'.format(env))
-
             env.horizon = get_layout_horizon(layout, "long")
 
             # Play with the tom agent from this state and record score
@@ -680,6 +657,7 @@ def h_has_soup_o_needed(ppo_agent, mdp, print_info, median_tom_agent, layout):
             state_f = trajs["ep_observations"][0][-1]
             env.state = state_f
             if print_info:
+                print('\nInitial state:\n{}'.format(OvercookedEnv(mdp, start_state_fn=lambda: state_i)))
                 print('\nFinal state:\n{}'.format(env))
 
             # Success if pot state has changed:
@@ -896,11 +874,11 @@ def make_average_results(results):
 
 def save_results(avg_dict, results, run_folder, layout):
     timestamp = time.strftime('%Y_%m_%d-%H_%M_%S_')
-    with open('/home/paul/research/human_ai_robustness/human_ai_robustness/data/qualitative_expts/{}_avg_dict_{}_{}.txt'
-                      .format(run_folder, layout, timestamp), 'w') as json_file:
+    filename = DATA_DIR + 'qualitative_expts/{}_avg_dict_{}_{}.txt'.format(run_folder, layout, timestamp)
+    with open(filename, 'w') as json_file:
         json.dump(avg_dict, json_file)
-    with open('/home/paul/research/human_ai_robustness/human_ai_robustness/data/qualitative_expts/{}_results_{}_{}.txt'
-                      .format(run_folder, layout, timestamp), 'w') as json_file:
+    filename = DATA_DIR + 'qualitative_expts/{}_results_{}_{}.txt'.format(run_folder, layout, timestamp)
+    with open(filename, 'w') as json_file:
         json.dump(results, json_file)
 
 
@@ -950,7 +928,8 @@ if __name__ == "__main__":
             if agent_from == 'neurips':
                 # From Neurips paper (random1 == cring):
                 run_names = ['ppo_sp_random1', 'ppo_bc_test_random1', 'ppo_hm_random1']
-                seeds = [[386, 2229, 7225, 7649, 9807], [184, 2888, 4467, 7360, 7424], [1352, 3325, 5748, 8355, 8611]]
+                # seeds = [[386, 2229, 7225, 7649, 9807], [184, 2888, 4467, 7360, 7424], [1352, 3325, 5748, 8355, 8611]]
+                seeds = [[386], [184], [1352]]
                 run_folder = 'agents_neurips_paper'
                 bests = [True]
                 shorten = True

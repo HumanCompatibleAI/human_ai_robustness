@@ -776,6 +776,7 @@ def run_tests(layout, test_agent, tests_to_run, print_info, num_avg):
         standard_test_positions = make_cring_standard_test_positions()
 
     percent_success = [None]*10
+    num_tests_all = [None]*10
 
     if "1" in tests_to_run or tests_to_run == "all":
         # TEST 1: "H stands still with X, where X CANNOT currently be used"
@@ -785,6 +786,7 @@ def run_tests(layout, test_agent, tests_to_run, print_info, num_avg):
                                                                 print_info, random_tom_agent, layout)
             count_successes.append(count_success)
         percent_success[1] = round(100 * np.mean(count_successes) / num_tests)
+        # num_tests_all[1] = num_tests
 
     if "2" in tests_to_run or tests_to_run == "all":
         # TEST 2: "H stands still with X, where X can currently be used"
@@ -794,6 +796,7 @@ def run_tests(layout, test_agent, tests_to_run, print_info, num_avg):
                                                                 print_info, stationary_tom_agent, layout)
             count_successes.append(count_success)
         percent_success[2] = round(100 * np.mean(count_successes) / num_tests)
+        # num_tests_all[2] = num_tests
 
     if "3" in tests_to_run or tests_to_run == "all":
         # TEST 2: "H stands still with X, where X can currently be used"
@@ -803,6 +806,7 @@ def run_tests(layout, test_agent, tests_to_run, print_info, num_avg):
                                                                print_info, median_tom_agent, layout)
             count_successes.append(count_success)
         percent_success[3] = round(100 * np.mean(count_successes) / num_tests)
+        # num_tests_all[3] = num_tests
 
     if "4" in tests_to_run or tests_to_run == "all":
         # TEST 4: "H blocks dish dispenser but there’s a dish on counter"
@@ -812,6 +816,7 @@ def run_tests(layout, test_agent, tests_to_run, print_info, num_avg):
                                                                   stationary_tom_agent, layout)
             count_successes.append(count_success)
         percent_success[4] = round(100 * np.mean(count_successes) / num_tests)
+        # num_tests_all[4] = num_tests
 
     if "5" in tests_to_run or tests_to_run == "all":
         # TEST 5: "R is initially blocking H, who has onion or dish"
@@ -820,6 +825,7 @@ def run_tests(layout, test_agent, tests_to_run, print_info, num_avg):
             count_success, num_tests = r_in_the_way(ppo_agent, mdp, print_info, median_tom_agent, layout)
             count_successes.append(count_success)
         percent_success[5] = round(100 * np.mean(count_successes) / num_tests)
+        # num_tests_all[5] = num_tests
 
     if "8" in tests_to_run or tests_to_run == "all":
         # TEST 8: "Both have onion, 1 needed, and H closer"
@@ -828,6 +834,7 @@ def run_tests(layout, test_agent, tests_to_run, print_info, num_avg):
             count_success, num_tests = both_have_onion_1_needed(ppo_agent, mdp, print_info, stationary_tom_agent, layout)
             count_successes.append(count_success)
         percent_success[8] = round(100 * np.mean(count_successes) / num_tests)
+        # num_tests_all[8] = num_tests
 
     if "9" in tests_to_run or tests_to_run == "all":
         # TEST 9: "H has soup. O needed"
@@ -836,8 +843,10 @@ def run_tests(layout, test_agent, tests_to_run, print_info, num_avg):
             count_success, num_tests = h_has_soup_o_needed(ppo_agent, mdp, print_info, median_tom_agent, layout)
             count_successes.append(count_success)
         percent_success[9] = round(100 * np.mean(count_successes) / num_tests)
+        # num_tests_all[9] = num_tests
 
     print('RESULT: {}'.format(percent_success))
+    # print('Num tests in each: {}'.format(num_tests_all))
 
     return percent_success
 
@@ -865,6 +874,21 @@ def make_average_dict(run_names, results, bests, seeds):
                 i += 1
     return avg_dict
 
+def make_plot_weighted_avg_dict(run_names, results, bests, seeds):
+    i = 0
+    weighted_avg_dict = {}
+    weighting = [0] + [2] * 3 + [1] * 2 + [0] * 2 + [1] * 2  # Give extra weight to tests 1-3 because each has many more sub-tests than the rest, and it would've made sense to split them up
+    for j, run_name in enumerate(run_names):
+        for seed in seeds[j]:
+            for best in bests:
+                b = 'V' if best == 'val' else 'T'
+                this_avg = np.sum([results[i][k]*weighting[k] for k in range(len(results[i])) if results[i][k] != None]) \
+                                            / np.sum(weighting)
+                weighted_avg_dict['{}_{}_{}'.format(run_name, b, seed)] = this_avg
+                i += 1
+    # plot_results(weighted_avg_dict, shorten=True)
+    return weighted_avg_dict
+
 def make_average_results(results):
     avg_results = []
     for i in range(results):
@@ -872,11 +896,14 @@ def make_average_results(results):
         avg_results.append(this_avg)
     return avg_results
 
-def save_results(avg_dict, results, run_folder, layout):
+def save_results(avg_dict, weighted_avg_dict, results, run_folder, layout):
     timestamp = time.strftime('%Y_%m_%d-%H_%M_%S_')
     filename = DATA_DIR + 'qualitative_expts/{}_avg_dict_{}_{}.txt'.format(run_folder, layout, timestamp)
     with open(filename, 'w') as json_file:
         json.dump(avg_dict, json_file)
+    filename = DATA_DIR + 'qualitative_expts/{}_weighted_avg_dict_{}_{}.txt'.format(run_folder, layout, timestamp)
+    with open(filename, 'w') as json_file:
+        json.dump(weighted_avg_dict, json_file)
     filename = DATA_DIR + 'qualitative_expts/{}_results_{}_{}.txt'.format(run_folder, layout, timestamp)
     with open(filename, 'w') as json_file:
         json.dump(results, json_file)
@@ -928,8 +955,8 @@ if __name__ == "__main__":
             if agent_from == 'neurips':
                 # From Neurips paper (random1 == cring):
                 run_names = ['ppo_sp_random1', 'ppo_bc_train_random1', 'ppo_bc_test_random1', 'ppo_hm_random1']
-                seeds = [[386, 2229, 7225, 7649, 9807], [516, 1887, 5578, 5987, 9456], [184, 2888, 4467, 7360, 7424], [1352, 3325, 5748, 8355, 8611]]
-                # seeds = [[386], [516], [184], [1352]] <-- first seed of each?
+                # seeds = [[386, 2229, 7225, 7649, 9807], [516, 1887, 5578, 5987, 9456], [184, 2888, 4467, 7360, 7424], [1352, 3325, 5748, 8355, 8611]]
+                seeds = [[386], [9456], [2888], [8611]]  # <-- Best seed of each?
                 run_folder = 'agents_neurips_paper'
                 bests = [True]
                 shorten = True
@@ -958,7 +985,8 @@ if __name__ == "__main__":
         avg_dict = make_average_dict(run_names, results, bests, seeds)
         if final_plot is True:
             plot_results(avg_dict, shorten)
-        save_results(avg_dict, results, run_folder, layout)
+        weighted_avg_dic = make_plot_weighted_avg_dict(run_names, results, bests, seeds)
+        save_results(avg_dict, weighted_avg_dic, results, run_folder, layout)
 
     else:
         # Load agent to be tested:

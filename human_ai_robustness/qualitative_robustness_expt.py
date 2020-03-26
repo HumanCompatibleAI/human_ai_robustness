@@ -927,9 +927,9 @@ if __name__ == "__main__":
         elif layout == 'coordination_ring':
             if agent_from == 'neurips':
                 # From Neurips paper (random1 == cring):
-                run_names = ['ppo_sp_random1', 'ppo_bc_test_random1', 'ppo_hm_random1']
-                seeds = [[386, 2229, 7225, 7649, 9807], [184, 2888, 4467, 7360, 7424], [1352, 3325, 5748, 8355, 8611]]
-                # seeds = [[386], [184], [1352]]
+                run_names = ['ppo_sp_random1', 'ppo_bc_train_random1', 'ppo_bc_test_random1', 'ppo_hm_random1']
+                seeds = [[386, 2229, 7225, 7649, 9807], [516, 1887, 5578, 5987, 9456], [184, 2888, 4467, 7360, 7424], [1352, 3325, 5748, 8355, 8611]]
+                # seeds = [[386], [516], [184], [1352]] <-- first seed of each?
                 run_folder = 'agents_neurips_paper'
                 bests = [True]
                 shorten = True

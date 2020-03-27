@@ -35,7 +35,7 @@ def find_pot_locations(layout):
 
 def get_layout_horizon(layout, horizon_length, test_agent):
     """Return the horizon for given layout/length of task"""
-    extra_time = 0 if test_agent.__class__ is ToMModel else 20
+    extra_time = 0 if test_agent.__class__ is ToMModel else 0
     if extra_time != 0:
         print('>>>>>>> Extra time = {} <<<<<<<<'.format(extra_time))
     if horizon_length == 'short':

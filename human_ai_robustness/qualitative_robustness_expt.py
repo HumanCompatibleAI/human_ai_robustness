@@ -1,6 +1,6 @@
 import time
 from argparse import ArgumentParser
-from human_aware_rl.ppo.ppo_pop import get_ppo_agent
+from human_aware_rl.ppo.ppo_pop import get_ppo_agent, make_tom_agent
 from human_aware_rl.data_dir import DATA_DIR
 from overcooked_ai_py.agents.agent import AgentPair
 from overcooked_ai_py.mdp.overcooked_env import OvercookedEnv
@@ -33,18 +33,22 @@ def find_pot_locations(layout):
     elif layout == 'coordination_ring':
         return (3, 0), (4, 1)
 
-def get_layout_horizon(layout, horizon_length):
+def get_layout_horizon(layout, horizon_length, test_agent):
+    """Return the horizon for given layout/length of task"""
+    extra_time = 0 if test_agent.__class__ is ToMModel else 20
+    if extra_time != 0:
+        print('>>>>>>> Extra time = {} <<<<<<<<'.format(extra_time))
     if horizon_length == 'short':
-        return 10
+        return extra_time + 10
     elif horizon_length == 'medium':
-        return 15
+        return extra_time + 15
     elif horizon_length == 'long':
         if layout == 'counter_circuit':
-            return 30
+            return extra_time + 30
         elif layout == 'coordination_ring':
-            return 25
+            return extra_time + 25
 
-def h_random_unusable_object(ppo_agent, mdp, standard_test_positions, print_info, random_tom_agent, layout):
+def h_random_unusable_object(test_agent, mdp, standard_test_positions, print_info, random_tom_agent, layout, display_runs):
     """
     Test: H holds X, where X CANNOT currently be used
     Details:    X = O, D
@@ -56,7 +60,7 @@ def h_random_unusable_object(ppo_agent, mdp, standard_test_positions, print_info
     """
 
     # Make the random TOM:
-    tom_agent = random_tom_agent
+    other_player = random_tom_agent
 
     orientations = [(1, 0), (0, 1), (-1, 0), (0, -1)]
 
@@ -107,11 +111,11 @@ def h_random_unusable_object(ppo_agent, mdp, standard_test_positions, print_info
 
                 env = OvercookedEnv(mdp, start_state_fn=lambda : state_i)
 
-                env.horizon = get_layout_horizon(layout, "long")
+                env.horizon = get_layout_horizon(layout, "long", test_agent)
 
                 # Play with the tom agent from this state and record score
-                agent_pair = AgentPair(ppo_agent, tom_agent)
-                trajs = env.get_rollouts(agent_pair, num_games=1, final_state=True, display=False, info=False)
+                agent_pair = AgentPair(test_agent, other_player)
+                trajs = env.get_rollouts(agent_pair, num_games=1, final_state=True, display=display_runs, info=False)
 
                 # Score in terms of whether the pot state changes:
                 state_f = trajs["ep_observations"][0][-1]
@@ -135,7 +139,7 @@ def h_random_unusable_object(ppo_agent, mdp, standard_test_positions, print_info
 
     return count_success, num_tests
 
-def h_stationary_usable_object(ppo_agent, mdp, standard_test_positions, print_info, stationary_tom_agent, layout):
+def h_stationary_usable_object(test_agent, mdp, standard_test_positions, print_info, stationary_tom_agent, layout, display_runs):
     """
     Test: H stands still with X, where X can currently be used
     Details:    X = O, D, S, N (x4)
@@ -145,7 +149,7 @@ def h_stationary_usable_object(ppo_agent, mdp, standard_test_positions, print_in
                     if X=D: both pots cooked or one cooked one empty
     """
 
-    tom_agent = stationary_tom_agent
+    other_player = stationary_tom_agent
     orientations = [(1, 0), (0, 1), (-1, 0), (0, -1)]
 
     count_success = 0
@@ -199,11 +203,11 @@ def h_stationary_usable_object(ppo_agent, mdp, standard_test_positions, print_in
 
                 env = OvercookedEnv(mdp, start_state_fn=lambda : state_i)
 
-                env.horizon = get_layout_horizon(layout, "long")
+                env.horizon = get_layout_horizon(layout, "long", test_agent)
 
                 # Play with the tom agent from this state and record score
-                agent_pair = AgentPair(ppo_agent, tom_agent)
-                trajs = env.get_rollouts(agent_pair, num_games=1, final_state=True, display=False, info=False)
+                agent_pair = AgentPair(test_agent, other_player)
+                trajs = env.get_rollouts(agent_pair, num_games=1, final_state=True, display=display_runs, info=False)
 
                 # Score in terms of whether the pot state changes:
                 state_f = trajs["ep_observations"][0][-1]
@@ -227,7 +231,7 @@ def h_stationary_usable_object(ppo_agent, mdp, standard_test_positions, print_in
 
     return count_success, num_tests
 
-def r_holding_wrong_object(ppo_agent, mdp, standard_test_positions, print_info, median_tom_agent, layout):
+def r_holding_wrong_object(test_agent, mdp, standard_test_positions, print_info, median_tom_agent, layout, display_runs):
     """
     Test: R is holding the wrong object, and must drop it
     Details:Two variants:
@@ -241,7 +245,7 @@ def r_holding_wrong_object(ppo_agent, mdp, standard_test_positions, print_info, 
 
     # Test part A) R has D when O needed (both pots empty)
 
-    tom_agent = median_tom_agent
+    other_player = median_tom_agent
 
     orientations = [(1, 0), (0, 1), (-1, 0), (0, -1)]
     first_pot_loc, second_pot_loc = find_pot_locations(layout)
@@ -271,11 +275,11 @@ def r_holding_wrong_object(ppo_agent, mdp, standard_test_positions, print_info, 
         mdp._check_valid_state(state_i)
 
         env = OvercookedEnv(mdp, start_state_fn=lambda: state_i)
-        env.horizon = get_layout_horizon(layout, "short")
+        env.horizon = get_layout_horizon(layout, "short", test_agent)
 
         # Play with the tom agent from this state and record score
-        agent_pair = AgentPair(ppo_agent, tom_agent)
-        trajs = env.get_rollouts(agent_pair, num_games=1, final_state=True, display=False, info=False)
+        agent_pair = AgentPair(test_agent, other_player)
+        trajs = env.get_rollouts(agent_pair, num_games=1, final_state=True, display=display_runs, info=False)
 
         # Final state:
         state_f = trajs["ep_observations"][0][-1]
@@ -318,11 +322,11 @@ def r_holding_wrong_object(ppo_agent, mdp, standard_test_positions, print_info, 
         mdp._check_valid_state(state_i)
 
         env = OvercookedEnv(mdp, start_state_fn=lambda: state_i)
-        env.horizon = get_layout_horizon(layout, "short")
+        env.horizon = get_layout_horizon(layout, "short", test_agent)
 
         # Play with the tom agent from this state and record score
-        agent_pair = AgentPair(ppo_agent, tom_agent)
-        trajs = env.get_rollouts(agent_pair, num_games=1, final_state=True, display=False, info=False)
+        agent_pair = AgentPair(test_agent, other_player)
+        trajs = env.get_rollouts(agent_pair, num_games=1, final_state=True, display=display_runs, info=False)
 
         # Final state:
         state_f = trajs["ep_observations"][0][-1]
@@ -355,7 +359,7 @@ def get_r_d_locations_list_4(layout):
                 {'r_loc': (3, 3), 'd_locs': [(4, 3)]},
                 {'r_loc': (3, 3), 'd_locs': [(4, 3), (4, 2), (3, 4)]}]
 
-def only_acessable_dish_on_counter(ppo_agent, mdp, print_info, stationary_tom_agent, layout):
+def only_acessable_dish_on_counter(test_agent, mdp, print_info, stationary_tom_agent, layout, display_runs):
     """
     Test: H blocks dish dispenser but there’s a dish on counter
     Details:    4 different settings for R's location and the location of the dishes
@@ -364,7 +368,7 @@ def only_acessable_dish_on_counter(ppo_agent, mdp, print_info, stationary_tom_ag
                 Success: R gets a dish or changes the pot state?
     """
 
-    tom_agent = stationary_tom_agent
+    other_player = stationary_tom_agent
     orientations = [(1, 0), (0, 1), (-1, 0), (0, -1)]
     first_pot_loc, second_pot_loc = find_pot_locations(layout)
     count_success = 0
@@ -399,11 +403,11 @@ def only_acessable_dish_on_counter(ppo_agent, mdp, print_info, stationary_tom_ag
         mdp._check_valid_state(state_i)
 
         env = OvercookedEnv(mdp, start_state_fn=lambda : state_i)
-        env.horizon = get_layout_horizon(layout, "medium")
+        env.horizon = get_layout_horizon(layout, "medium", test_agent)
 
         # Play with the tom agent from this state and record score
-        agent_pair = AgentPair(ppo_agent, tom_agent)
-        trajs = env.get_rollouts(agent_pair, num_games=1, final_state=True, display=False, info=False)
+        agent_pair = AgentPair(test_agent, other_player)
+        trajs = env.get_rollouts(agent_pair, num_games=1, final_state=True, display=display_runs, info=False)
 
         # Score in terms of whether the pot state changes:
         state_f = trajs["ep_observations"][0][-1]
@@ -423,7 +427,7 @@ def only_acessable_dish_on_counter(ppo_agent, mdp, print_info, stationary_tom_ag
 
     return count_success, num_tests
 
-def r_in_the_way(ppo_agent, mdp, print_info, median_tom_agent, layout):
+def r_in_the_way(test_agent, mdp, print_info, median_tom_agent, layout, display_runs):
     """
     Test: R is initially blocking H, who has the correct object
     Details:    X = O or D
@@ -434,7 +438,7 @@ def r_in_the_way(ppo_agent, mdp, print_info, median_tom_agent, layout):
                 Median TOM
     """
 
-    tom_agent = median_tom_agent
+    other_player = median_tom_agent
     orientations = [(1, 0), (0, 1), (-1, 0), (0, -1)]
     first_pot_loc, second_pot_loc = find_pot_locations(layout)
     count_success = 0
@@ -480,11 +484,11 @@ def r_in_the_way(ppo_agent, mdp, print_info, median_tom_agent, layout):
             mdp._check_valid_state(state_i)
 
             env = OvercookedEnv(mdp, start_state_fn=lambda: state_i)
-            env.horizon = get_layout_horizon(layout, "medium")
+            env.horizon = get_layout_horizon(layout, "medium", test_agent)
 
             # Play with the tom agent from this state and record score
-            agent_pair = AgentPair(ppo_agent, tom_agent)
-            trajs = env.get_rollouts(agent_pair, num_games=1, final_state=True, display=False, info=False)
+            agent_pair = AgentPair(test_agent, other_player)
+            trajs = env.get_rollouts(agent_pair, num_games=1, final_state=True, display=display_runs, info=False)
 
             # Final state:
             state_f = trajs["ep_observations"][0][-1]
@@ -510,7 +514,7 @@ def r_in_the_way(ppo_agent, mdp, print_info, median_tom_agent, layout):
 
     return count_success, num_tests
 
-def both_have_onion_1_needed(ppo_agent, mdp, print_info, stationary_tom_agent, layout):
+def both_have_onion_1_needed(test_agent, mdp, print_info, stationary_tom_agent, layout, display_runs):
     """
     Test: Both have onion, 1 needed, and H closer (8 tests)
     Details:    H is stationary, and stands next to the pot with the onion
@@ -518,7 +522,7 @@ def both_have_onion_1_needed(ppo_agent, mdp, print_info, stationary_tom_agent, l
                 Pots: one is ready one has 2 onions <-- do both combinations (x2)
                 Success: R no longer has onion
     """
-    tom_agent = stationary_tom_agent
+    other_player = stationary_tom_agent
     orientations = [(1, 0), (0, 1), (-1, 0), (0, -1)]
     first_pot_loc, second_pot_loc = find_pot_locations(layout)
     count_success = 0
@@ -561,11 +565,11 @@ def both_have_onion_1_needed(ppo_agent, mdp, print_info, stationary_tom_agent, l
             mdp._check_valid_state(state_i)
 
             env = OvercookedEnv(mdp, start_state_fn=lambda: state_i)
-            env.horizon = get_layout_horizon(layout, "short")
+            env.horizon = get_layout_horizon(layout, "short", test_agent)
 
             # Play with the tom agent from this state and record score
-            agent_pair = AgentPair(ppo_agent, tom_agent)
-            trajs = env.get_rollouts(agent_pair, num_games=1, final_state=True, display=False, info=False)
+            agent_pair = AgentPair(test_agent, other_player)
+            trajs = env.get_rollouts(agent_pair, num_games=1, final_state=True, display=display_runs, info=False)
 
             # Final state:
             state_f = trajs["ep_observations"][0][-1]
@@ -597,7 +601,7 @@ def find_r_h_locations_9(layout):
                 {'r_loc': (1, 2), 'h_loc': (3, 3)},
                 {'r_loc': (1, 3), 'h_loc': (3, 1)}]
 
-def h_has_soup_o_needed(ppo_agent, mdp, print_info, median_tom_agent, layout):
+def h_has_soup_o_needed(test_agent, mdp, print_info, median_tom_agent, layout, display_runs):
     """
     Test: H has soup. O needed (x8 tests)
     Details:
@@ -608,7 +612,7 @@ def h_has_soup_o_needed(ppo_agent, mdp, print_info, median_tom_agent, layout):
         • Pots: both empty; one with 1 one with 2 (x2)
         • Success: Either pot state changes (We’re assuming that H will indeed deliver the soup!)
     """
-    tom_agent = median_tom_agent
+    other_player = median_tom_agent
     orientations = [(1, 0), (0, 1), (-1, 0), (0, -1)]
     first_pot_loc, second_pot_loc = find_pot_locations(layout)
     count_success = 0
@@ -647,11 +651,11 @@ def h_has_soup_o_needed(ppo_agent, mdp, print_info, median_tom_agent, layout):
             mdp._check_valid_state(state_i)
 
             env = OvercookedEnv(mdp, start_state_fn=lambda: state_i)
-            env.horizon = get_layout_horizon(layout, "long")
+            env.horizon = get_layout_horizon(layout, "long", test_agent)
 
             # Play with the tom agent from this state and record score
-            agent_pair = AgentPair(ppo_agent, tom_agent)
-            trajs = env.get_rollouts(agent_pair, num_games=1, final_state=True, display=False, info=False)
+            agent_pair = AgentPair(test_agent, other_player)
+            trajs = env.get_rollouts(agent_pair, num_games=1, final_state=True, display=display_runs, info=False)
 
             # Final state:
             state_f = trajs["ep_observations"][0][-1]
@@ -757,14 +761,22 @@ def make_cring_standard_test_positions():
     standard_test_positions.append({'r_loc': (3, 3), 'h_loc': (1, 1)})
     return standard_test_positions
 
-def run_tests(layout, test_agent, tests_to_run, print_info, num_avg):
+def make_test_tom_agent(layout, mlp, tom_num):
+    """Make a TOM from the validation set used for ppo"""
+    VAL_TOM_PARAMS, _, _ = import_manual_tom_params(layout, 20)
+    tom_agent = make_tom_agent(mlp)
+    tom_agent.set_tom_params(None, None, VAL_TOM_PARAMS, tom_params_choice=int(tom_num))
+    return tom_agent
+
+def run_tests(layout, test_agent, tests_to_run, print_info, num_avg, mdp, mlp, display_runs):
     """..."""
 
-    # Make the standard mdp for this layout:
-    mdp = OvercookedGridworld.from_layout_name(layout, start_order_list=None, cook_time=20, rew_shaping_params=None)
-    no_counters_params['counter_drop'] = mdp.get_counter_locations()
-    no_counters_params['counter_goals'] = mdp.get_counter_locations()
-    mlp = MediumLevelPlanner.from_pickle_or_compute(mdp, no_counters_params, force_compute=False)
+    # Make TOM test agent:
+    if test_agent.__class__ is str and test_agent[:3] == 'tom':
+        test_agent = make_test_tom_agent(layout, mlp, tom_num=test_agent[3])
+        test_agent.prob_pausing = 0
+        print('>>>>>>>>>>>>>> Prob pausing = {} <<<<<<<<<<<<<<<'.format(test_agent.prob_pausing))
+
     # Make the TOM agents used for testing:
     stationary_tom_agent = make_stationary_tom_agent(mlp)
     median_tom_agent = make_median_tom_agent(mlp, layout)
@@ -776,14 +788,13 @@ def run_tests(layout, test_agent, tests_to_run, print_info, num_avg):
         standard_test_positions = make_cring_standard_test_positions()
 
     percent_success = [None]*10
-    num_tests_all = [None]*10
 
     if "1" in tests_to_run or tests_to_run == "all":
         # TEST 1: "H stands still with X, where X CANNOT currently be used"
         count_successes = []
         for _ in range(num_avg):
             count_success, num_tests = h_random_unusable_object(test_agent, mdp, standard_test_positions,
-                                                                print_info, random_tom_agent, layout)
+                                                                print_info, random_tom_agent, layout, display_runs)
             count_successes.append(count_success)
         percent_success[1] = round(100 * np.mean(count_successes) / num_tests)
         # num_tests_all[1] = num_tests
@@ -793,7 +804,7 @@ def run_tests(layout, test_agent, tests_to_run, print_info, num_avg):
         count_successes = []
         for _ in range(num_avg):
             count_success, num_tests = h_stationary_usable_object(test_agent, mdp, standard_test_positions,
-                                                                print_info, stationary_tom_agent, layout)
+                                                                print_info, stationary_tom_agent, layout, display_runs)
             count_successes.append(count_success)
         percent_success[2] = round(100 * np.mean(count_successes) / num_tests)
         # num_tests_all[2] = num_tests
@@ -802,8 +813,8 @@ def run_tests(layout, test_agent, tests_to_run, print_info, num_avg):
         # TEST 2: "H stands still with X, where X can currently be used"
         count_successes = []
         for _ in range(num_avg):
-            count_success, num_tests = r_holding_wrong_object(ppo_agent, mdp, standard_test_positions,
-                                                               print_info, median_tom_agent, layout)
+            count_success, num_tests = r_holding_wrong_object(test_agent, mdp, standard_test_positions,
+                                                               print_info, median_tom_agent, layout, display_runs)
             count_successes.append(count_success)
         percent_success[3] = round(100 * np.mean(count_successes) / num_tests)
         # num_tests_all[3] = num_tests
@@ -813,7 +824,7 @@ def run_tests(layout, test_agent, tests_to_run, print_info, num_avg):
         count_successes = []
         for _ in range(num_avg):
             count_success, num_tests = only_acessable_dish_on_counter(test_agent, mdp, print_info,
-                                                                  stationary_tom_agent, layout)
+                                                                  stationary_tom_agent, layout, display_runs)
             count_successes.append(count_success)
         percent_success[4] = round(100 * np.mean(count_successes) / num_tests)
         # num_tests_all[4] = num_tests
@@ -822,7 +833,7 @@ def run_tests(layout, test_agent, tests_to_run, print_info, num_avg):
         # TEST 5: "R is initially blocking H, who has onion or dish"
         count_successes = []
         for _ in range(num_avg):
-            count_success, num_tests = r_in_the_way(ppo_agent, mdp, print_info, median_tom_agent, layout)
+            count_success, num_tests = r_in_the_way(test_agent, mdp, print_info, median_tom_agent, layout, display_runs)
             count_successes.append(count_success)
         percent_success[5] = round(100 * np.mean(count_successes) / num_tests)
         # num_tests_all[5] = num_tests
@@ -831,7 +842,7 @@ def run_tests(layout, test_agent, tests_to_run, print_info, num_avg):
         # TEST 8: "Both have onion, 1 needed, and H closer"
         count_successes = []
         for _ in range(num_avg):
-            count_success, num_tests = both_have_onion_1_needed(ppo_agent, mdp, print_info, stationary_tom_agent, layout)
+            count_success, num_tests = both_have_onion_1_needed(test_agent, mdp, print_info, stationary_tom_agent, layout, display_runs)
             count_successes.append(count_success)
         percent_success[8] = round(100 * np.mean(count_successes) / num_tests)
         # num_tests_all[8] = num_tests
@@ -840,7 +851,7 @@ def run_tests(layout, test_agent, tests_to_run, print_info, num_avg):
         # TEST 9: "H has soup. O needed"
         count_successes = []
         for _ in range(num_avg):
-            count_success, num_tests = h_has_soup_o_needed(ppo_agent, mdp, print_info, median_tom_agent, layout)
+            count_success, num_tests = h_has_soup_o_needed(test_agent, mdp, print_info, median_tom_agent, layout, display_runs)
             count_successes.append(count_success)
         percent_success[9] = round(100 * np.mean(count_successes) / num_tests)
         # num_tests_all[9] = num_tests
@@ -908,6 +919,24 @@ def save_results(avg_dict, weighted_avg_dict, results, run_folder, layout):
     with open(filename, 'w') as json_file:
         json.dump(results, json_file)
 
+def make_mdp_mlp(layout):
+    # Make the standard mdp for this layout:
+    mdp = OvercookedGridworld.from_layout_name(layout, start_order_list=['any'] * 100, cook_time=20,
+                                               rew_shaping_params=None)
+    no_counters_params['counter_drop'] = mdp.get_counter_locations()
+    no_counters_params['counter_goals'] = mdp.get_counter_locations()
+    mlp = MediumLevelPlanner.from_pickle_or_compute(mdp, no_counters_params, force_compute=False)
+    return mdp, mlp
+
+def str2bool(v):
+    if isinstance(v, bool):
+        return v
+    if v.lower() in ('yes', 'true', 'True', 't', 'y', '1'):
+        return True
+    elif v.lower() in ('no', 'false', 'False', 'f', 'n', '0'):
+        return False
+    else:
+        raise ValueError('Boolean value expected')
 
 if __name__ == "__main__":
     """
@@ -924,16 +953,18 @@ if __name__ == "__main__":
                         help="e.g. 'best_models/tom_pop_expt/cc_1_tom/'", default='set_in_code')
     parser.add_argument("-s", "--seed", default=0)
     parser.add_argument("-t", "--tests_to_run", default="all")
-    parser.add_argument("-pr", "--print_info", required=False, type=bool, default=False)
+    parser.add_argument("-pr", "--print_info", required=False, type=str, default=False)
+    parser.add_argument("-dr", "--display_runs", required=False, type=str, default=False)
     parser.add_argument("-pl", "--final_plot")
     parser.add_argument("-a", "--num_avg", type=int, required=False, default=1)
-    parser.add_argument("-f", "--agent_from", type=str, required=True, help='e.g. val_expt or neurips')
+    parser.add_argument("-f", "--agent_from", type=str, required=True, help='e.g. val_expt or neurips or toms')
     parser.add_argument("-r", "--run_on", required=False, type=str,
                         help="e.g. server or local", default='local')
 
     args = parser.parse_args()
-    layout, model, seed, tests_to_run, print_info, num_avg, agent_from, final_plot, run_on = \
-        args.layout, args.model, args.seed, args.tests_to_run, args.print_info, args.num_avg, args.agent_from, args.final_plot, args.run_on
+    layout, model, seed, tests_to_run, print_info, num_avg, agent_from, final_plot, run_on, display_runs = \
+        args.layout, args.model, args.seed, args.tests_to_run, str2bool(args.print_info), args.num_avg, \
+        args.agent_from, args.final_plot, args.run_on, str2bool(args.display_runs)
 
     if model == 'set_in_code':
         # -------- Choose agents ---------
@@ -960,11 +991,16 @@ if __name__ == "__main__":
                 run_folder = 'agents_neurips_paper'
                 bests = [True]
                 shorten = True
+        if agent_from == 'toms':
+            num_toms = 10
+            run_names = ['tom{}'.format(i) for i in range(num_toms)]
+            seeds, bests, shorten, run_folder = [[None]]*num_toms, [None], False, ''
 
         if run_on == 'server':
             DIR = '/home/paul/agents_to_QT/' + run_folder
         elif run_on == 'local':
-            DIR = '/home/pmzpk/Documents/hr_coordination_from_server_ONEDRIVE/' + run_folder
+            DIR = '/home/pmzpk/Documents/hr_coordination_from_server_ONEDRIVE/' + run_folder \
+                if agent_from != 'toms' else ''
         agents = []
         results = []
         for i, run_name in enumerate(run_names):
@@ -975,10 +1011,14 @@ if __name__ == "__main__":
 
                 for best in bests:
 
-                    ppo_agent, _ = get_ppo_agent(EXPT_DIR, seed, best=best)
+                    if agent_from != 'toms':
+                        test_agent, _ = get_ppo_agent(EXPT_DIR, seed, best=best)
+                    else:
+                        test_agent = run_name
+                    mdp, mlp = make_mdp_mlp(layout)
                     # agents.append(run_name + ' >> seed_' + str(seed) + ' >> ' + best)
                     print('\n' + run_name + ' >> seed_' + str(seed) + ' >> ' + str(best))
-                    results.append(run_tests(layout, ppo_agent, tests_to_run, print_info, num_avg))
+                    results.append(run_tests(layout, test_agent, tests_to_run, print_info, num_avg, mdp, mlp, display_runs))
         # for i in range(len(agents)):
         #     print('\n#------ Full results ------#')
         #     print("Agent: {}; Results: {}\n".format(agents[i], results[i]))
@@ -987,6 +1027,8 @@ if __name__ == "__main__":
             plot_results(avg_dict, shorten)
         weighted_avg_dic = make_plot_weighted_avg_dict(run_names, results, bests, seeds)
         save_results(avg_dict, weighted_avg_dic, results, run_folder, layout)
+        print('Final average dict: {}'.format(avg_dict))
+        print('Final wegihted avg: {}'.format(weighted_avg_dic))
 
     else:
         # Load agent to be tested:

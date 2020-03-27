@@ -84,7 +84,7 @@ def imitate_play_validation_games(params, ppo_agent, validation_pop, mdp):
 layout_name = "counter_circuit"
 sim_threads = 4
 #>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
-NUM_VAL_GAMES = 120
+NUM_VAL_GAMES = 200
 VAL_POP_SIZE = 4
 #<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 DISPLAY_VAL_GAMES = False

@@ -1,6 +1,5 @@
 import logging
-from concurrent.futures import ThreadPoolExecutor
-import concurrent
+import multiprocessing as mp
 import time, random, copy
 import numpy as np
 from human_aware_rl.baselines_utils import get_vectorized_gym_env
@@ -42,41 +41,19 @@ def imitate_play_validation_games(params, ppo_agent0, ppo_agent1, parallel_envs,
         parallel_env.agent_pair = agent_pair
         parallel_env.params = params
 
-    time0 = time.perf_counter()
-    # Manual loop:
-    np.random.seed(0)
-    random.seed(0)
-    validation_rewards = []
-    for parallel_env in parallel_envs:
-        agent_pair = parallel_env.agent_pair
-        trajs = parallel_env.get_rollouts(agent_pair, num_games=params["NUM_VAL_GAMES"],
-                                            final_state=False, display=False)
-        sparse_rews = trajs["ep_returns"]
-        avg_sparse_rew = np.mean(sparse_rews)
-        validation_rewards.append(avg_sparse_rew)
-    time_loop = time.perf_counter() - time0
-
-    # Manual loop 2, using play_single_validation_game:
-    # np.random.seed(0)
-    # random.seed(0)
-    # validation_rewards2 = []
-    # other_stuff = {"overcooked_env": overcooked_env, "params": params}
-    # for agent_pair in agent_pairs:
-    #     validation_rewards2.append(play_single_validation_game([agent_pair, other_stuff]))
-
     time1 = time.perf_counter()
     # Parallel loop:
     np.random.seed(0)
     random.seed(0)
-    with concurrent.futures.ProcessPoolExecutor(max_workers=params["sim_threads"]) as executor:
-        validation_rewards_parallel = list(executor.map(play_single_validation_game, parallel_envs))
+    pool = mp.Pool(mp.cpu_count())
+    val_rewards_mp = pool.map(play_single_validation_game, parallel_envs)
     time_par = time.perf_counter() - time1
 
-    print("Series rews: ", validation_rewards, "\nParall rews: ", validation_rewards_parallel)
-    print("Series rews = ", np.mean(validation_rewards), "\nParall rews = ", np.mean(validation_rewards_parallel))
-    print("Loop took: {}, parallel took: {}".format(time_loop, time_par))
+    print("Parall rews: ", val_rewards_mp)
+    print("Parall rews = ", np.mean(val_rewards_mp))
+    print("Parallel took: {}".format(time_par))
 
-    mean_val_rews = np.mean(validation_rewards)
+
 
 ##################
 # PARAMS #

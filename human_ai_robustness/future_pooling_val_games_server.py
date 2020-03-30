@@ -68,7 +68,7 @@ def imitate_play_validation_games(params, ppo_agent0, ppo_agent1, parallel_envs,
     # Parallel loop:
     np.random.seed(0)
     random.seed(0)
-    with concurrent.futures.ProcessPoolExecutor(max_workers=params["sim_threads"]) as executor:
+    with concurrent.futures.ThreadPoolExecutor(max_workers=params["sim_threads"]) as executor:
         validation_rewards_parallel = list(executor.map(play_single_validation_game, parallel_envs))
     time_par = time.perf_counter() - time1
 

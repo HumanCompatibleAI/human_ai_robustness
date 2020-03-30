@@ -766,6 +766,20 @@ def make_test_tom_agent(layout, mlp, tom_num):
     VAL_TOM_PARAMS, _, _ = import_manual_tom_params(layout, 20)
     tom_agent = make_tom_agent(mlp)
     tom_agent.set_tom_params(None, None, VAL_TOM_PARAMS, tom_params_choice=int(tom_num))
+
+    print('>>> Manually overwriting the TOM with an "optimal" TOM <<<')
+    tom_agent.prob_greedy = 1
+    tom_agent.prob_pausing = 0
+    tom_agent.prob_random_action = 0
+    tom_agent.rationality_coefficient = 20
+    tom_agent.path_teamwork = 1
+    tom_agent.prob_obs_other = 0
+    tom_agent.wrong_decisions = 0
+    tom_agent.prob_thinking_not_moving = 0
+    tom_agent.look_ahead_steps = 4
+    tom_agent.retain_goals = 0
+    tom_agent.compliance = 0
+
     return tom_agent
 
 def run_tests(layout, test_agent, tests_to_run, print_info, num_avg, mdp, mlp, display_runs):
@@ -992,7 +1006,7 @@ if __name__ == "__main__":
                 bests = [True]
                 shorten = True
         if agent_from == 'toms':
-            num_toms = 10
+            num_toms = 1
             run_names = ['tom{}'.format(i) for i in range(num_toms)]
             seeds, bests, shorten, run_folder = [[None]]*num_toms, [None], False, ''
 

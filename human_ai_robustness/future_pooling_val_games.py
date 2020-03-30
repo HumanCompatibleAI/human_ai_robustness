@@ -113,8 +113,8 @@ seed = 2732
 
 dir = base_dir + model_dir + '/'
 from human_aware_rl.ppo.ppo_pop import get_ppo_agent
-ppo_agent0, _ = get_ppo_agent(dir, seed, best=True)
-ppo_agent1, _ = get_ppo_agent(dir, seed, best=True)
+ppo_agent0, _ = get_ppo_agent(dir, seed, best='train')
+ppo_agent1, _ = get_ppo_agent(dir, seed, best='train')
 
 # Make the standard mdp for this layout:
 layout = params["mdp_params"]["layout_name"]

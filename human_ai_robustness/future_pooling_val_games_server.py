@@ -82,10 +82,10 @@ def imitate_play_validation_games(params, ppo_agent0, ppo_agent1, parallel_envs,
 # PARAMS #
 ##################
 layout_name = "counter_circuit"
-sim_threads = 4
+sim_threads = 20
 #>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
-NUM_VAL_GAMES = 1
-VAL_POP_SIZE = 2
+NUM_VAL_GAMES = 5
+VAL_POP_SIZE = 10
 #<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 DISPLAY_VAL_GAMES = False
 start_order_list = ['any']*100
@@ -107,14 +107,20 @@ params = {
     "VAL_POP_SIZE": VAL_POP_SIZE,
 }
 # Pick an arbitrary ppo model and make an agent:
-base_dir = '/home/pmzpk/Documents/hr_coordination_from_server_ONEDRIVE/'
-model_dir = 'bc_pop_cc/cc_1_bc_p'
+base_dir = '/home/paul/agents_to_QT/'
+model_dir = 'val_expt_aa_cc1/cc_20_mantoms'
 seed = 2732
 
 dir = base_dir + model_dir + '/'
 from human_aware_rl.ppo.ppo_pop import get_ppo_agent
-ppo_agent0, _ = get_ppo_agent(dir, seed, best=True)
-ppo_agent1, _ = get_ppo_agent(dir, seed, best=True)
+ppo_agent0, _ = get_ppo_agent(dir, seed, best='train')
+
+time0 = time.perf_counter()
+ppo_agent1, _ = get_ppo_agent(dir, seed, best='train')
+print('Time make ppo: ', time.perf_counter()-time0)
+time0 = time.perf_counter()
+ppo_agent_copy = copy.deepcopy(ppo_agent1)
+print('Time copy ppo: ', time.perf_counter()-time0)
 
 # Make the standard mdp for this layout:
 layout = params["mdp_params"]["layout_name"]

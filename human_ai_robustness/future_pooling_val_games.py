@@ -68,7 +68,7 @@ def imitate_play_validation_games(params, ppo_agent0, ppo_agent1, parallel_envs,
     # Parallel loop:
     np.random.seed(0)
     random.seed(0)
-    with concurrent.futures.ThreadPoolExecutor(max_workers=params["sim_threads"]) as executor:
+    with concurrent.futures.ThreadPoolExecutor(max_workers=10*params["sim_threads"]) as executor:
         validation_rewards_parallel = list(executor.map(play_single_validation_game, parallel_envs))
     time_par = time.perf_counter() - time1
 
@@ -84,7 +84,7 @@ def imitate_play_validation_games(params, ppo_agent0, ppo_agent1, parallel_envs,
 layout_name = "counter_circuit"
 sim_threads = 20
 #>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
-NUM_VAL_GAMES = 30
+NUM_VAL_GAMES = 5
 VAL_POP_SIZE = 10
 #<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 DISPLAY_VAL_GAMES = False
@@ -114,7 +114,18 @@ seed = 2732
 dir = base_dir + model_dir + '/'
 from human_aware_rl.ppo.ppo_pop import get_ppo_agent
 ppo_agent0, _ = get_ppo_agent(dir, seed, best='train')
+
+
+
+time0 = time.perf_counter()
 ppo_agent1, _ = get_ppo_agent(dir, seed, best='train')
+print('Time make ppo: ', time.perf_counter()-time0)
+time0 = time.perf_counter()
+ppo_agent_copy = copy.deepcopy(ppo_agent1)
+print('Time copy ppo: ', time.perf_counter()-time0)
+
+
+
 
 # Make the standard mdp for this layout:
 layout = params["mdp_params"]["layout_name"]

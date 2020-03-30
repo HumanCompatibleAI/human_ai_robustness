@@ -107,8 +107,8 @@ params = {
     "VAL_POP_SIZE": VAL_POP_SIZE,
 }
 # Pick an arbitrary ppo model and make an agent:
-base_dir = '/home/pmzpk/Documents/hr_coordination_from_server_ONEDRIVE/'
-model_dir = 'bc_pop_cc/cc_1_bc_p'
+base_dir = '/home/paul/agents_to_QT/'
+model_dir = 'val_expt_aa_cc1/cc_20_mantoms'
 seed = 2732
 
 dir = base_dir + model_dir + '/'

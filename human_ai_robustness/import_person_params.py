@@ -536,7 +536,8 @@ def import_manual_tom_params(layout_name, POP_SIZE):
     if POP_SIZE == 20:
         pass
     elif POP_SIZE == 1:
-        # For 1-pop, choose the median TOM: the TOM which gets the median score across ALL_TOM_PARAMS:
+        # For 1-pop, choose the median TOM (from the training set -- it shouldn't be in the validation set!), i.e. the
+        # TOM which gets the median score across TRAIN_TOM_PARAMS:
         if layout_name == "counter_circuit":
             TRAIN_TOM_PARAMS = [TRAIN_TOM_PARAMS[0]]
         elif layout_name == "asymmetric_advantages":

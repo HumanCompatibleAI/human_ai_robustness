@@ -117,7 +117,7 @@ def sort_into_rearranged_pop(agent, ppo_sim_threads, count):
 layout_name = "counter_circuit"
 sim_threads = 4
 #>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
-NUM_VAL_GAMES = 1
+NUM_VAL_GAMES = 3
 VAL_POP_SIZE = 20
 #<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 DISPLAY_VAL_GAMES = False

@@ -41,7 +41,10 @@ def get_layout_horizon(layout, horizon_length, test_agent):
     if horizon_length == 'short':
         return extra_time + 10
     elif horizon_length == 'medium':
-        return extra_time + 15
+        if layout == 'counter_circuit':
+            return extra_time + 20
+        elif layout == 'coordination_ring':
+            return extra_time + 15
     elif horizon_length == 'long':
         if layout == 'counter_circuit':
             return extra_time + 30
@@ -66,6 +69,7 @@ def h_random_unusable_object(test_agent, mdp, standard_test_positions, print_inf
 
     count_success = 0
     num_tests = 0
+    subtest_successes = []
 
     first_pot_loc, second_pot_loc = find_pot_locations(layout)
 
@@ -128,14 +132,21 @@ def h_random_unusable_object(test_agent, mdp, standard_test_positions, print_inf
                         if print_info:
                             print('Pot state has changed --> success!')
                         count_success += 1
+                        subtest_successes.append('S')
+                    else:
+                        subtest_successes.append('F')
                 else:
                     if 'soup' in state_f.all_objects_by_type:
                         if print_info:
                             print('Pot state has changed --> success!')
                         count_success += 1
+                        subtest_successes.append('S')
+                    else:
+                        subtest_successes.append('F')
 
                 if print_info:
                     print(count_success / num_tests)
+                    print('Subtest successes: {}'.format(subtest_successes))
 
     return count_success, num_tests
 
@@ -373,6 +384,7 @@ def only_acessable_dish_on_counter(test_agent, mdp, print_info, stationary_tom_a
     first_pot_loc, second_pot_loc = find_pot_locations(layout)
     count_success = 0
     num_tests = 0
+    subtest_successes = []
     pots = [ObjectState('soup', first_pot_loc, ('onion', 3, 20)), ObjectState('soup', second_pot_loc, ('onion', 3, 20))] # Both cooking
     h_locs_layout = {'counter_circuit': (1, 2), 'coordination_ring': (1, 2)}
     h_loc = h_locs_layout[layout]
@@ -421,9 +433,13 @@ def only_acessable_dish_on_counter(test_agent, mdp, print_info, stationary_tom_a
             if print_info:
                 print('PPO has object, or the pot state has changed --> success!')
             count_success += 1
+            subtest_successes.append('S')
+        else:
+            subtest_successes.append('F')
 
         if print_info:
             print(count_success/num_tests)
+            print('Subtest successes: {}'.format(subtest_successes))
 
     return count_success, num_tests
 
@@ -824,7 +840,7 @@ def run_tests(layout, test_agent, tests_to_run, print_info, num_avg, mdp, mlp, d
         # num_tests_all[2] = num_tests
 
     if "3" in tests_to_run or tests_to_run == "all":
-        # TEST 2: "H stands still with X, where X can currently be used"
+        # TEST 3: ?"
         count_successes = []
         for _ in range(num_avg):
             count_success, num_tests = r_holding_wrong_object(test_agent, mdp, standard_test_positions,
@@ -984,9 +1000,9 @@ if __name__ == "__main__":
         # -------- Choose agents ---------
         if layout == 'counter_circuit':
             if agent_from == 'val_expt':
-                run_folder = 'val_expt_aa_cc1'
-                run_names = ['cc_1_mantom', 'cc_20_mantoms', 'cc_1_mettom', 'cc_20_mettoms', 'cc_1_bc', 'cc_20_bcs']
-                seeds = [[2732], [9845], [2732], [9845], [2732], [2732]]
+                run_folder = 'val_expt_cc2'
+                run_names = ['cc_1_mantom', 'cc_20_mantoms', 'cc_1_bc', 'cc_20_bcs', 'cc_20_mixed']
+                seeds = [[2732, 3264, 9845], [2732, 3264, 9845], [2732, 3264, 9845], [2732, 3264, 9845], [2732, 3264]]
                 bests = ['train', 'val']
                 shorten = False
             elif agent_from == 'neurips':
@@ -1011,7 +1027,7 @@ if __name__ == "__main__":
             seeds, bests, shorten, run_folder = [[None]]*num_toms, [None], False, ''
 
         if run_on == 'server':
-            DIR = '/home/paul/agents_to_QT/' + run_folder
+            DIR = '/home/paul/research/human_ai_robustness/human_ai_robustness/data/ppo_runs/' + run_folder
         elif run_on == 'local':
             DIR = '/home/pmzpk/Documents/hr_coordination_from_server_ONEDRIVE/' + run_folder \
                 if agent_from != 'toms' else ''

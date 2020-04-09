@@ -1031,6 +1031,7 @@ if __name__ == "__main__":
         elif run_on == 'local':
             DIR = '/home/pmzpk/Documents/hr_coordination_from_server_ONEDRIVE/' + run_folder \
                 if agent_from != 'toms' else ''
+        mdp, mlp = make_mdp_mlp(layout)
         agents = []
         results = []
         for i, run_name in enumerate(run_names):
@@ -1045,7 +1046,6 @@ if __name__ == "__main__":
                         test_agent, _ = get_ppo_agent(EXPT_DIR, seed, best=best)
                     else:
                         test_agent = run_name
-                    mdp, mlp = make_mdp_mlp(layout)
                     # agents.append(run_name + ' >> seed_' + str(seed) + ' >> ' + best)
                     print('\n' + run_name + ' >> seed_' + str(seed) + ' >> ' + str(best))
                     results.append(run_tests(layout, test_agent, tests_to_run, print_info, num_avg, mdp, mlp, display_runs))

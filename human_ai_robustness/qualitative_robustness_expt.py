@@ -1048,7 +1048,9 @@ if __name__ == "__main__":
                         test_agent = run_name
                     # agents.append(run_name + ' >> seed_' + str(seed) + ' >> ' + best)
                     print('\n' + run_name + ' >> seed_' + str(seed) + ' >> ' + str(best))
+                    time0 = time.perf_counter()
                     results.append(run_tests(layout, test_agent, tests_to_run, print_info, num_avg, mdp, mlp, display_runs))
+                    print('Time for this agent: {}'.format(time.perf_counter() - time0))
         # for i in range(len(agents)):
         #     print('\n#------ Full results ------#')
         #     print("Agent: {}; Results: {}\n".format(agents[i], results[i]))

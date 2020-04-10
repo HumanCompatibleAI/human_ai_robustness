@@ -470,7 +470,7 @@ def import_person_params(LAYOUT_NAME, num_toms):
     # return PERSON_PARAMS_HM0, PERSON_PARAMS_HM1, PERSON_PARAMS_HM2, PERSON_PARAMS_HM3
     return TOM_PARAMS
 
-def import_manual_tom_params(layout_name, POP_SIZE):
+def import_manual_tom_params(layout_name, POP_SIZE, SELECT_TOM=False):
     """Import params manually chosen to give a diverse population of TOMs"""
     ALL_TOM_PARAMS = []
 
@@ -536,15 +536,18 @@ def import_manual_tom_params(layout_name, POP_SIZE):
     if POP_SIZE == 20:
         pass
     elif POP_SIZE == 1:
-        # For 1-pop, choose the median TOM (from the training set -- it shouldn't be in the validation set!), i.e. the
-        # TOM which gets the median score across TRAIN_TOM_PARAMS:
-        if layout_name == "counter_circuit":
-            TRAIN_TOM_PARAMS = [TRAIN_TOM_PARAMS[0]]
-        elif layout_name == "asymmetric_advantages":
-            TRAIN_TOM_PARAMS = [TRAIN_TOM_PARAMS[18]]
+        if not SELECT_TOM:
+            # For 1-pop, choose the median TOM (from the training set -- it shouldn't be in the validation set!), i.e. the
+            # TOM which gets the median score across TRAIN_TOM_PARAMS:
+            if layout_name == "counter_circuit":
+                TRAIN_TOM_PARAMS = [TRAIN_TOM_PARAMS[0]]
+            elif layout_name == "asymmetric_advantages":
+                TRAIN_TOM_PARAMS = [TRAIN_TOM_PARAMS[18]]
+            else:
+                #TODO: Need to find the median for the other maps. For now:
+                TRAIN_TOM_PARAMS = [TRAIN_TOM_PARAMS[0]]
         else:
-            #TODO: Need to find the median for the other maps. For now:
-            TRAIN_TOM_PARAMS = [TRAIN_TOM_PARAMS[0]]
+            TRAIN_TOM_PARAMS = [TRAIN_TOM_PARAMS[SELECT_TOM]]
     else:
         raise ValueError("Only currently designed for pops of 1 or 20")
 

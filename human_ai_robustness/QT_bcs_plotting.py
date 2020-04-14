@@ -1,6 +1,6 @@
 
 """
-Here we take data for the neurips agents on Cring playing the set of qualitative tests. We then do the following plotting:
+Here we take data for X agents on Y playing the set of qualitative tests. We then do the following plotting:
     • Data:
         ◦ Should be 4 agents, with 5 seeds each
         ◦ Ignore test 2
@@ -20,82 +20,55 @@ Here we take data for the neurips agents on Cring playing the set of qualitative
 import numpy as np
 import matplotlib.pyplot as plt
 
-def take_train_only(data, agent_base_names):
-    """Data is in this order: cc_1_mantom TRAIN SEED0, cc_1_mantom VAL SEED0, cc_1_mantom TRAIN SEED1,...
-    But we want all the "Train" agents together. Here we rearrange the data"""
-    rearranged_data = []
-    for i, agent_base_name in enumerate(agent_base_names):
-        num_seeds = 3 if agent_base_name is not 'cc_20_mixed' else 2
-        selection_train = [0, 2, 4] if agent_base_name is not 'cc_20_mixed' else [0, 2]
-        # selection_val = [1, 3, 5] if agent_base_name is not 'cc_20_mixed' else [1, 3]
-        this_agent_data = [data[3*2*i + j] for j in range(num_seeds*2)]
-        [rearranged_data.append(this_agent_data[j]) for j in selection_train]
-        # [rearranged_data.append(this_agent_data[j]) for j in selection_val]
-    assert len(rearranged_data) == len(data) / 2
-    return rearranged_data
 
+data = [[None, 52.0, 12.0, 11.0, 0.0, 42.0, None, None, 0.0, 55.0], [None, 56.0, 17.0, 6.0, 0.0, 42.0, None, None, 2.0, 45.0], [None, 56.0, 12.0, 4.0, 0.0, 60.0, None, None, 2.0, 61.0], [None, 55.0, 19.0, 4.0, 0.0, 38.0, None, None, 0.0, 45.0]]
 
-original_data = [[None, 45.0, 29.0, 13.0, 30.0, 54.0, None, None, 24.0, 40.0], [None, 45.0, 29.0, 12.0, 29.0, 57.0, None, None, 22.0, 40.0], [None, 30.0, 18.0, 30.0, 31.0, 72.0, None, None, 45.0, 57.0], [None, 32.0, 17.0, 35.0, 32.0, 63.0, None, None, 50.0, 56.0], [None, 34.0, 29.0, 33.0, 40.0, 83.0, None, None, 24.0, 50.0], [None, 41.0, 30.0, 26.0, 34.0, 91.0, None, None, 17.0, 52.0], [None, 48.0, 22.0, 10.0, 5.0, 59.0, None, None, 22.0, 28.0], [None, 37.0, 17.0, 8.0, 5.0, 60.0, None, None, 17.0, 30.0], [None, 12.0, 7.0, 34.0, 24.0, 18.0, None, None, 50.0, 51.0], [None, 10.0, 7.0, 21.0, 5.0, 24.0, None, None, 32.0, 51.0], [None, 42.0, 29.0, 16.0, 24.0, 50.0, None, None, 26.0, 28.0], [None, 46.0, 32.0, 25.0, 62.0, 37.0, None, None, 37.0, 25.0], [None, 53.0, 16.0, 13.0, 50.0, 85.0, None, None, 5.0, 56.0], [None, 54.0, 17.0, 11.0, 60.0, 86.0, None, None, 6.0, 48.0], [None, 33.0, 9.0, 5.0, 41.0, 68.0, None, None, 11.0, 46.0], [None, 33.0, 13.0, 15.0, 62.0, 63.0, None, None, 5.0, 48.0], [None, 62.0, 21.0, 17.0, 26.0, 69.0, None, None, 9.0, 82.0], [None, 61.0, 21.0, 15.0, 27.0, 72.0, None, None, 2.0, 82.0], [None, 24.0, 9.0, 6.0, 32.0, 61.0, None, None, 13.0, 48.0], [None, 26.0, 9.0, 7.0, 39.0, 73.0, None, None, 14.0, 38.0], [None, 11.0, 6.0, 2.0, 3.0, 76.0, None, None, 7.0, 47.0], [None, 16.0, 6.0, 6.0, 21.0, 68.0, None, None, 9.0, 42.0], [None, 66.0, 23.0, 11.0, 59.0, 44.0, None, None, 6.0, 92.0], [None, 67.0, 25.0, 15.0, 68.0, 51.0, None, None, 7.0, 90.0], [None, 63.0, 37.0, 16.0, 51.0, 55.0, None, None, 4.0, 40.0], [None, 62.0, 40.0, 25.0, 49.0, 57.0, None, None, 13.0, 42.0], [None, 55.0, 20.0, 14.0, 48.0, 67.0, None, None, 9.0, 89.0], [None, 60.0, 20.0, 27.0, 80.0, 66.0, None, None, 13.0, 92.0]]
-
-
-assert len(original_data) == 3*8+2*2
-assert len(original_data[0]) == 10
+assert len(data) == 1*4
+assert len(data[0]) == 10
 
 # Settings:
-# num_seeds = <-- below!
-agent_base_names = ['cc_1_mantom', 'cc_20_mantoms', 'cc_1_bc', 'cc_20_bcs', 'cc_20_mixed']
-
-data = take_train_only(original_data, agent_base_names)
-
-agent_names = ['cc_1_mantom_train', 'cc_20_mantoms_train', 'cc_1_bc_train', 'cc_20_bcs_train', 'cc_20_mixed_train']
-
-# bests = ['train', 'val']
+num_seeds = 4
+agent_names = ['bc']
 
 tests = [1, 3, 4, 5, 8, 9]
-weighting = [2, 2, 1, 1, 1, 1]
+assert num_seeds == int(len(data)/len(agent_names))
 
 # Average over seeds and remove test 2:
 # avg_over_seeds_dict = {agent_names[i]: {} for i in range(len(agent_names))}
 avg_over_seeds_list = [[] for _ in range(len(agent_names))]
 sd_over_seeds_list = [[] for _ in range(len(agent_names))]
 
-for i, agent_name in enumerate(agent_names):
-    for k, test in enumerate(tests):
-
-        num_seeds = 3 if agent_name not in ['cc_20_mixed_train', 'cc_20_mixed_val'] else 2
-        assert len(data) == (3*4 + 2*1)
+for i, agent in enumerate(agent_names):
+    for test in tests:
 
         this_avg = np.mean([data[num_seeds*i + j][test] for j in range(num_seeds)])
         this_sd = np.std([data[num_seeds*i + j][test] for j in range(num_seeds)])
-        # avg_over_seeds_dict[agent_name]['test{}'.format(test)] = this_avg
+        # avg_over_seeds_dict[agent]['test{}'.format(test)] = this_avg
         avg_over_seeds_list[i].append(this_avg)
         sd_over_seeds_list[i].append(this_sd)
-
-num_seeds = None  # Reset just in case
 
 # Plot 1:
 #       Plot each agent on a separate subplot (4 subplot)
 #       Plot the 6 tests in a bar chart
 #       Highlight test 5, which the TOM also does badly on
 
-colours = ['b', 'r', 'y', 'c', 'm', 'g']
-
-f, ((ax0, ax1, ax4), (ax2, ax3, empty)) = plt.subplots(2, 3, sharex='col', sharey='row')
-
-x_axis = ['test{}'.format(test) for test in tests]
-
-axs = [ax0, ax1, ax2, ax3, ax4]
-assert len(axs) == len(agent_names)
-
-for i, ax in enumerate(axs):
-    ax.bar(x_axis, avg_over_seeds_list[i], 0.4, alpha=0.4, color=colours, yerr = sd_over_seeds_list[i])  # thickness
-    ax.title.set_text(agent_names[i])
-    ax.set_ylabel('% success')
-    ax.set_ylim(0, 100)
-    ax.grid()
-
+# colours = ['b', 'r', 'y', 'c', 'm', 'g']
+#
+# f, ((ax1, ax2), (ax3, ax4)) = plt.subplots(2, 2, sharex='col', sharey='row')
+#
+# x_axis = ['test{}'.format(test) for test in tests]
+#
+# axs = [ax1, ax2, ax3, ax4]
+#
+# for i, ax in enumerate(axs):
+#     ax.bar(x_axis, avg_over_seeds_list[i], 0.4, alpha=0.4, color=colours, yerr = sd_over_seeds_list[i])  # thickness
+#     ax.title.set_text(agent_names[i])
+#     ax.set_ylabel('% success')
+#     ax.set_ylim(0, 100)
+#     ax.grid()
+#
 # plt.tight_layout()
-plt.show()
+# # plt.show()
 
 
 # Plot 2:
@@ -111,17 +84,16 @@ axs = [ax1, ax2, ax3, ax4, ax5, ax6]
 
 for i, ax in enumerate(axs):
     avg_to_plot = [avg_over_seeds_list[k][i] for k in range(len(agent_names))]
-    assert len(avg_over_seeds_list) == len(agent_names)
     sd_to_plot = [sd_over_seeds_list[k][i] for k in range(len(agent_names))]
     ax.bar(x_axis, avg_to_plot, 0.4, alpha=0.4, color=colours, yerr=sd_to_plot)  # thickness
     ax.title.set_text('test{}'.format(tests[i]))
     ax.set_ylabel('% success')
     ax.set_ylim(0, 100)
     ax.grid()
-    plt.setp(ax.xaxis.get_majorticklabels(), rotation=90)
 
-# plt.tight_layout()
-plt.show()
+plt.tight_layout()
+# plt.show()
+
 
 
 # Plot 3:
@@ -131,6 +103,7 @@ plt.show()
 # Take mean over tests:
 mean_over_tests = []
 weighted_mean_over_tests = []
+weighting = [2, 2, 1, 1, 1, 1]
 
 for i in range(len(data)):
     mean_over_tests.append(np.mean([data[i][test] for test in tests if data[i][test] is not None]))
@@ -144,13 +117,12 @@ sd_of_weighted = []
 
 # Find mean and sd over seeds:
 for i in range(len(agent_names)):
-    num_seeds = 3 if agent_names[i] not in ['cc_20_mixed_train', 'cc_20_mixed_val'] else 2
     mean_over_seeds.append(np.mean([mean_over_tests[i*num_seeds + j] for j in range(num_seeds)]))
     sd_over_seeds.append(np.std([mean_over_tests[i*num_seeds + j] for j in range(num_seeds)]))
     weighted_mean_over_seeds.append(np.mean([weighted_mean_over_tests[i*num_seeds + j] for j in range(num_seeds)]))
     sd_of_weighted.append(np.std([weighted_mean_over_tests[i*num_seeds + j] for j in range(num_seeds)]))
 
-colours = ['b', 'r', 'y', 'c', 'm']
+colours = ['b', 'r', 'y', 'c']
 f, (ax1, ax2) = plt.subplots(1, 2, sharex='col', sharey='row')
 x_axis = agent_names
 
@@ -159,14 +131,12 @@ ax1.title.set_text('Mean over seeds')
 ax1.set_ylabel('% success')
 ax1.set_ylim(0, 100)
 ax1.grid()
-plt.setp(ax1.xaxis.get_majorticklabels(), rotation=90)
 
 ax2.bar(x_axis, weighted_mean_over_seeds, 0.4, alpha=0.4, color=colours, yerr=sd_of_weighted)  # thickness
 ax2.title.set_text('Weighted mean over seeds')
 ax2.set_ylabel('% success')
 ax2.set_ylim(0, 100)
 ax2.grid()
-plt.setp(ax2.xaxis.get_majorticklabels(), rotation=90)
 
 plt.tight_layout()
 plt.show()

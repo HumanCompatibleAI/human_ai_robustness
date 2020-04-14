@@ -2,6 +2,7 @@ import time
 from argparse import ArgumentParser
 from human_aware_rl.ppo.ppo_pop import get_ppo_agent, make_tom_agent
 from human_aware_rl.data_dir import DATA_DIR
+from imitation.behavioural_cloning import get_bc_agent_from_saved
 from overcooked_ai_py.agents.agent import AgentPair
 from overcooked_ai_py.mdp.overcooked_env import OvercookedEnv
 from overcooked_ai_py.mdp.overcooked_mdp import OvercookedGridworld, PlayerState, ObjectState, OvercookedState
@@ -805,7 +806,6 @@ def run_tests(layout, test_agent, tests_to_run, print_info, num_avg, mdp, mlp, d
     if test_agent.__class__ is str and test_agent[:3] == 'tom':
         test_agent = make_test_tom_agent(layout, mlp, tom_num=test_agent[3])
         test_agent.prob_pausing = 0
-        print('>>>>>>>>>>>>>> Prob pausing = {} <<<<<<<<<<<<<<<'.format(test_agent.prob_pausing))
 
     # Make the TOM agents used for testing:
     stationary_tom_agent = make_stationary_tom_agent(mlp)
@@ -958,6 +958,17 @@ def make_mdp_mlp(layout):
     mlp = MediumLevelPlanner.from_pickle_or_compute(mdp, no_counters_params, force_compute=False)
     return mdp, mlp
 
+def get_bc_agent(seed, layout, mdp, run_on):
+    """Return the BC agent for this layout and seed"""
+    bc_name = layout + "_bc_train_seed{}".format(seed)
+    if run_on == 'local':
+        BC_LOCAL_DIR = '/home/pmzpk/bc_runs/'
+    bc_agent, _ = get_bc_agent_from_saved(bc_name, unblock_if_stuck=True,
+                                           stochastic=True,
+                                           overwrite_bc_save_dir=BC_LOCAL_DIR)
+    bc_agent.set_mdp(mdp)
+    return bc_agent
+
 def str2bool(v):
     if isinstance(v, bool):
         return v
@@ -1021,10 +1032,21 @@ if __name__ == "__main__":
                 run_folder = 'agents_neurips_paper'
                 bests = [True]
                 shorten = True
+            elif agent_from == 'pop_expt':
+                run_folder = 'pop_cring'
+                run_names = ['cring_1_tom_p', 'cring_20_toms_p', 'cring_1_bc_p', 'cring_20_bcs_p_reduced025']
+                seeds = [[2732, 3264, 4859, 9225, 9845]] * len(run_names) if run_on == 'server' else [[2732]] * len(run_names)
+                bests = [True]
+                shorten = False
+
         if agent_from == 'toms':
             num_toms = 1
             run_names = ['tom{}'.format(i) for i in range(num_toms)]
             seeds, bests, shorten, run_folder = [[None]]*num_toms, [None], False, ''
+        elif agent_from == 'bc':
+            run_names = ['bc']
+            bests, shorten, run_folder = [None], False, ''
+            seeds = [[8502, 7786, 9094, 7709]]  # , 103, 5048, 630, 7900, 5309, 8417, 862, 6459, 3459, 1047, 3759, 3806, 8413, 790, 7974, 9845]]  # BCs from ppo_pop
 
         if run_on == 'server':
             DIR = '/home/paul/research/human_ai_robustness/human_ai_robustness/data/ppo_runs/' + run_folder
@@ -1042,10 +1064,13 @@ if __name__ == "__main__":
 
                 for best in bests:
 
-                    if agent_from != 'toms':
-                        test_agent, _ = get_ppo_agent(EXPT_DIR, seed, best=best)
-                    else:
+                    if agent_from == 'toms':
                         test_agent = run_name
+                    elif agent_from == 'bc':
+                        test_agent = get_bc_agent(seed, layout, mdp, run_on)
+                    else:
+                        test_agent, _ = get_ppo_agent(EXPT_DIR, seed, best=best)
+
                     # agents.append(run_name + ' >> seed_' + str(seed) + ' >> ' + best)
                     print('\n' + run_name + ' >> seed_' + str(seed) + ' >> ' + str(best))
                     time0 = time.perf_counter()
@@ -1061,6 +1086,7 @@ if __name__ == "__main__":
         save_results(avg_dict, weighted_avg_dic, results, run_folder, layout)
         print('Final average dict: {}'.format(avg_dict))
         print('Final wegihted avg: {}'.format(weighted_avg_dic))
+        print('Final "results": {}'.format(results))
 
     else:
         # Load agent to be tested:

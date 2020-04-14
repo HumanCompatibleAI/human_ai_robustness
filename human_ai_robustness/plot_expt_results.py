@@ -7,7 +7,7 @@ SEEDS = [2732]
 DIR = '/home/pmzpk/Documents/hr_coordination_from_server_ONEDRIVE/all_toms_cc0'
 # DIR = '/home/pmzpk/Dropbox/Pycharm_paulk444/human_ai_robustness/human_ai_robustness/data/'
 
-runs = ['tom_0_quick']
+runs = ['tom_1', 'tom_2', 'tom_3']
 map = 'cc'
 
 for i in range(len(runs)):

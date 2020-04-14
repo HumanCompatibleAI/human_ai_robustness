@@ -1049,7 +1049,8 @@ if __name__ == "__main__":
             seeds = [[8502, 7786, 9094, 7709]]  # , 103, 5048, 630, 7900, 5309, 8417, 862, 6459, 3459, 1047, 3759, 3806, 8413, 790, 7974, 9845]]  # BCs from ppo_pop
 
         if run_on == 'server':
-            DIR = '/home/paul/research/human_ai_robustness/human_ai_robustness/data/ppo_runs/' + run_folder
+            # DIR = '/home/paul/research/human_ai_robustness/human_ai_robustness/data/ppo_runs/' + run_folder
+            DIR = '/home/paul/agents_to_QT/' + run_folder
         elif run_on == 'local':
             DIR = '/home/pmzpk/Documents/hr_coordination_from_server_ONEDRIVE/' + run_folder \
                 if agent_from != 'toms' else ''

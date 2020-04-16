@@ -1023,6 +1023,18 @@ if __name__ == "__main__":
                 run_folder = 'agents_neurips_paper'
                 bests = [True]
                 shorten = True
+            elif agent_from == 'mixed':
+                run_folder = 'mixed_cc0'
+                run_names = ['cc_1tom_1bc']
+                seeds = [[2732, 3264, 9845]]
+                bests = ['train']
+                shorten = False
+            elif agent_from == 'all_toms':
+                run_folder = 'all_toms_cc0'
+                run_names = ['cc_tom_{}'.format(i) for i in range(12)]
+                seeds = [[2732]]*11
+                bests = ['train']
+                shorten = False
         elif layout == 'coordination_ring':
             if agent_from == 'neurips':
                 # From Neurips paper (random1 == cring):
@@ -1048,8 +1060,9 @@ if __name__ == "__main__":
             bests, shorten, run_folder = [None], False, ''
             seeds = [[8502, 7786, 9094, 7709]]  # , 103, 5048, 630, 7900, 5309, 8417, 862, 6459, 3459, 1047, 3759, 3806, 8413, 790, 7974, 9845]]  # BCs from ppo_pop
 
-        if run_on == 'server':
-            # DIR = '/home/paul/research/human_ai_robustness/human_ai_robustness/data/ppo_runs/' + run_folder
+        if run_on == 'server0':
+            DIR = '/home/paul/research/human_ai_robustness/human_ai_robustness/data/ppo_runs/' + run_folder
+        elif run_on == 'server1':
             DIR = '/home/paul/agents_to_QT/' + run_folder
         elif run_on == 'local':
             DIR = '/home/pmzpk/Documents/hr_coordination_from_server_ONEDRIVE/' + run_folder \

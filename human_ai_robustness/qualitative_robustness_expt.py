@@ -1032,7 +1032,7 @@ if __name__ == "__main__":
             elif agent_from == 'all_toms':
                 run_folder = 'all_toms_cc0'
                 run_names = ['cc_tom_{}'.format(i) for i in range(12)]
-                seeds = [[2732]]*11
+                seeds = [[2732]]*len(run_names)
                 bests = ['train']
                 shorten = False
         elif layout == 'coordination_ring':

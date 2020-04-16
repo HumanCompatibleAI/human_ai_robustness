@@ -1031,7 +1031,7 @@ if __name__ == "__main__":
                 shorten = False
             elif agent_from == 'all_toms':
                 run_folder = 'all_toms_cc0'
-                run_names = ['cc_tom_{}'.format(i) for i in range(12)]
+                run_names = ['cc_tom_0'] + ['cc_tom_{}'.format(i) for i in range(2, 12)]
                 seeds = [[2732]]*len(run_names)
                 bests = ['train']
                 shorten = False
@@ -1098,9 +1098,9 @@ if __name__ == "__main__":
             plot_results(avg_dict, shorten)
         weighted_avg_dic = make_plot_weighted_avg_dict(run_names, results, bests, seeds)
         save_results(avg_dict, weighted_avg_dic, results, run_folder, layout)
-        print('Final average dict: {}'.format(avg_dict))
-        print('Final wegihted avg: {}'.format(weighted_avg_dic))
-        print('Final "results": {}'.format(results))
+        print('\nFinal average dict: {}'.format(avg_dict))
+        print('\nFinal wegihted avg: {}'.format(weighted_avg_dic))
+        print('\nFinal "results": {}'.format(results))
 
     else:
         # Load agent to be tested:

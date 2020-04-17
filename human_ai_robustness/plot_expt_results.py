@@ -1,14 +1,16 @@
 
 from human_aware_rl.ppo.ppo_pop import plot_ppo_tom
 
-# SEEDS = [3264, 4859, 9225, 2732, 9845]
-SEEDS = [2732]
+SEEDS = [3264, 4859, 9225, 2732, 9845]
+# SEEDS = [2732]
 
-DIR = '/home/pmzpk/Documents/hr_coordination_from_server_ONEDRIVE/all_toms_cc0/'
+DIR = '/home/pmzpk/Documents/hr_coordination_from_server_ONEDRIVE/pop_expt_croom/'
 # DIR = '/home/pmzpk/Dropbox/Pycharm_paulk444/human_ai_robustness/human_ai_robustness/data/'
 
-runs = ['tom_{}'.format(i) for i in range(12)]
-map = 'cc'
+# runs = ['tom_{}'.format(i) for i in range(12)]
+# map = 'cc'
+runs = ['0']
+map = 'croom'
 
 for i in range(len(runs)):
 

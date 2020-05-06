@@ -20,9 +20,8 @@ no_counters_params = {
 if __name__ == "__main__":
     """Find the median TOM (in terms of avg performance with all other TOMs)"""
 
-
     # Variables to change
-    layout_code = 'cc'
+    layout_code = 'croom'
     NUM_GAMES = 3
     NUM_TRAIN_TOMS = 20  # Only want the median agent in the training set!
     testing = False

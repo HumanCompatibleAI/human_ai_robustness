@@ -10,9 +10,8 @@ import numpy as np
 if __name__ == "__main__":
     """Find the best BC (in terms of avg performance with all other BCs)"""
 
-
     # Variables to change
-    layout_code = 'cc'
+    layout_code = 'croom'
     # BC_SEEDS = [8502, 7786]
     BC_SEEDS = [8502, 7786, 9094, 7709, 103, 5048, 630, 7900, 5309, 8417, 862, 6459, 3459, 1047, 3759, 3806, 8413, 790, 7974, 9845]  # List of the seeds of all the BCs in the pop
     BC_LOCAL_DIR = '/home/pmzpk/bc_runs/'

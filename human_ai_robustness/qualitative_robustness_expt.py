@@ -779,23 +779,24 @@ def make_cring_standard_test_positions():
     return standard_test_positions
 
 def make_test_tom_agent(layout, mlp, tom_num):
-    """Make a TOM from the validation set used for ppo"""
-    VAL_TOM_PARAMS, _, _ = import_manual_tom_params(layout, 20)
+    """Make a TOM from the VAL OR TRAIN? set used for ppo"""
+    VAL_TOM_PARAMS, TRAIN_TOM_PARAMS, _ = import_manual_tom_params(layout, 20)
     tom_agent = make_tom_agent(mlp)
-    tom_agent.set_tom_params(None, None, VAL_TOM_PARAMS, tom_params_choice=int(tom_num))
+    tom_agent.set_tom_params(None, None, TRAIN_TOM_PARAMS, tom_params_choice=int(tom_num))
 
-    print('>>> Manually overwriting the TOM with an "optimal" TOM <<<')
-    tom_agent.prob_greedy = 1
-    tom_agent.prob_pausing = 0
-    tom_agent.prob_random_action = 0
-    tom_agent.rationality_coefficient = 20
-    tom_agent.path_teamwork = 1
-    tom_agent.prob_obs_other = 0
-    tom_agent.wrong_decisions = 0
-    tom_agent.prob_thinking_not_moving = 0
-    tom_agent.look_ahead_steps = 4
-    tom_agent.retain_goals = 0
-    tom_agent.compliance = 0
+    # "OPTIMAL" TOM AGENT SETTINGS:
+    # print('>>> Manually overwriting the TOM with an "optimal" TOM <<<')
+    # tom_agent.prob_greedy = 1
+    # tom_agent.prob_pausing = 0
+    # tom_agent.prob_random_action = 0
+    # tom_agent.rationality_coefficient = 20
+    # tom_agent.path_teamwork = 1
+    # tom_agent.prob_obs_other = 0
+    # tom_agent.wrong_decisions = 0
+    # tom_agent.prob_thinking_not_moving = 0
+    # tom_agent.look_ahead_steps = 4
+    # tom_agent.retain_goals = 0
+    # tom_agent.compliance = 0
 
     return tom_agent
 
@@ -805,6 +806,7 @@ def run_tests(layout, test_agent, tests_to_run, print_info, num_avg, mdp, mlp, d
     # Make TOM test agent:
     if test_agent.__class__ is str and test_agent[:3] == 'tom':
         test_agent = make_test_tom_agent(layout, mlp, tom_num=test_agent[3])
+        print('Setting prob_pausing = 0')
         test_agent.prob_pausing = 0
 
     # Make the TOM agents used for testing:
@@ -1052,9 +1054,10 @@ if __name__ == "__main__":
                 shorten = False
 
         if agent_from == 'toms':
-            num_toms = 1
+            num_toms = 20
             run_names = ['tom{}'.format(i) for i in range(num_toms)]
             seeds, bests, shorten, run_folder = [[None]]*num_toms, [None], False, ''
+
         elif agent_from == 'bc':
             run_names = ['bc']
             bests, shorten, run_folder = [None], False, ''
@@ -1079,6 +1082,7 @@ if __name__ == "__main__":
                 for best in bests:
 
                     if agent_from == 'toms':
+                        # The TOM agents are made within run_tests
                         test_agent = run_name
                     elif agent_from == 'bc':
                         test_agent = get_bc_agent(seed, layout, mdp, run_on)

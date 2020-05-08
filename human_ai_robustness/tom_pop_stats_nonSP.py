@@ -88,7 +88,7 @@ def get_stats(scores_x3):
     print('\nSCORE STATS: ', stats_dict, '\n')
     return stats_dict
 
-def plot_scores_x3_dist(scores_x3, title):
+def plot_scores_dist(scores_x3, title):
     """Plot the distribution of the scores_x3"""
     colours = ['b', 'r', 'y', 'c', 'm', 'g']
     f, ax = plt.subplots(1, 1, sharex='col', sharey='row')
@@ -101,22 +101,22 @@ def plot_scores_x3_dist(scores_x3, title):
     plt.tight_layout()
     plt.show()
 
-def get_human_human_data_scores_x3(layouts):
+def get_human_human_data_scores(layouts):
     """Load human human data, for layouts, for both train and test."""
 
     expert_data = []
     expert_data.append(get_human_human_trajectories(layouts, 'train'))
     expert_data.append(get_human_human_trajectories(layouts, 'test'))
 
-    # Combine ALL the ep_returns into a single vector, "scores_x3":
-    scores_x3 = []
+    # Combine ALL the ep_returns into a single vector, "scores":
+    scores = []
     for layout in layouts:
         for i in range(2):
             for j in range(len(expert_data[i][layout]['ep_lengths'])):
                 # Check the ep_lengths are 1200 \pm 100."""
                 assert 1100 < expert_data[i][layout]['ep_lengths'][j] < 1300, "Data trajectories have unexpected length!"
-                scores_x3.append(expert_data[i][layout]['ep_returns'][j])
-    return scores_x3
+                scores.append(expert_data[i][layout]['ep_returns'][j])
+    return scores
 
 if __name__ == "__main__":
     """Create a pop of (30?) TOMs, then play each TOM with itself on each layout. Then print a bunch of stats about the 
@@ -223,11 +223,11 @@ if __name__ == "__main__":
 
     elif hh_data == "True":
         # Get human-human data
-        scores_x3 = get_human_human_data_scores_x3(layouts)
+        scores = get_human_human_data_scores(layouts)
         title = "H+H data scores_x3 over all layouts"
 
     else:
         raise ValueError
 
     stats_dict = get_stats(scores_x3)
-    plot_scores_x3_dist(scores_x3, title)
+    plot_scores_dist(scores_x3, title)

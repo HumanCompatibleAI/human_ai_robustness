@@ -1024,6 +1024,7 @@ if __name__ == "__main__":
                 seeds = [[3264, 4859, 9225]]*4
                 bests = ['train']
                 shorten = False
+
             elif agent_from == 'neurips':
                 # From Neurips paper (random3 == cc):
                 run_names = ['ppo_sp_random3', 'ppo_bc_test_random3', 'ppo_hm_random3']
@@ -1095,7 +1096,11 @@ if __name__ == "__main__":
                     elif agent_from == 'bc':
                         test_agent = get_bc_agent(seed, layout, mdp, run_on)
                     else:
-                        test_agent, _ = get_ppo_agent(EXPT_DIR, seed, best=best)
+                        test_agent, config = get_ppo_agent(EXPT_DIR, seed, best=best)
+                        if config['NETWORK_TYPE'] == 'cnn_lstm_overcooked':
+                            test_agent.initial_lstm_state = np.zeros([config['sim_threads'], 2 * config['NLSTM']],
+                                                                 dtype=float)  # The lstm state [has shape num_envs , 2*nlstm] (see baselines_utils.cnn_and_lstm_network)
+                            test_agent.reset()  # This sets test_agent.state_lstm = test_agent.initial_lstm_state, and sets self.mask=[False, False, ...]
 
                     # agents.append(run_name + ' >> seed_' + str(seed) + ' >> ' + best)
                     print('\n' + run_name + ' >> seed_' + str(seed) + ' >> ' + str(best))

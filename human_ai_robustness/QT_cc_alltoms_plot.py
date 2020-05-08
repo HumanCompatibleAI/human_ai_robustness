@@ -23,7 +23,6 @@ import matplotlib.pyplot as plt
 
 #-------------- SETTINGS / DATA -------------------------#
 data = [[None, 21.0, 5.0, 28.0, 14.0, 48.0, None, None, 44.0, 18.0], [None, 27.0, 9.0, 13.0, 15.0, 52.0, None, None, 4.0, 30.0], [None, 14.0, 1.0, 28.0, 24.0, 42.0, None, None, 51.0, 3.0], [None, 57.0, 19.0, 14.0, 17.0, 47.0, None, None, 4.0, 81.0], [None, 36.0, 29.0, 20.0, 14.0, 66.0, None, None, 25.0, 32.0], [None, 17.0, 8.0, 35.0, 25.0, 36.0, None, None, 20.0, 38.0], [None, 2.0, 0.0, 25.0, 23.0, 28.0, None, None, 19.0, 11.0], [None, 28.0, 13.0, 18.0, 6.0, 72.0, None, None, 29.0, 47.0], [None, 0.0, 0.0, 20.0, 5.0, 28.0, None, None, 12.0, 10.0], [None, 32.0, 6.0, 21.0, 46.0, 72.0, None, None, 29.0, 38.0], [None, 58.0, 28.0, 19.0, 30.0, 57.0, None, None, 29.0, 83.0]]
-
 num_seeds = 1
 agent_names = ['tom0'] + ['tom{}'.format(i) for i in range(2, 12)]
 title = 'cc_alltoms'

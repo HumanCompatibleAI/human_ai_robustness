@@ -1018,6 +1018,12 @@ if __name__ == "__main__":
                 seeds = [[2732, 3264, 9845], [2732, 3264, 9845], [2732, 3264, 9845], [2732, 3264, 9845], [2732, 3264]]
                 bests = ['train', 'val']
                 shorten = False
+            elif agent_from == 'lstm_pop_expt':
+                run_folder = 'lstm_expt_cc0'
+                run_names = ['cc_1tom', 'cc_20tom', 'cc_1bc', 'cc_20bc']
+                seeds = [[3264, 4859, 9225]]*4
+                bests = ['train']
+                shorten = False
             elif agent_from == 'neurips':
                 # From Neurips paper (random3 == cc):
                 run_names = ['ppo_sp_random3', 'ppo_bc_test_random3', 'ppo_hm_random3']
@@ -1067,6 +1073,8 @@ if __name__ == "__main__":
             DIR = '/home/paul/research/human_ai_robustness/human_ai_robustness/data/ppo_runs/' + run_folder
         elif run_on == 'server1':
             DIR = '/home/paul/agents_to_QT/' + run_folder
+        if run_on == 'server_az':
+            DIR = '/home/paul/human_ai_robustness/human_ai_robustness/data/ppo_runs/' + run_folder
         elif run_on == 'local':
             DIR = '/home/pmzpk/Documents/hr_coordination_from_server_ONEDRIVE/' + run_folder \
                 if agent_from != 'toms' else ''

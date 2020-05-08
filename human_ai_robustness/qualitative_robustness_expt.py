@@ -1114,7 +1114,7 @@ if __name__ == "__main__":
         if final_plot is True:
             plot_results(avg_dict, shorten)
         weighted_avg_dic = make_plot_weighted_avg_dict(run_names, results, bests, seeds)
-        save_results(avg_dict, weighted_avg_dic, results, run_folder, layout)
+        # save_results(avg_dict, weighted_avg_dic, results, run_folder, layout)
         print('\nFinal average dict: {}'.format(avg_dict))
         print('\nFinal wegihted avg: {}'.format(weighted_avg_dic))
         print('\nFinal "results": {}'.format(results))

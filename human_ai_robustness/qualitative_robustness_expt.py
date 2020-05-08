@@ -2,7 +2,7 @@ import time
 from argparse import ArgumentParser
 from human_aware_rl.ppo.ppo_pop import get_ppo_agent, make_tom_agent
 from human_aware_rl.data_dir import DATA_DIR
-from imitation.behavioural_cloning import get_bc_agent_from_saved
+from human_aware_rl.imitation.behavioural_cloning import get_bc_agent_from_saved
 from overcooked_ai_py.agents.agent import AgentPair
 from overcooked_ai_py.mdp.overcooked_env import OvercookedEnv
 from overcooked_ai_py.mdp.overcooked_mdp import OvercookedGridworld, PlayerState, ObjectState, OvercookedState

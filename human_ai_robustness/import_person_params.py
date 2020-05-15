@@ -474,55 +474,59 @@ def import_manual_tom_params(layout_name, POP_SIZE, SELECT_TOM=False):
     """Import params manually chosen to give a diverse population of TOMs"""
     ALL_TOM_PARAMS = []
 
-    prob_pausing_factor=0.3  # This was found by trying to make the TOM score distribution (both SP and non-SP) to be
+    prob_pausing_factor = 1  # This was found by trying to make the TOM score distribution (both SP and non-SP) to be
     # roughly the same as the HH data, across all 4 original layouts
+    rat_coeff_factor = 1
+    # if layout_name == "coordination_ring":
+    #     prob_pausing_factor = 0.2  # This was found by trying to make the TOM score distribution to be roughly the same as the HH data on cring
+    #     rat_coeff_factor = 1.8
 
     # Agents with a fixed "personality type":
     for prob_greedy in range(2):
         for prob_obs_other in range(2):
             ALL_TOM_PARAMS.append({'PROB_GREEDY_TOM': prob_greedy, 'PROB_OBS_OTHER_TOM': prob_obs_other,
                                    'RETAIN_GOALS_TOM': 0, 'LOOK_AHEAD_STEPS_TOM': 4, 'PROB_THINKING_NOT_MOVING_TOM': 0,
-                                   'COMPLIANCE_TOM': 0.9, 'PATH_TEAMWORK_TOM': 0.9, 'RAT_COEFF_TOM': 10,
+                                   'COMPLIANCE_TOM': 0.9, 'PATH_TEAMWORK_TOM': 0.9, 'RAT_COEFF_TOM': rat_coeff_factor*10,
                                    'PROB_PAUSING_TOM': prob_pausing_factor*0.7})
             ALL_TOM_PARAMS.append({'PROB_GREEDY_TOM': prob_greedy, 'PROB_OBS_OTHER_TOM': prob_obs_other,
                                    'RETAIN_GOALS_TOM': 0.8, 'LOOK_AHEAD_STEPS_TOM': 4,
                                    'PROB_THINKING_NOT_MOVING_TOM': 0,
-                                   'COMPLIANCE_TOM': 0.1, 'PATH_TEAMWORK_TOM': 0.1, 'RAT_COEFF_TOM': 2,
+                                   'COMPLIANCE_TOM': 0.1, 'PATH_TEAMWORK_TOM': 0.1, 'RAT_COEFF_TOM': rat_coeff_factor*2,
                                    'PROB_PAUSING_TOM': prob_pausing_factor*0.5})
             ALL_TOM_PARAMS.append({'PROB_GREEDY_TOM': prob_greedy, 'PROB_OBS_OTHER_TOM': prob_obs_other,
                                    'RETAIN_GOALS_TOM': 0, 'LOOK_AHEAD_STEPS_TOM': 4, 'PROB_THINKING_NOT_MOVING_TOM': 0,
-                                   'COMPLIANCE_TOM': 0.9, 'PATH_TEAMWORK_TOM': 0.1, 'RAT_COEFF_TOM': 0.5,
+                                   'COMPLIANCE_TOM': 0.9, 'PATH_TEAMWORK_TOM': 0.1, 'RAT_COEFF_TOM': rat_coeff_factor*0.5,
                                    'PROB_PAUSING_TOM': prob_pausing_factor*0.4})
             ALL_TOM_PARAMS.append({'PROB_GREEDY_TOM': prob_greedy, 'PROB_OBS_OTHER_TOM': prob_obs_other,
                                    'RETAIN_GOALS_TOM': 0, 'LOOK_AHEAD_STEPS_TOM': 4,
                                    'PROB_THINKING_NOT_MOVING_TOM': 0.4,
-                                   'COMPLIANCE_TOM': 0.5, 'PATH_TEAMWORK_TOM': 0.5, 'RAT_COEFF_TOM': 10,
+                                   'COMPLIANCE_TOM': 0.5, 'PATH_TEAMWORK_TOM': 0.5, 'RAT_COEFF_TOM': rat_coeff_factor*10,
                                    'PROB_PAUSING_TOM': prob_pausing_factor*0.6})
             ALL_TOM_PARAMS.append({'PROB_GREEDY_TOM': prob_greedy, 'PROB_OBS_OTHER_TOM': prob_obs_other,
                                    'RETAIN_GOALS_TOM': 0, 'LOOK_AHEAD_STEPS_TOM': 4,
                                    'PROB_THINKING_NOT_MOVING_TOM': 0.2,
-                                   'COMPLIANCE_TOM': 0.1, 'PATH_TEAMWORK_TOM': 0.1, 'RAT_COEFF_TOM': 5,
+                                   'COMPLIANCE_TOM': 0.1, 'PATH_TEAMWORK_TOM': 0.1, 'RAT_COEFF_TOM': rat_coeff_factor*5,
                                    'PROB_PAUSING_TOM': prob_pausing_factor*0.4})
 
     # Agents that fluctuate between different types
-    values = [[0.7, 0.3], [0.3, 0.7]]
+    values = [[0.8, 0.2], [0.2, 0.8]]
     for i in range(len(values)):
         prob_greedy, prob_obs_other = values[i]
         ALL_TOM_PARAMS.append({'PROB_GREEDY_TOM': prob_greedy, 'PROB_OBS_OTHER_TOM': prob_obs_other,
                            'RETAIN_GOALS_TOM': 0, 'LOOK_AHEAD_STEPS_TOM': 4, 'PROB_THINKING_NOT_MOVING_TOM': 0,
-                           'COMPLIANCE_TOM': 0.9, 'PATH_TEAMWORK_TOM': 0.9, 'RAT_COEFF_TOM': 10, 'PROB_PAUSING_TOM': prob_pausing_factor*0.7})
+                           'COMPLIANCE_TOM': 0.9, 'PATH_TEAMWORK_TOM': 0.9, 'RAT_COEFF_TOM': rat_coeff_factor*10, 'PROB_PAUSING_TOM': prob_pausing_factor*0.7})
         ALL_TOM_PARAMS.append({'PROB_GREEDY_TOM': prob_greedy, 'PROB_OBS_OTHER_TOM': prob_obs_other,
                            'RETAIN_GOALS_TOM': 0.8, 'LOOK_AHEAD_STEPS_TOM': 4, 'PROB_THINKING_NOT_MOVING_TOM': 0,
-                           'COMPLIANCE_TOM': 0.1, 'PATH_TEAMWORK_TOM': 0.1, 'RAT_COEFF_TOM': 2, 'PROB_PAUSING_TOM': prob_pausing_factor*0.5})
+                           'COMPLIANCE_TOM': 0.1, 'PATH_TEAMWORK_TOM': 0.1, 'RAT_COEFF_TOM': rat_coeff_factor*2, 'PROB_PAUSING_TOM': prob_pausing_factor*0.5})
         ALL_TOM_PARAMS.append({'PROB_GREEDY_TOM': prob_greedy, 'PROB_OBS_OTHER_TOM': prob_obs_other,
                            'RETAIN_GOALS_TOM': 0, 'LOOK_AHEAD_STEPS_TOM': 4, 'PROB_THINKING_NOT_MOVING_TOM': 0,
-                           'COMPLIANCE_TOM': 0.9, 'PATH_TEAMWORK_TOM': 0.1, 'RAT_COEFF_TOM': 0.5, 'PROB_PAUSING_TOM': prob_pausing_factor*0.4})
+                           'COMPLIANCE_TOM': 0.9, 'PATH_TEAMWORK_TOM': 0.1, 'RAT_COEFF_TOM': rat_coeff_factor*0.5, 'PROB_PAUSING_TOM': prob_pausing_factor*0.4})
         ALL_TOM_PARAMS.append({'PROB_GREEDY_TOM': prob_greedy, 'PROB_OBS_OTHER_TOM': prob_obs_other,
                            'RETAIN_GOALS_TOM': 0, 'LOOK_AHEAD_STEPS_TOM': 4, 'PROB_THINKING_NOT_MOVING_TOM': 0.4,
-                           'COMPLIANCE_TOM': 0.5, 'PATH_TEAMWORK_TOM': 0.5, 'RAT_COEFF_TOM': 10, 'PROB_PAUSING_TOM': prob_pausing_factor*0.6})
+                           'COMPLIANCE_TOM': 0.5, 'PATH_TEAMWORK_TOM': 0.5, 'RAT_COEFF_TOM': rat_coeff_factor*10, 'PROB_PAUSING_TOM': prob_pausing_factor*0.6})
         ALL_TOM_PARAMS.append({'PROB_GREEDY_TOM': prob_greedy, 'PROB_OBS_OTHER_TOM': prob_obs_other,
                            'RETAIN_GOALS_TOM': 0, 'LOOK_AHEAD_STEPS_TOM': 4, 'PROB_THINKING_NOT_MOVING_TOM': 0.2,
-                           'COMPLIANCE_TOM': 0.1, 'PATH_TEAMWORK_TOM': 0.1, 'RAT_COEFF_TOM': 5, 'PROB_PAUSING_TOM': prob_pausing_factor*0.4})
+                           'COMPLIANCE_TOM': 0.1, 'PATH_TEAMWORK_TOM': 0.1, 'RAT_COEFF_TOM': rat_coeff_factor*5, 'PROB_PAUSING_TOM': prob_pausing_factor*0.4})
 
     # Validation TOMs -- pick every 3rd:
     val_indices = [3*i for i in range(10)]

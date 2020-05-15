@@ -1030,6 +1030,12 @@ if __name__ == "__main__":
                 seeds = [[3264]]*4
                 bests = ['train']
                 shorten = False
+            elif agent_from == 'lstm_pop_expt_mixed':
+                run_folder = 'lstm_expt_cc0'
+                run_names = ['cc_20mixed']
+                seeds = [[3264, 4859, 9225, 9845]]
+                bests = ['train']
+                shorten = False
 
             elif agent_from == 'neurips':
                 # From Neurips paper (random3 == cc):

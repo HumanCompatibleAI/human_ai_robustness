@@ -14,7 +14,7 @@ from human_aware_rl.utils import get_max_iter
 
 from concurrent.futures import ThreadPoolExecutor
 
-from human_ai_robustness.import_person_params import import_person_params
+from human_ai_robustness.import_person_params import import_person_params, import_manual_tom_params
 
 pool = ThreadPoolExecutor(3)
 
@@ -159,7 +159,7 @@ class App:
             self.on_render()
         self.on_cleanup()
 
-def setup_game(run_type, model_dir, seed, agent_index, load_tom_params):
+def setup_game(run_type, model_dir, seed, agent_index, load_tom_params, greedy_tom):
 
     # if run_type in ["pbt", "ppo"]:
     #     # TODO: Add testing for this
@@ -222,25 +222,17 @@ def setup_game(run_type, model_dir, seed, agent_index, load_tom_params):
         no_counters_params['counter_goals'] = mdp.get_counter_locations()
         mlp = MediumLevelPlanner.from_pickle_or_compute(mdp, no_counters_params, force_compute=False)
 
-        # perseverance0 = random.random()
-        # teamwork0 = random.random()
-        # retain_goals0 = random.random()
-        # wrong_decisions0 = random.random() ** 5
-        # thinking_prob0 = 1 - random.random() **5
-        # path_teamwork0 = 1 - random.random() **2
-        # rat_coeff0 = 1+random.random()*3
-
-        prob_thinking_not_moving0 = 0
-        retain_goals0 = 0.9
-        path_teamwork0 = 1
-        rat_coeff0 = 20
-        prob_pausing0 = 0.7
-        compliance0 = 0.5
-        prob_greedy0 = 0.5
+        prob_thinking_not_moving0 = 0.2
+        retain_goals0 = 0.5
+        rat_coeff0 = 5
+        prob_pausing0 = 0.5
         prob_obs_other0 = 0.5
         look_ahead_steps0 = 4
+        path_teamwork0 = 0.9 if greedy_tom == 0 else 0.1
+        compliance0 = 0.9 if greedy_tom == 0 else 0.1
+        prob_greedy0 = 0.1 if greedy_tom == 0 else 0.9
 
-        agent = ToMModel(mlp, prob_random_action=0.06, compliance=compliance0, retain_goals=retain_goals0,
+        agent = ToMModel(mlp, prob_random_action=0, compliance=compliance0, retain_goals=retain_goals0,
                          prob_thinking_not_moving=prob_thinking_not_moving0, prob_pausing=prob_pausing0,
                          path_teamwork=path_teamwork0, rationality_coefficient=rat_coeff0,
                          prob_greedy=prob_greedy0, prob_obs_other=prob_obs_other0, look_ahead_steps=look_ahead_steps0)
@@ -249,10 +241,10 @@ def setup_game(run_type, model_dir, seed, agent_index, load_tom_params):
 
         if load_tom_params:
             """Here we load TOM params rather than manually specifying them"""
-            if layout_name == "schelling_s":
-                TOM_PARAMS = import_person_params("cramped_room", 1)
+            if layout_name in ["schelling_s", "room"]:
+                _, TOM_PARAMS, _ = import_manual_tom_params("cramped_room", 1, SELECT_TOM=False)
             elif layout_name == "scenario1_s":
-                TOM_PARAMS = import_person_params("asymmetric_advantages", 1)
+                _, TOM_PARAMS, _ = import_manual_tom_params("asymmetric_advantages", 1, SELECT_TOM=1)
             agent = make_tom_agent(mlp)
             agent.set_tom_params(1, None, TOM_PARAMS, tom_params_choice=0)
             agent.set_agent_index(agent_index)
@@ -293,13 +285,13 @@ if __name__ == "__main__":
     parser.add_argument("-tm", "--time_limit", default=30, type=float)
     parser.add_argument("-m", "--model_dir", required=False, type=str, help="For ppo, give expt_name/run_name, e.g. "
             "'hp_tune_cc_cring/cc_0'. For BC, give the name of the saved model, e.g. 'cramped_room_bc_train_seed103'")
+    parser.add_argument("-gt", "--greedy_tom", required=False, type=int, help="1 for greedy tom 0 for not greedy tom")
 
     args = parser.parse_args()
-    run_type, load_tom_params, model_dir, run_seed, my_index, layout, time_limit = args.type, args.load_tom_params, \
-                                                                                   args.model_dir, int(args.seed), \
-                                                                  int(args.my_index), args.layout, args.time_limit
+    run_type, load_tom_params, model_dir, run_seed, my_index, layout, time_limit, greedy_tom = \
+        args.type, args.load_tom_params, args.model_dir, int(args.seed), int(args.my_index), args.layout, args.time_limit, args.greedy_tom
     other_index = 1 - my_index
-    env, agent = setup_game(run_type, model_dir, run_seed, other_index, load_tom_params)
+    env, agent = setup_game(run_type, model_dir, run_seed, other_index, load_tom_params, greedy_tom)
 
     theApp = App(env, agent, my_index, time_limit)
     theApp.on_execute()

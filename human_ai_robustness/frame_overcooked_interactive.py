@@ -215,7 +215,7 @@ def setup_game(run_type, run_dir, cfg_run_dir, run_seed, agent_num, player_idx):
         prob_obs_other0 = 1
         look_ahead_steps0 = 4
 
-        agent = ToMModel(mlp, prob_random_action=0.06, compliance=compliance0, retain_goals=retain_goals0,
+        agent = ToMModel(mlp, prob_random_action=0, compliance=compliance0, retain_goals=retain_goals0,
                       prob_thinking_not_moving=prob_thinking_not_moving0, prob_pausing=prob_pausing0,
                       path_teamwork=path_teamwork0, rationality_coefficient=rat_coeff0,
                       prob_greedy=prob_greedy0, prob_obs_other=prob_obs_other0, look_ahead_steps=look_ahead_steps0)

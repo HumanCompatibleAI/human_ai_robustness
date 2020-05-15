@@ -260,7 +260,7 @@ class ToMModel(Agent):
     - Take a sub-optimal first action with Boltzmann rational probability
     """
 
-    def __init__(self, mlp, prob_random_action,
+    def __init__(self, mlp, prob_random_action=0,
                  compliance=0.5, teamwork=0.8, retain_goals=0.8, wrong_decisions=0.02, prob_thinking_not_moving=0.2,
                  path_teamwork=0.8, rationality_coefficient=3, prob_pausing=0.5, use_OLD_ml_action=False,
                  prob_greedy=0, prob_obs_other=0, look_ahead_steps=4):

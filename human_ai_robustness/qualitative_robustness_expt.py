@@ -1024,6 +1024,12 @@ if __name__ == "__main__":
                 seeds = [[3264, 4859, 9225]]*4
                 bests = ['train']
                 shorten = False
+            elif agent_from == 'lstm_pop_expt_l':
+                run_folder = 'lstm_expt_cc0'
+                run_names = ['cc_1tom_l', 'cc_20tom_l', 'cc_1bc_l', 'cc_20bc_l']
+                seeds = [[3264]]*4
+                bests = ['train']
+                shorten = False
 
             elif agent_from == 'neurips':
                 # From Neurips paper (random3 == cc):
@@ -1032,7 +1038,7 @@ if __name__ == "__main__":
                 run_folder = 'agents_neurips_paper'
                 bests = [True]
                 shorten = True
-            elif agent_from == 'mixed':
+            elif agent_from == '1tom_1bc':
                 run_folder = 'mixed_cc0'
                 run_names = ['cc_1tom_1bc']
                 seeds = [[2732, 3264, 9845]]
@@ -1044,6 +1050,7 @@ if __name__ == "__main__":
                 seeds = [[2732]]*len(run_names)
                 bests = ['train']
                 shorten = False
+
         elif layout == 'coordination_ring':
             if agent_from == 'neurips':
                 # From Neurips paper (random1 == cring):

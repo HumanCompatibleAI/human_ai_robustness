@@ -1074,7 +1074,7 @@ if __name__ == "__main__":
                 shorten = False
             elif agent_from == 'lstm_pop_expt':
                 run_folder = 'lstm_expt_cring0'
-                run_names = ['cc_1tom', 'cc_20tom', 'cc_1bc', 'cc_20bc', 'cc_20mixed']
+                run_names = ['cring_1tom', 'cring_20tom', 'cring_1bc', 'cring_20bc', 'cring_20mixed']
                 print('\n\nNOTE: 1TOM seed=4859 HASNT FINISHED! And mixed only has 4 seeds.\n\n')
                 seeds = [[2732, 3264, 9225, 9845]] + [[2732, 3264, 4859, 9225, 9845]]*4 + [[2732, 3264, 4859, 9225]]
                 bests = ['train']

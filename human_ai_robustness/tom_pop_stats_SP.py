@@ -131,16 +131,16 @@ if __name__ == "__main__":
                         help="Get stats for human-human data, instead of generating TOM data",
                         required=False, default="False")
     parser.add_argument("-hz", "--horizon", help="Game horizon", required=False, default=1200, type=int)
+    parser.add_argument("-l", "--layout", help="e.g. 'cramped_room' or 'all'", required=False, default='all')
     parser.add_argument("-pf", "--prob_pausing_factor", help="Factor to adjust the param prob_pausing by. E.g. if 0.5 then "
         "all prob_pausing values will be half of the default value (which is in import_person_params)", required=False, default=1, type=float)
 
     args = parser.parse_args()
-    num_avg, testing, hh_data, horizon, prob_pausing_factor = args.num_avg, args.testing, args.hh_data, args.horizon, args.prob_pausing_factor
+    num_avg, testing, hh_data, horizon, prob_pausing_factor, layout \
+        = args.num_avg, args.testing, args.hh_data, args.horizon, args.prob_pausing_factor, args.layout
 
-    # ===================================#
-    # Variables to change
-    layouts = ['cramped_room', 'asymmetric_advantages', 'coordination_ring', 'counter_circuit']
-    # ===================================#
+    layouts = ['cramped_room', 'asymmetric_advantages', 'coordination_ring', 'counter_circuit'] \
+        if layout is 'all' else [layout]
 
     if not hh_data == "True":
         # Generate TOM data then get stats on the performance

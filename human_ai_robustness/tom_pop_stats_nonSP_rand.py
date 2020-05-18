@@ -9,7 +9,7 @@ from human_aware_rl.ppo.ppo_pop import make_tom_agent
 from human_ai_robustness.import_person_params import import_manual_tom_params
 from argparse import ArgumentParser
 import matplotlib.pyplot as plt
-from human_aware_rl.human.process_dataframes import get_human_human_trajectories
+from human.process_dataframes import get_human_human_trajectories
 
 no_counters_params = {
     'start_orientations': False,
@@ -134,11 +134,11 @@ if __name__ == "__main__":
     parser.add_argument("-pf", "--prob_pausing_factor", help="Factor to adjust the param prob_pausing by. E.g. if 0.5 then "
         "all prob_pausing values will be half of the default value (which is in import_person_params)", required=False, default=1, type=float)
     parser.add_argument("-l", "--layout", help="e.g. 'cramped_room' or 'all'", required=False, default='all')
+    parser.add_argument("-no", "--num_opponents", help="Number of (randomly selected) opponents to play with", required=False, type=int, default=10)
 
     args = parser.parse_args()
-    num_avg, testing, hh_data, horizon, prob_pausing_factor, layout\
-        = args.num_avg, args.testing, args.hh_data, args.horizon, args.prob_pausing_factor, args.layout
-
+    num_avg, testing, hh_data, horizon, prob_pausing_factor, layout, num_opponents \
+        = args.num_avg, args.testing, args.hh_data, args.horizon, args.prob_pausing_factor, args.layout, args.num_opponents
 
     layouts = ['cramped_room', 'asymmetric_advantages', 'coordination_ring', 'counter_circuit'] \
         if layout is 'all' else [layout]
@@ -180,54 +180,46 @@ if __name__ == "__main__":
 
                 score_this_tom = 0
                 tom_agent_player = tom_pop[i]
-    
-                # Play with each TOM:
-                for j in range(num_toms):
-    
-                    if i != j:
-                        tom_agent_opponent = tom_pop[j]
-                    else:
-                        tom_agent_opponent = copy.deepcopy(tom_pop[j])
-    
-                    # Play with each index:
-                    for player_idx in range(2):
-    
-                        # print("Agent {} playing with agent {}, index {}".format(i, j, player_idx))
 
-                        # Probably not needed as get_rollouts resets??
-                        tom_agent_player.reset()
-                        tom_agent_opponent.reset()
+                # Play with num_opponents opponents. Pick opponents and the player index randomly
+                for j in range(num_opponents):
+
+                    # Pick random opponent:
+                    k = np.random.randint(num_toms)
+                    if i != k:
+                        tom_agent_opponent = tom_pop[k]
+                    else:
+                        tom_agent_opponent = copy.deepcopy(tom_pop[k])
+
+                    #TODO: Probably not needed as get_rollouts resets??
+                    tom_agent_player.reset()
+                    tom_agent_opponent.reset()
+
+                    # Pick random player index:
+                    player_idx = np.random.randint(2)
+                    if player_idx == 0:
+                        agent_pair = AgentPair(tom_agent_player, tom_agent_opponent)
+                    elif player_idx == 1:
+                        agent_pair = AgentPair(tom_agent_opponent, tom_agent_player)
+
+                    trajs = env.get_rollouts(agent_pair, num_games=num_avg, final_state=False, display=False)
+                    sparse_rews = trajs["ep_returns"]
+                    avg_sparse_rew = np.mean(sparse_rews)
+
+                    print('Score this pair: {}'.format(avg_sparse_rew))
+                    score_this_tom += avg_sparse_rew
     
-                        if player_idx == 0:
-                            agent_pair = AgentPair(tom_agent_player, tom_agent_opponent)
-                        elif player_idx == 1:
-                            agent_pair = AgentPair(tom_agent_opponent, tom_agent_player)
-    
-                        trajs = env.get_rollouts(agent_pair, num_games=num_avg, final_state=False, display=False)
-                        sparse_rews = trajs["ep_returns"]
-                        avg_sparse_rew = np.mean(sparse_rews)
-    
-                        print('Score this pair: {}'.format(avg_sparse_rew))
-                        #
-                        # # View if the score was exceptional:
-                        # if avg_sparse_rew > 300 or avg_sparse_rew < 20:
-                        #     env.get_rollouts(agent_pair, num_games=1, final_state=False, display=True, display_until=100)
-                        #     print('Player agent params: {}'.format(ALL_TOM_PARAMS[i]))
-                        #     print('Opponent agent params: {}'.format(ALL_TOM_PARAMS[j]))
-                        #
-                        score_this_tom += avg_sparse_rew
-    
-                avg_score_this_tom = score_this_tom / (num_toms * 2)  # x2 because 2 indices
+                avg_score_this_tom = score_this_tom / num_opponents
                 scores_x3.append(avg_score_this_tom*3)
                 print('\n\nAvg score TOM{} on layout {}: {}\n\n'.format(i, layout_name, avg_score_this_tom))
-        title = "TOM pop sp scores_x3 on {}".format(layouts)
+        title = "TOM pop sp scores_x3 over all layouts"
         stats_dict = get_stats(scores_x3)
         plot_scores_dist(scores_x3, title)
 
     elif hh_data == "True":
         # Get human-human data
         scores = get_human_human_data_scores(layouts)
-        title = "H+H data scores_x3 on {}".format(layouts)
+        title = "H+H data scores_x3 over all layouts"
         stats_dict = get_stats(scores)
         plot_scores_dist(scores, title)
     else:

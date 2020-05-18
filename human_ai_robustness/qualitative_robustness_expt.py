@@ -1072,6 +1072,13 @@ if __name__ == "__main__":
                 seeds = [[2732, 3264, 4859, 9225, 9845]] * len(run_names) if run_on == 'server' else [[2732]] * len(run_names)
                 bests = [True]
                 shorten = False
+            elif agent_from == 'lstm_pop_expt':
+                run_folder = 'lstm_expt_cring0'
+                run_names = ['cc_1tom', 'cc_20tom', 'cc_1bc', 'cc_20bc', 'cc_20mixed']
+                print('\n\nNOTE: 1TOM seed=4859 HASNT FINISHED! And mixed only has 4 seeds.\n\n')
+                seeds = [[2732, 3264, 9225, 9845]] + [[2732, 3264, 4859, 9225, 9845]]*4 + [[2732, 3264, 4859, 9225]]
+                bests = ['train']
+                shorten = False
 
         if agent_from == 'toms':
             num_toms = 20

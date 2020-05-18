@@ -21,7 +21,7 @@ if __name__ == "__main__":
     """Find the median TOM (in terms of avg performance with all other TOMs)"""
 
     # Variables to change
-    layout_code = 'croom'
+    layout_code = 'cring'
     NUM_GAMES = 3
     NUM_TRAIN_TOMS = 20  # Only want the median agent in the training set!
     testing = False
@@ -91,7 +91,7 @@ if __name__ == "__main__":
                 elif player_idx == 1:
                     agent_pair = AgentPair(tom_agent_opponent, tom_agent_player)
 
-                trajs = env.get_rollouts(agent_pair, num_games=NUM_GAMES, final_state=False, display=False)
+                trajs = env.get_rollouts(agent_pair, num_games=NUM_GAMES, final_state=False, display=False, info=False)
                 sparse_rews = trajs["ep_returns"]
                 avg_sparse_rew = np.mean(sparse_rews)
 

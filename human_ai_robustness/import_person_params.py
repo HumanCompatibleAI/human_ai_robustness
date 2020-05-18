@@ -550,9 +550,10 @@ def import_manual_tom_params(layout_name, POP_SIZE, SELECT_TOM=False):
                 TRAIN_TOM_PARAMS = [TRAIN_TOM_PARAMS[0]]
             elif layout_name == "asymmetric_advantages":
                 TRAIN_TOM_PARAMS = [TRAIN_TOM_PARAMS[18]]
+            elif layout_name == "coordination_ring":
+                TRAIN_TOM_PARAMS = [TRAIN_TOM_PARAMS[5]]
             else:
-                #TODO: Need to find the median for the other maps. For now:
-                TRAIN_TOM_PARAMS = [TRAIN_TOM_PARAMS[0]]
+                raise ValueError("Need to find the median for this layout!")
         else:
             TRAIN_TOM_PARAMS = [TRAIN_TOM_PARAMS[SELECT_TOM]]
     else:

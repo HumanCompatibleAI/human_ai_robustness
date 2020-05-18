@@ -1077,7 +1077,7 @@ if __name__ == "__main__":
                 run_folder = 'lstm_expt_cring0'
                 run_names = ['cring_1tom', 'cring_20tom', 'cring_1bc', 'cring_20bc', 'cring_20mixed']
                 print('\n\nNOTE: WERE MISSING seed=4859 because it HADNT FINISHED! And mixed only has 4 seeds.\n\n')
-                seeds = [[2732, 3264, 9225, 9845]]*5 + [[2732, 3264, 4859, 9225]]
+                seeds = [[2732, 3264, 9225, 9845]]*4 + [[2732, 3264, 4859, 9225]]
                 bests = ['train']
                 shorten = False
 

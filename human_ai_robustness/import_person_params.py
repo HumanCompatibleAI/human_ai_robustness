@@ -470,63 +470,56 @@ def import_person_params(LAYOUT_NAME, num_toms):
     # return PERSON_PARAMS_HM0, PERSON_PARAMS_HM1, PERSON_PARAMS_HM2, PERSON_PARAMS_HM3
     return TOM_PARAMS
 
-def import_manual_tom_params(layout_name, POP_SIZE, SELECT_TOM=False):
+def import_manual_tom_params(layout_name, POP_SIZE, MAXLIKE, SELECT_TOM=False):
     """Import params manually chosen to give a diverse population of TOMs"""
     ALL_TOM_PARAMS = []
-
-    prob_pausing_factor = 1  # This was found by trying to make the TOM score distribution (both SP and non-SP) to be
-    # roughly the same as the HH data, across all 4 original layouts
-    rat_coeff_factor = 1
-    # if layout_name == "coordination_ring":
-    #     prob_pausing_factor = 0.2  # This was found by trying to make the TOM score distribution to be roughly the same as the HH data on cring
-    #     rat_coeff_factor = 1.8
 
     # Agents with a fixed "personality type":
     for prob_greedy in range(2):
         for prob_obs_other in range(2):
             ALL_TOM_PARAMS.append({'PROB_GREEDY_TOM': prob_greedy, 'PROB_OBS_OTHER_TOM': prob_obs_other,
-                                   'RETAIN_GOALS_TOM': 0, 'LOOK_AHEAD_STEPS_TOM': 4, 'PROB_THINKING_NOT_MOVING_TOM': 0,
-                                   'COMPLIANCE_TOM': 0.9, 'PATH_TEAMWORK_TOM': 0.9, 'RAT_COEFF_TOM': rat_coeff_factor*10,
-                                   'PROB_PAUSING_TOM': prob_pausing_factor*0.7})
+                                   'RETAIN_GOALS_TOM': 0, 'LOOK_AHEAD_STEPS_TOM': 4, 'PROB_THINKING_NOT_MOVING_TOM': 0.2,
+                                   'COMPLIANCE_TOM': 0.9, 'PATH_TEAMWORK_TOM': 0.9, 'RAT_COEFF_TOM': 10,
+                                   'PROB_PAUSING_TOM': 0.6})
             ALL_TOM_PARAMS.append({'PROB_GREEDY_TOM': prob_greedy, 'PROB_OBS_OTHER_TOM': prob_obs_other,
                                    'RETAIN_GOALS_TOM': 0.8, 'LOOK_AHEAD_STEPS_TOM': 4,
                                    'PROB_THINKING_NOT_MOVING_TOM': 0,
-                                   'COMPLIANCE_TOM': 0.1, 'PATH_TEAMWORK_TOM': 0.1, 'RAT_COEFF_TOM': rat_coeff_factor*2,
-                                   'PROB_PAUSING_TOM': prob_pausing_factor*0.5})
+                                   'COMPLIANCE_TOM': 0.1, 'PATH_TEAMWORK_TOM': 0.1, 'RAT_COEFF_TOM': 3,
+                                   'PROB_PAUSING_TOM': 0.3})
             ALL_TOM_PARAMS.append({'PROB_GREEDY_TOM': prob_greedy, 'PROB_OBS_OTHER_TOM': prob_obs_other,
-                                   'RETAIN_GOALS_TOM': 0, 'LOOK_AHEAD_STEPS_TOM': 4, 'PROB_THINKING_NOT_MOVING_TOM': 0,
-                                   'COMPLIANCE_TOM': 0.9, 'PATH_TEAMWORK_TOM': 0.1, 'RAT_COEFF_TOM': rat_coeff_factor*0.5,
-                                   'PROB_PAUSING_TOM': prob_pausing_factor*0.4})
+                                   'RETAIN_GOALS_TOM': 0, 'LOOK_AHEAD_STEPS_TOM': 4, 'PROB_THINKING_NOT_MOVING_TOM': 0.7,
+                                   'COMPLIANCE_TOM': 0.9, 'PATH_TEAMWORK_TOM': 0.1, 'RAT_COEFF_TOM': 1,
+                                   'PROB_PAUSING_TOM': 0.3})
             ALL_TOM_PARAMS.append({'PROB_GREEDY_TOM': prob_greedy, 'PROB_OBS_OTHER_TOM': prob_obs_other,
                                    'RETAIN_GOALS_TOM': 0, 'LOOK_AHEAD_STEPS_TOM': 4,
                                    'PROB_THINKING_NOT_MOVING_TOM': 0.4,
-                                   'COMPLIANCE_TOM': 0.5, 'PATH_TEAMWORK_TOM': 0.5, 'RAT_COEFF_TOM': rat_coeff_factor*10,
-                                   'PROB_PAUSING_TOM': prob_pausing_factor*0.6})
+                                   'COMPLIANCE_TOM': 0.5, 'PATH_TEAMWORK_TOM': 0.5, 'RAT_COEFF_TOM': 20,
+                                   'PROB_PAUSING_TOM': 0.4})
             ALL_TOM_PARAMS.append({'PROB_GREEDY_TOM': prob_greedy, 'PROB_OBS_OTHER_TOM': prob_obs_other,
                                    'RETAIN_GOALS_TOM': 0, 'LOOK_AHEAD_STEPS_TOM': 4,
                                    'PROB_THINKING_NOT_MOVING_TOM': 0.2,
-                                   'COMPLIANCE_TOM': 0.1, 'PATH_TEAMWORK_TOM': 0.1, 'RAT_COEFF_TOM': rat_coeff_factor*5,
-                                   'PROB_PAUSING_TOM': prob_pausing_factor*0.4})
+                                   'COMPLIANCE_TOM': 0.1, 'PATH_TEAMWORK_TOM': 0.1, 'RAT_COEFF_TOM': 5,
+                                   'PROB_PAUSING_TOM': 0.5})
 
     # Agents that fluctuate between different types
-    values = [[0.8, 0.2], [0.2, 0.8]]
+    values = [[0.7, 0.3], [0.3, 0.7]]
     for i in range(len(values)):
         prob_greedy, prob_obs_other = values[i]
         ALL_TOM_PARAMS.append({'PROB_GREEDY_TOM': prob_greedy, 'PROB_OBS_OTHER_TOM': prob_obs_other,
-                           'RETAIN_GOALS_TOM': 0, 'LOOK_AHEAD_STEPS_TOM': 4, 'PROB_THINKING_NOT_MOVING_TOM': 0,
-                           'COMPLIANCE_TOM': 0.9, 'PATH_TEAMWORK_TOM': 0.9, 'RAT_COEFF_TOM': rat_coeff_factor*10, 'PROB_PAUSING_TOM': prob_pausing_factor*0.7})
+                           'RETAIN_GOALS_TOM': 0, 'LOOK_AHEAD_STEPS_TOM': 4, 'PROB_THINKING_NOT_MOVING_TOM': 0.2,
+                           'COMPLIANCE_TOM': 0.9, 'PATH_TEAMWORK_TOM': 0.9, 'RAT_COEFF_TOM': 10, 'PROB_PAUSING_TOM': 0.6})
         ALL_TOM_PARAMS.append({'PROB_GREEDY_TOM': prob_greedy, 'PROB_OBS_OTHER_TOM': prob_obs_other,
                            'RETAIN_GOALS_TOM': 0.8, 'LOOK_AHEAD_STEPS_TOM': 4, 'PROB_THINKING_NOT_MOVING_TOM': 0,
-                           'COMPLIANCE_TOM': 0.1, 'PATH_TEAMWORK_TOM': 0.1, 'RAT_COEFF_TOM': rat_coeff_factor*2, 'PROB_PAUSING_TOM': prob_pausing_factor*0.5})
+                           'COMPLIANCE_TOM': 0.1, 'PATH_TEAMWORK_TOM': 0.1, 'RAT_COEFF_TOM': 3, 'PROB_PAUSING_TOM': 0.3})
         ALL_TOM_PARAMS.append({'PROB_GREEDY_TOM': prob_greedy, 'PROB_OBS_OTHER_TOM': prob_obs_other,
-                           'RETAIN_GOALS_TOM': 0, 'LOOK_AHEAD_STEPS_TOM': 4, 'PROB_THINKING_NOT_MOVING_TOM': 0,
-                           'COMPLIANCE_TOM': 0.9, 'PATH_TEAMWORK_TOM': 0.1, 'RAT_COEFF_TOM': rat_coeff_factor*0.5, 'PROB_PAUSING_TOM': prob_pausing_factor*0.4})
+                           'RETAIN_GOALS_TOM': 0, 'LOOK_AHEAD_STEPS_TOM': 4, 'PROB_THINKING_NOT_MOVING_TOM': 0.7,
+                           'COMPLIANCE_TOM': 0.9, 'PATH_TEAMWORK_TOM': 0.1, 'RAT_COEFF_TOM': 1, 'PROB_PAUSING_TOM': 0.3})
         ALL_TOM_PARAMS.append({'PROB_GREEDY_TOM': prob_greedy, 'PROB_OBS_OTHER_TOM': prob_obs_other,
                            'RETAIN_GOALS_TOM': 0, 'LOOK_AHEAD_STEPS_TOM': 4, 'PROB_THINKING_NOT_MOVING_TOM': 0.4,
-                           'COMPLIANCE_TOM': 0.5, 'PATH_TEAMWORK_TOM': 0.5, 'RAT_COEFF_TOM': rat_coeff_factor*10, 'PROB_PAUSING_TOM': prob_pausing_factor*0.6})
+                           'COMPLIANCE_TOM': 0.5, 'PATH_TEAMWORK_TOM': 0.5, 'RAT_COEFF_TOM': 20, 'PROB_PAUSING_TOM': 0.4})
         ALL_TOM_PARAMS.append({'PROB_GREEDY_TOM': prob_greedy, 'PROB_OBS_OTHER_TOM': prob_obs_other,
                            'RETAIN_GOALS_TOM': 0, 'LOOK_AHEAD_STEPS_TOM': 4, 'PROB_THINKING_NOT_MOVING_TOM': 0.2,
-                           'COMPLIANCE_TOM': 0.1, 'PATH_TEAMWORK_TOM': 0.1, 'RAT_COEFF_TOM': rat_coeff_factor*5, 'PROB_PAUSING_TOM': prob_pausing_factor*0.4})
+                           'COMPLIANCE_TOM': 0.1, 'PATH_TEAMWORK_TOM': 0.1, 'RAT_COEFF_TOM': 5, 'PROB_PAUSING_TOM': 0.5})
 
     # Validation TOMs -- pick every 3rd:
     val_indices = [3*i for i in range(10)]
@@ -543,19 +536,41 @@ def import_manual_tom_params(layout_name, POP_SIZE, SELECT_TOM=False):
     if POP_SIZE == 20:
         pass
     elif POP_SIZE == 1:
-        if not SELECT_TOM:
-            # For 1-pop, choose the median TOM (from the training set -- it shouldn't be in the validation set!), i.e. the
-            # TOM which gets the median score across TRAIN_TOM_PARAMS:
+        if MAXLIKE:
+            """For the single TOM, select the maximum likelihood set of params, found by doing metropolis sampling with HH data"""
             if layout_name == "counter_circuit":
-                TRAIN_TOM_PARAMS = [TRAIN_TOM_PARAMS[0]]
-            elif layout_name == "asymmetric_advantages":
-                TRAIN_TOM_PARAMS = [TRAIN_TOM_PARAMS[18]]
+                # Highest likelihood up to 3000 samples. Likelihood: -14921.55667607874
+                PROB_PAUSING = 0.49366365430559883
+                TRAIN_TOM_PARAMS = [{'COMPLIANCE_TOM': 0.22539833701285775, 'RETAIN_GOALS_TOM': 3.885110977163834e-13,
+                               'PATH_TEAMWORK_TOM': 0.7562684786967098, 'RAT_COEFF_TOM': 19.999999999967933,
+                               'PROB_GREEDY_TOM': 0.5716194260999599, 'PROB_OBS_OTHER_TOM': 0.1330860714823573,
+                               'LOOK_AHEAD_STEPS_TOM': 1.5000024536934997, 'PROB_THINKING_NOT_MOVING_TOM': 0,
+                               'PROB_PAUSING_TOM': PROB_PAUSING}]
             elif layout_name == "coordination_ring":
-                TRAIN_TOM_PARAMS = [TRAIN_TOM_PARAMS[5]]
+                # Highest likelihood up to 3000 samples. Likelihood: -17921.932272682305
+                PROB_PAUSING = 0.5098243060609211
+                TRAIN_TOM_PARAMS = [{'COMPLIANCE_TOM': 0.2646342605002149, 'RETAIN_GOALS_TOM': 0.010708449749251368,
+                              'PATH_TEAMWORK_TOM': 0.4371879185279047, 'RAT_COEFF_TOM': 18.106521401923274,
+                              'PROB_GREEDY_TOM': 0.3877372924867373, 'PROB_OBS_OTHER_TOM': 0.1867037186130322,
+                              'LOOK_AHEAD_STEPS_TOM': 3.2141783158401314, 'PROB_THINKING_NOT_MOVING_TOM': 0,
+                              'PROB_PAUSING_TOM': PROB_PAUSING}]
             else:
-                raise ValueError("Need to find the median for this layout!")
+                raise ValueError("Need to find the maxlike params for this layout!")
+
         else:
-            TRAIN_TOM_PARAMS = [TRAIN_TOM_PARAMS[SELECT_TOM]]
+            if not SELECT_TOM:
+                # For 1-pop, choose the median TOM (from the training set -- it shouldn't be in the validation set!), i.e. the
+                # TOM which gets the median score across TRAIN_TOM_PARAMS:
+                if layout_name == "counter_circuit":
+                    TRAIN_TOM_PARAMS = [TRAIN_TOM_PARAMS[0]]
+                elif layout_name == "asymmetric_advantages":
+                    TRAIN_TOM_PARAMS = [TRAIN_TOM_PARAMS[18]]
+                elif layout_name == "coordination_ring":
+                    TRAIN_TOM_PARAMS = [TRAIN_TOM_PARAMS[5]]
+                else:
+                    raise ValueError("Need to find the median for this layout!")
+            else:
+                TRAIN_TOM_PARAMS = [TRAIN_TOM_PARAMS[SELECT_TOM]]
     else:
         raise ValueError("Only currently designed for pops of 1 or 20")
 

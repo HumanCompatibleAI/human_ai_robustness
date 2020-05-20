@@ -9,7 +9,11 @@ params_aa = {"layout_name": "asymmetric_advantages", "num_epochs": 100, "lr": 1e
 params_cring = {"layout_name": "coordination_ring", "num_epochs": 120, "lr": 1e-3, "adam_eps":1e-8}
 # params_random0 = {"layout_name": "forced_coordination", "num_epochs": 90, "lr": 1e-3, "adam_eps":1e-8}
 params_cc = {"layout_name": "counter_circuit", "num_epochs": 110, "lr": 1e-3, "adam_eps":1e-8}
+
 all_params = [params_croom, params_aa, params_cring, params_cc]
+
+print('ONLY DOING CRING')
+all_params = [params_cring]
 
 all_params_test = [{"layout_name": "cramped_room", "num_epochs": 2, "lr": 1e-3, "adam_eps":1e-8}]
 

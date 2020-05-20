@@ -11,6 +11,8 @@ from collections import Counter
 from human_aware_rl.data_dir import DATA_DIR
 from human_aware_rl.utils import create_dir_if_not_exists
 # np.seterr(divide='ignore', invalid='ignore')  # Suppress error about diving by zero
+import pandas as pd
+
 
 """
 Here we only optimise the TOM parameter on states for which the data acts. So if the data acts, we force the TOM to 
@@ -111,6 +113,7 @@ def find_tom_probs_action_in_state(multi_tom_agent, actions_from_data, num_ep_to
     # Now have all actions for all agents
 
     # List of lists of zeros:
+    raise ValueError('Possible error: Double check that the "[0]*X" operation isnt creating a list where all elements are stored in the same memory')
     tom_probs_action_in_state = [[0] * actions_from_data[i].__len__() for i in range(num_ep_to_use)]
 
     # For each episode we want to use
@@ -572,6 +575,16 @@ def find_length_gaussian_vector(sd, size):
         a.append(length)
     return np.mean(a)
 
+def get_trajs_for_new_data_format(data_path, train_mdps):
+    """This loads the data then selects the data for the chosen layout, and returns expert_trajs"""
+    assert len(train_mdps) == 1, "Assuming only one layout is selected"
+    main_trials = pd.read_pickle(data_path)
+    layout = 'large_room' if train_mdps[0] == 'room' else train_mdps[0]
+    expert_trajs = main_trials[layout]
+    # Rename so that labels are consistent:
+    expert_trajs['ep_observations'] = expert_trajs.pop('ep_states')
+    return expert_trajs
+
 #------------- main -----------------#
 
 if __name__ == "__main__":
@@ -625,7 +638,8 @@ if __name__ == "__main__":
     # base learning rate is 1/5, we shift by roughly epsilon. NEED TO TUNE THIS!
     step_size = args.step_size
     epsilon_sd = args.epsilon_sd  # standard deviation of the dist to pick epsilon from
-    ensure_random_direction = args.ensure_random_direction
+    # ensure_random_direction = args.ensure_random_direction
+    ensure_random_direction = False
     number_toms = args.num_toms
     total_number_steps = args.num_grad_steps  # Number of steps to do in gradient decent
     run_type = args.run_type
@@ -641,13 +655,15 @@ if __name__ == "__main__":
     train_mdps = [layout]
     ordered_trajs = True
     human_ai_trajs = False
-    data_path = "data/human/anonymized/clean_{}_trials.pkl".format('train')
-    #TODO: Double check that processed should be False, in order to give states rathers than obs? Micah says "I think
-    # that processed returns state encodings
-    # (stacks of masks) rather than OvercookedState objects, or at least this was the original intention in the code –
-    # hopefully that is still true or the code is broken (edited)":
-    expert_trajs, _ = get_trajs_from_data(data_path, train_mdps, ordered_trajs,
-                                                      human_ai_trajs, processed=False)
+    if layout in ['cramped_room', 'asymmetric_advantages', 'coordination_ring', 'counter_circuit']:
+        data_path = "data/human/anonymized/clean_{}_trials.pkl".format('train')
+        expert_trajs, _ = get_trajs_from_data(data_path, train_mdps, ordered_trajs,
+                                              human_ai_trajs, processed=False)
+
+    elif layout in ['bottleneck', 'room', 'centre_objects', 'centre_pots']:
+        data_path = "data/human/anonymized/new_layouts/final_{}_trajs_paul.pickle".format('train')
+        expert_trajs = get_trajs_for_new_data_format(data_path, train_mdps)
+
     # Load (file I saved using pickle) instead FOR SIMPLE ONLY???: pickle_in = open('expert_trajs.pkl',
     # 'rb'); expert_trajs = pickle.load(pickle_in)
 

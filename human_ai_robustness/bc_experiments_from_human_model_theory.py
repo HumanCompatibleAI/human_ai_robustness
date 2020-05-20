@@ -31,7 +31,7 @@ def train_bc_agent_from_hh_data(layout_name, agent_name, num_epochs, lr, adam_ep
                           evaluation=evaluation)
 
 
-def train_bc_models(all_params, seeds, data_subset, prefix="", evaluation=False):
+def train_bc_models(all_params, seeds, data_subset, prefix="", evaluation=False, print_infos=True, return_infos=False):
     """Train len(seeds) num of models for each layout"""
     if prefix is not "": prefix += "_"
     for params in all_params:
@@ -42,8 +42,11 @@ def train_bc_models(all_params, seeds, data_subset, prefix="", evaluation=False)
                                                 model=data_subset, evaluation=evaluation, **params)
             infos.append(model.bc_info)
             reset_tf()
-        plot_bc_infos(infos, ["train_losses", "val_losses", "val_accuracies"])
-        plot_bc_infos(infos, ["avg_BCBC_reward", "avg_unstuckBCBC_rewards"])
+        if print_infos:
+            plot_bc_infos(infos, ["train_losses", "val_losses", "val_accuracies"])
+            plot_bc_infos(infos, ["avg_BCBC_reward", "avg_unstuckBCBC_rewards"])
+        if return_infos:
+            return infos
 
 
 def evaluate_all_bc_models(final_bc_model_paths):

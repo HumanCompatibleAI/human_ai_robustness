@@ -102,6 +102,11 @@ venv.bak/
 
 # mypy
 .mypy_cache/
+
+# vscode
+.vscode/
+
+# Project specific ignores
 /human_ai_robustness/data/ppo_runs/
 /human_ai_robustness/data/pbt_hms_runs/
 /human_ai_robustness/data/layouts/OLD_NAMES/

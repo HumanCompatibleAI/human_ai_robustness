@@ -247,6 +247,18 @@ class GreedyHumanModel_pk(Agent):
 #                     path_teamwork=path_teamwork, rationality_coefficient=rationality_coeff,
 #                     prob_pausing=prob_pausing)
 
+TOM_ATTRIBUTE_TO_NAME = {
+    "compliance": "COMPLIANCE_TOM",
+    "retain_goals": "RETAIN_GOALS_TOM",
+    "prob_thinking_not_moving": "PROB_THINKING_NOT_MOVING_TOM",
+    "path_teamwork": "PATH_TEAMWORK_TOM",
+    "rationality_coefficient": "RAT_COEFF_TOM",
+    "prob_pausing": "PROB_PAUSING_TOM",
+    "prob_greedy": "PROB_GREEDY_TOM",
+    "prob_obs_other": "PROB_OBS_OTHER_TOM",
+    "look_ahead_steps": "LOOK_AHEAD_STEPS_TOM"
+}
+
 class ToMModel(Agent):
     """
     #TODO: need to update this description:
@@ -339,6 +351,29 @@ class ToMModel(Agent):
         if not other_agent_idx is None:
             self.set_agent_index(other_agent_idx)
         return tom_params_choice
+
+    @staticmethod
+    def from_tom_params(mlp, tom_params):
+        return ToMModel(mlp, **tom_params)
+
+    @staticmethod
+    def mutate_tom_params(base_tom_params, mutation_dict, actual_attribute_names=True):
+        def norm_with_variance(mu, std, low=0, high=1, integer=False):
+            val = np.random.normal(loc=mu, scale=std)
+            val = min(max(val, low), high)
+            if integer:
+                val = round(val)
+            return val
+
+        mutated_params = {}
+        for attribute, name in TOM_ATTRIBUTE_TO_NAME.items():
+            std, low, high, integer = mutation_dict[attribute]
+            if actual_attribute_names:
+                mutated_params[attribute] = norm_with_variance(base_tom_params[name], std, low, high, integer)
+            else:    
+                mutated_params[name] = norm_with_variance(base_tom_params[name], std, low, high, integer)
+
+        return mutated_params
 
     #TODO: Perhaps add a function to output a prob dist over actions (i.e. move the code from fit_TOMs_to_data --
     # although we can't directly use that code because that has a pop of parallel agents, to respect the different
@@ -2478,6 +2513,8 @@ class ToMModel(Agent):
             raise ValueError()
 
         return motion_goals, temp_dont_drop
+
+
 
     # === Depreciated sections of ACM === #
 

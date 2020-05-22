@@ -6,15 +6,23 @@ from overcooked_ai_py.mdp.overcooked_mdp import OvercookedGridworld
 from overcooked_ai_py.mdp.overcooked_env import OvercookedEnv
 import copy
 import numpy as np
+from argparse import ArgumentParser
+
 
 if __name__ == "__main__":
     """Find the best BC (in terms of avg performance with all other BCs)"""
+    parser = ArgumentParser()
+    parser.add_argument("-l", "--layout", help="layout", required=True)
+
+    args = parser.parse_args()
+    layout_name = args.layout
 
     # Variables to change
-    layout_name = 'room'
     BC_SEEDS = [2222, 2599, 2732, 2897, 3264, 3468, 4373, 4859, 537, 5874, 6036, 6216, 6744, 6921, 705, 7768, 7891, 9225, 9845, 9893]
-    BC_LOCAL_DIR = '/home/pmzpk/bc_runs/'
-    NUM_GAMES = 3
+    # BC_LOCAL_DIR = '/home/pmzpk/bc_runs/'
+    BC_LOCAL_DIR = '/home/paul/bc_runs/'
+    NUM_GAMES = 1
+    #
 
     assert len(BC_SEEDS) == 20
 

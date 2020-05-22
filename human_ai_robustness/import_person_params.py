@@ -554,6 +554,38 @@ def import_manual_tom_params(layout_name, POP_SIZE, MAXLIKE, SELECT_TOM=False):
                               'PROB_GREEDY_TOM': 0.3877372924867373, 'PROB_OBS_OTHER_TOM': 0.1867037186130322,
                               'LOOK_AHEAD_STEPS_TOM': 3.2141783158401314, 'PROB_THINKING_NOT_MOVING_TOM': 0,
                               'PROB_PAUSING_TOM': PROB_PAUSING}]
+            elif layout_name == "large_room":
+                # Max likelihood up to 800 samples, but starting from params picked from a combo of what worked for other layouts
+                PROB_PAUSING = 0.6038128538128538
+                TRAIN_TOM_PARAMS = [{'COMPLIANCE_TOM': 0.22379399662155358, 'RETAIN_GOALS_TOM': 0.07587855435009,
+                                     'PATH_TEAMWORK_TOM': 0.6686248822994333, 'RAT_COEFF_TOM': 4.294084309293811,
+                                     'PROB_GREEDY_TOM': 0.21924930021200742, 'PROB_OBS_OTHER_TOM': 0.19623636267479602,
+                                     'LOOK_AHEAD_STEPS_TOM': 3.470639654438611, 'PROB_THINKING_NOT_MOVING_TOM': 0,
+                                     'PROB_PAUSING_TOM': PROB_PAUSING}]
+            elif layout_name == "bottleneck":
+                # Max likelihood up to 800 samples, but starting from params picked from a combo of what worked for other layouts
+                PROB_PAUSING = 0.6042189854344551
+                TRAIN_TOM_PARAMS = [{'COMPLIANCE_TOM': 0.17546947032339116, 'RETAIN_GOALS_TOM': 0.1467081498151364,
+                                     'PATH_TEAMWORK_TOM': 0.5103522276091106, 'RAT_COEFF_TOM': 3.974656910215492,
+                                     'PROB_GREEDY_TOM': 0.4299872769651207, 'PROB_OBS_OTHER_TOM': 0.17359961740727764,
+                                     'LOOK_AHEAD_STEPS_TOM': 3.197079738534957, 'PROB_THINKING_NOT_MOVING_TOM': 0,
+                                     'PROB_PAUSING_TOM': PROB_PAUSING}]
+            elif layout_name == "centre_objects":
+                # Max likelihood up to 600 samples, but starting from params picked from a combo of what worked for other layouts
+                PROB_PAUSING = 0.6911542972022114
+                TRAIN_TOM_PARAMS = [{'COMPLIANCE_TOM': 0.15028794098952822, 'RETAIN_GOALS_TOM': 0.094154094816602,
+                                     'PATH_TEAMWORK_TOM': 0.6522601047338349, 'RAT_COEFF_TOM': 5.356615185521225,
+                                     'PROB_GREEDY_TOM': 0.2655004908785008, 'PROB_OBS_OTHER_TOM': 0.3414306290487593,
+                                     'LOOK_AHEAD_STEPS_TOM': 3.0445140720248047, 'PROB_THINKING_NOT_MOVING_TOM': 0,
+                                     'PROB_PAUSING_TOM': PROB_PAUSING}]
+            elif layout_name == "centre_pots":
+                # Max likelihood up to 600 samples, but starting from params picked from a combo of what worked for other layouts
+                PROB_PAUSING = 0.6481668348469559
+                TRAIN_TOM_PARAMS = [{'COMPLIANCE_TOM': 0.18577949715541736, 'RETAIN_GOALS_TOM': 0.08037119539531669,
+                                     'PATH_TEAMWORK_TOM': 0.6813200407380992, 'RAT_COEFF_TOM': 4.6965533857786435,
+                                     'PROB_GREEDY_TOM': 0.33725489330107356, 'PROB_OBS_OTHER_TOM': 0.2129522849017117,
+                                     'LOOK_AHEAD_STEPS_TOM': 2.9622148666795725, 'PROB_THINKING_NOT_MOVING_TOM': 0,
+                                     'PROB_PAUSING_TOM': PROB_PAUSING}]
             else:
                 raise ValueError("Need to find the maxlike params for this layout!")
 

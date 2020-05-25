@@ -536,7 +536,7 @@ def import_manual_tom_params(layout_name, POP_SIZE, MAXLIKE, SELECT_TOM=False):
     if POP_SIZE == 20:
         pass
     elif POP_SIZE == 1:
-        if MAXLIKE:
+        if MAXLIKE and SELECT_TOM == "False":  # Using the word "False", because if we want to select TOM=0 then SELECT_TOM = 0, but 0 == False!!
             """For the single TOM, select the maximum likelihood set of params, found by doing metropolis sampling with HH data"""
             if layout_name == "counter_circuit":
                 # Highest likelihood up to 3000 samples. Likelihood: -14921.55667607874
@@ -590,7 +590,7 @@ def import_manual_tom_params(layout_name, POP_SIZE, MAXLIKE, SELECT_TOM=False):
                 raise ValueError("Need to find the maxlike params for this layout!")
 
         else:
-            if not SELECT_TOM:
+            if SELECT_TOM == "False":
                 # For 1-pop, choose the median TOM (from the training set -- it shouldn't be in the validation set!), i.e. the
                 # TOM which gets the median score across TRAIN_TOM_PARAMS:
                 if layout_name == "counter_circuit":
@@ -603,6 +603,7 @@ def import_manual_tom_params(layout_name, POP_SIZE, MAXLIKE, SELECT_TOM=False):
                     raise ValueError("Need to find the median for this layout!")
             else:
                 TRAIN_TOM_PARAMS = [TRAIN_TOM_PARAMS[SELECT_TOM]]
+                print("\nTOM selected from the pop of 20, with these params: {}\n".format(TRAIN_TOM_PARAMS))
     else:
         raise ValueError("Only currently designed for pops of 1 or 20")
 

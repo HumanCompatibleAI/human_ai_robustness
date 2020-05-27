@@ -4,6 +4,7 @@ from human_aware_rl.ppo.ppo_pop import get_ppo_agent, make_tom_agent
 from human_aware_rl.data_dir import DATA_DIR
 from human_aware_rl.imitation.behavioural_cloning import get_bc_agent_from_saved
 from overcooked_ai_py.agents.agent import AgentPair, RandomAgent, StayAgent
+from overcooked_ai_py.mdp.actions import Direction
 from overcooked_ai_py.mdp.overcooked_env import OvercookedEnv
 from overcooked_ai_py.mdp.overcooked_mdp import OvercookedGridworld, PlayerState, ObjectState, OvercookedState
 from overcooked_ai_py.planning.planners import MediumLevelPlanner
@@ -30,8 +31,9 @@ no_counters_params = {
 }
 
 
-def get_layout_horizon(layout, horizon_length, test_agent):
+def get_layout_horizon(layout, horizon_length):
     """Return the horizon for given layout/length of task"""
+    # TODO: Clean this function: either make horizon a hardcoded property of each test, or turn this into a global dictionary
     # extra_time = 0 if test_agent.__class__ is ToMModel else 0  # For test runs, e.g. if we want to give the TOM extra time
     extra_time = 0
     if extra_time != 0:
@@ -56,6 +58,219 @@ def make_median_tom_agent(mlp, layout):
     """Make the Median TOM agent -- with params such that is has the median score with other manual param TOMs"""
     _, alternate_names_params, _ = import_manual_tom_params(layout, 1)
     return ToMModel.from_alternate_names_params_dict(mlp, alternate_names_params[0])
+
+def make_test_tom_agent(layout, mlp, tom_num):
+    """Make a TOM from the VAL OR TRAIN? set used for ppo"""
+    VAL_TOM_PARAMS, TRAIN_TOM_PARAMS, _ = import_manual_tom_params(layout, 20)
+    tom_agent = make_tom_agent(mlp)
+    tom_agent.set_tom_params(None, None, TRAIN_TOM_PARAMS, tom_params_choice=int(tom_num))
+    return tom_agent
+
+def make_ready_soup_at_loc(loc):
+    return ObjectState('soup', loc, ('onion', 3, 20))
+
+
+###################
+# TESTING CLASSES #
+###################
+
+
+class InitialStatesCreator(object):
+
+    def __init__(self, varying_params, constants, mdp):
+        self.state_params = varying_params
+        self.constants = constants
+        self.mdp = mdp
+
+    def get_initial_states(self, display=False):
+        states = []
+        for (h_loc, r_loc, objects_variation) in self.state_params[self.mdp.layout_name]:
+
+            # Players
+            h_state = PlayerState(h_loc, self.constants["h_orientation_fn"](), held_object=self.constants["h_held"](h_loc))
+            r_state = PlayerState(r_loc, self.constants["r_orientation_fn"](), held_object=self.constants["r_held"](r_loc))
+            players = [h_state, r_state]
+
+            # Objects
+            objects = copy.deepcopy(self.constants["objects"])
+            for obj_name, obj_loc_list in objects_variation.items():
+                for obj_loc in obj_loc_list:
+                    objects[obj_loc] = (ObjectState(obj_name, obj_loc))
+
+            # Overcooked state
+            # TODO: Should have all order lists be None, but seems to break things?
+            s = OvercookedState([r_state, h_state], objects, order_list=['any'] * 100).deepcopy()
+            states.append(s)
+
+        return states
+
+
+class RobustnessTest(object):
+    """Defines a specific robustness test"""
+
+    def __init__(self, mdp, testing_horizon, print_info, display_runs):
+        self.mdp = mdp
+        self.layout = mdp.layout_name
+        self.print_info = print_info
+        self.display_runs = display_runs
+        self.env_horizon = get_layout_horizon(self.layout, testing_horizon)
+
+    def setup_human_model(self):
+        pass
+
+    def evaluate_agent_on_layout(self, trained_agent):
+        pass
+
+    def is_success(self, final_state):
+        pass
+
+
+
+############
+# TEST 1Ai #
+############
+
+
+class Test1ai(RobustnessTest):
+    """
+    Pick up a dish from a counter: H blocks dispenser (in layouts with only one dispenser)
+    
+    Details:
+    - 4 different settings for R's location and the location of the dishes
+    - Both pots cooking
+    - H holding onion facing South; R holding nothing
+    - Success: R gets a dish or changes the pot state?
+
+    POSSIBLE ADDITIONS: Give H no object. More positions for R.
+    """
+
+    def __init__(self, mdp, testing_horizon, print_info, display_runs):
+        super().__init__(mdp, testing_horizon, print_info, display_runs)
+
+    def get_initial_states(self):
+        initial_states_params = {
+            'counter_circuit': [
+                #   H           R           Objects
+                (   (1, 2),     (1, 1),     { "dish": [(0, 1)],               } ),
+                (   (1, 2),     (1, 1),     { "dish": [(0, 1), (1, 0), (6, 0)]} ),
+                (   (1, 2),     (6, 1),     { "dish": [(6, 0)],               } ),
+                (   (1, 2),     (6, 1),     { "dish": [(0, 1), (1, 0), (6, 0)]} )
+            ],
+            'coordination_ring': [
+                #   H           R           Objects
+                (   (1, 2),     (2, 1),     { "dish": [(2, 0)],               } ),
+                (   (1, 2),     (2, 1),     { "dish": [(2, 0), (1, 0), (0, 1)]} ),
+                (   (1, 2),     (3, 3),     { "dish": [(4, 3)],               } ),
+                (   (1, 2),     (3, 3),     { "dish": [(4, 3), (4, 2), (3, 4)]} )
+            ],
+            'bottleneck': [(4, 1)], # TODO: Finish this
+            'room': [(1, 5)]
+        }
+        constants = {
+            "h_held": lambda h_loc: ObjectState("onion", h_loc),
+            "h_orientation_fn": lambda: Direction.SOUTH,
+            "r_held": lambda r_loc: None,
+            "r_orientation_fn": lambda: Direction.random_direction(),
+            "objects": { loc : make_ready_soup_at_loc(loc) for loc in self.mdp.get_pot_locations() }
+        }
+        return InitialStatesCreator(initial_states_params, constants, mdp).get_initial_states()
+
+    def setup_human_model(self):
+        return StayAgent()
+
+    def evaluate_agent_on_layout(self, trained_agent):
+        H_model = self.setup_human_model()
+
+        count_success = 0
+        num_tests = 0
+        subtest_successes = []
+
+        for initial_state in self.get_initial_states():
+            num_tests += 1
+
+            # Check it's a valid state:
+            mdp._check_valid_state(initial_state)
+
+            # Setup env
+            env = OvercookedEnv(mdp, start_state_fn=lambda: initial_state, horizon=self.env_horizon)
+
+            # Play with the tom agent from this state and record score
+            agent_pair = AgentPair(trained_agent, H_model)
+            final_state = env.get_rollouts(agent_pair, num_games=1, final_state=True, display=display_runs, info=False)["ep_observations"][0][-1]
+            
+            if print_info:
+                env.state = initial_state
+                print('\nInitial state:\n{}'.format(env))
+                env.state = final_state
+                print('\nFinal state:\n{}'.format(env))
+
+            if self.is_success(initial_state, final_state):
+                if print_info:
+                    print('PPO has object, or the pot state has changed --> success!')
+                count_success += 1
+                subtest_successes.append('S')
+            else:
+                subtest_successes.append('F')
+
+            if print_info:
+                print(count_success/num_tests)
+                print('Subtest successes: {}'.format(subtest_successes))
+
+        score = count_success/num_tests
+        return score
+
+
+    def is_success(self, initial_state, final_state):
+        trained_agent = final_state.players[0]
+        r_has_dish = trained_agent.has_object() and trained_agent.get_object().name == 'dish'
+        # To change, soups must have either moved from the pot (picked up), delivered, or created (which is hard as all pots are already full)
+        soups_have_changed = initial_state.all_objects_by_type['soup'] != final_state.all_objects_by_type['soup']
+        return r_has_dish or soups_have_changed
+        
+
+
+
+
+
+
+def run_tests(layout, test_agent, tests_to_run, print_info, num_avg, mdp, mlp, display_runs, agent_name):
+
+    # Make TOM test agent:
+    if test_agent.__class__ is str and test_agent[:3] == 'tom':
+        test_agent = make_test_tom_agent(layout, mlp, tom_num=test_agent[3])
+        print('Setting prob_pausing = 0')
+        test_agent.prob_pausing = 0
+
+    # TODO: Add metadata in Test1ai class
+    test1ai = Test1ai(mdp, "medium", print_info=print_info, display_runs=display_runs)
+    results_dict_this_agent = {agent_name: test1ai.evaluate_agent_on_layout(test_agent)}
+
+
+    # percent_success = [None]*10
+    #
+    # if "1" in tests_to_run or tests_to_run == "all":
+    #     # TEST 1: "H stands still with X, where X CANNOT currently be used"
+    #     count_successes = []
+    #     for _ in range(num_avg):
+    #         count_success, num_tests = h_random_unusable_object(test_agent, mdp, standard_test_positions,
+    #                                                             print_info, random_tom_agent, layout, display_runs)
+    #         count_successes.append(count_success)
+    #     percent_success[1] = round(100 * np.mean(count_successes) / num_tests)
+    #     # num_tests_all[1] = num_tests
+
+    # print('RESULT: {}'.format(?))
+    return results_dict_this_agent
+
+
+
+
+
+
+
+############
+# OLD CODE #
+############
+
 
 # def make_cc_standard_test_positions():
 #     # Make the standard_test_positions for this layout:
@@ -93,11 +308,7 @@ def make_median_tom_agent(mlp, layout):
 #     standard_test_positions.append({'r_loc': (3, 3), 'h_loc': (1, 1)})
 #     return standard_test_positions
 
-def make_test_tom_agent(layout, mlp, tom_num):
-    """Make a TOM from the VAL OR TRAIN? set used for ppo"""
-    VAL_TOM_PARAMS, TRAIN_TOM_PARAMS, _ = import_manual_tom_params(layout, 20)
-    tom_agent = make_tom_agent(mlp)
-    tom_agent.set_tom_params(None, None, TRAIN_TOM_PARAMS, tom_params_choice=int(tom_num))
+
 
     # "OPTIMAL" TOM AGENT SETTINGS:
     # print('>>> Manually overwriting the TOM with an "optimal" TOM <<<')
@@ -113,7 +324,7 @@ def make_test_tom_agent(layout, mlp, tom_num):
     # tom_agent.retain_goals = 0
     # tom_agent.compliance = 0
 
-    return tom_agent
+    
 
 # def make_default_test_dict():
 #     return dict.fromkeys("type", "description", "number", "layouts", "score",
@@ -124,182 +335,220 @@ def make_test_tom_agent(layout, mlp, tom_num):
 #                          )
 
 
-############
-# TEST 1Ai #
-############
 
-def get_r_d_locations_list_1ai(layout):
-    """R and Dish locations for test 1ai
-    2 R locs near the dish. 2 far away
-    Both with one dish and with lots of dishes"""
-    if layout == 'counter_circuit':
-        return [{'r_loc': (1, 1), 'd_locs': [(0, 1)]},
-                {'r_loc': (1, 1), 'd_locs': [(0, 1), (1, 0), (6, 0)]},
-                {'r_loc': (6, 1), 'd_locs': [(6, 0)]},
-                {'r_loc': (6, 1), 'd_locs': [(0, 1), (1, 0), (6, 0)]}]
-    elif layout == 'coordination_ring':
-        return [{'r_loc': (2, 1), 'd_locs': [(2, 0)]},
-                {'r_loc': (2, 1), 'd_locs': [(2, 0), (1, 0), (0, 1)]},
-                {'r_loc': (3, 3), 'd_locs': [(4, 3)]},
-                {'r_loc': (3, 3), 'd_locs': [(4, 3), (4, 2), (3, 4)]}]
-    elif layout == 'bottleneck':
-        return [{'r_loc': (5, 1), 'd_locs': [(6, 1)]},
-                {'r_loc': (5, 1), 'd_locs': [(6, 1), (5, 0), (3, 2)]},
-                {'r_loc': (1, 1), 'd_locs': [(0, 1)]},
-                {'r_loc': (1, 1), 'd_locs': [(0, 1), (1, 0), (0, 2)]}]
-    elif layout == 'room':
-        return [{'r_loc': (2, 4), 'd_locs': [(0, 4)]},
-                {'r_loc': (2, 4), 'd_locs': [(0, 4), (2, 6), (3, 6)]},
-                {'r_loc': (4, 1), 'd_locs': [(4, 0)]},
-                {'r_loc': (4, 1), 'd_locs': [(4, 0), (5, 0), (6, 2)]}]
-    elif layout == 'centre_pots':
-        return None
-    elif layout == 'centre_objects':
-        return None
 
-def run_test_1ai(test_agent, mdp, print_info, stationary_tom_agent, layout, display_runs):
-    """1ai) Pick up a dish from a counter: H blocks dispenser (in layouts with only one dispenser)
-    Details:    4 different settings for R's location and the location of the dishes
-                Both pots cooking
-                H holding onion facing South; R holding nothing
-                Success: R gets a dish or changes the pot state?
 
-                POSSIBLE ADDITIONS: Give H no object. More positions for R.
-    """
-
-    other_player = stationary_tom_agent
-    orientations = [(1, 0), (0, 1), (-1, 0), (0, -1)]
-    first_pot_loc, second_pot_loc = mdp.get_pot_locations()
-    count_success = 0
-    num_tests = 0
-    subtest_successes = []
-    pots = [ObjectState('soup', first_pot_loc, ('onion', 3, 20)), ObjectState('soup', second_pot_loc, ('onion', 3, 20))] # Both cooking
-    h_locs_layout = {'counter_circuit': (1, 2), 'coordination_ring': (1, 2), 'bottleneck': (4, 1), 'room': (1, 5)}
-    h_loc = h_locs_layout[layout]
-    tom_player_state = PlayerState(h_loc, (0, 1), held_object=ObjectState('onion', h_loc))
-
-    r_d_locations_list = get_r_d_locations_list_1ai(layout)
-
-    for i, r_d_locations in enumerate(r_d_locations_list):
-
-        num_tests += 1
-        if print_info:
-            print('\nR and Dish locations: {}\n'.format(r_d_locations))
-
-        # Arbitrarily but deterministically choose R's orientation:
-        ppo_or = orientations[(i+1) % 4]
-
-        # Make the overcooked state:
-        ppo_player_state = PlayerState(r_d_locations['r_loc'], ppo_or, held_object=None)
-
-        dish_states = [ObjectState('dish', r_d_locations['d_locs'][k]) for k in range(len(r_d_locations['d_locs']))]
-        objects_dict = {pots[k].position: pots[k] for k in range(len(pots))}
-        objects_dict.update({dish_states[k].position: dish_states[k] for k in range(len(r_d_locations['d_locs']))})
-
-        state_i = OvercookedState(players=[ppo_player_state, tom_player_state], objects=objects_dict,
-                                    order_list=['any']*100)  # players: List of PlayerStates (order corresponds to player indices). objects: Dictionary mapping positions (x, y) to ObjectStates.
-        # Check it's a valid state:
-        mdp._check_valid_state(state_i)
-
-        env = OvercookedEnv(mdp, start_state_fn=lambda : state_i)
-        env.horizon = get_layout_horizon(layout, "medium", test_agent)
-
-        # Play with the tom agent from this state and record score
-        agent_pair = AgentPair(test_agent, other_player)
-        trajs = env.get_rollouts(agent_pair, num_games=1, final_state=True, display=display_runs, info=False)
-
-        # Score in terms of whether the pot state changes:
-        state_f = trajs["ep_observations"][0][-1]
-        env.state = state_f
-        if print_info:
-            print('\nInitial state:\n{}'.format(OvercookedEnv(mdp, start_state_fn=lambda: state_i)))
-            print('\nFinal state:\n{}'.format(env))
-
-        if (state_f.players[0].has_object() and state_f.players[0].get_object().name == 'dish') or \
-                state_i.all_objects_by_type['soup'] != state_f.all_objects_by_type['soup']:
-            if print_info:
-                print('PPO has object, or the pot state has changed --> success!')
-            count_success += 1
-            subtest_successes.append('S')
-        else:
-            subtest_successes.append('F')
-
-        if print_info:
-            print(count_success/num_tests)
-            print('Subtest successes: {}'.format(subtest_successes))
-
-    score = count_success/num_tests
-
-    return score
+# h_locs_by_layout = {
+    #     'counter_circuit': [(1, 2)],
+    #     'coordination_ring': [(1, 2)],
+    #     'bottleneck': [(4, 1)],
+    #     'room': [(1, 5)]
+    # }
+    # r_locs_by_layout = {
+    #     'counter_circuit': [
+    #         (1, 1), 
+    #         (6, 1)
+    #     ],
+    #     'coordination_ring': [
+    #         (2, 1), 
+    #         (3, 3)
+    #     ],
+    #     'bottleneck': [(5, 1), (1, 1)],
+    #     'room': [(2, 4), (4, 1)]
+    # }
+    # object_locations_by_layout = {
+    #     'dish': {
+    #         'counter_circuit': [
+    #             [(0, 1)],
+    #             [(0, 1), (1, 0), (6, 0)]
+    #         ],
+    #         'coordination_ring': [
+    #             [(0, 1)],
+    #             [(0, 1), (1, 0), (6, 0)]
+    #         ],
+    #         'bottleneck': [
+    #             [(0, 1)],
+    #             [(0, 1), (1, 0), (6, 0)]
+    #         ],
+    #         'room': [
+    #             [(0, 1)],
+    #             [(0, 1), (1, 0), (6, 0)]
+    #         ]
+    #     }
+    # }
 
 
 
 
+# def run_test_1ai(test_agent, mdp, print_info, stationary_tom_agent, layout, display_runs):
+#     """1ai) Pick up a dish from a counter: H blocks dispenser (in layouts with only one dispenser)
+#     Details:    4 different settings for R's location and the location of the dishes
+#                 Both pots cooking
+#                 H holding onion facing South; R holding nothing
+#                 Success: R gets a dish or changes the pot state?
 
-def run_tests(layout, test_agent, tests_to_run, print_info, num_avg, mdp, mlp, display_runs, agent_name):
-    """..."""
+#                 POSSIBLE ADDITIONS: Give H no object. More positions for R.
+#     """
 
-    # Make TOM test agent:
-    if test_agent.__class__ is str and test_agent[:3] == 'tom':
-        test_agent = make_test_tom_agent(layout, mlp, tom_num=test_agent[3])
-        print('Setting prob_pausing = 0')
-        test_agent.prob_pausing = 0
+#     other_player = stationary_tom_agent
+#     orientations = [(1, 0), (0, 1), (-1, 0), (0, -1)]
+#     first_pot_loc, second_pot_loc = mdp.get_pot_locations()
+#     count_success = 0
+#     num_tests = 0
+#     subtest_successes = []
+#     pots = [ObjectState('soup', first_pot_loc, ('onion', 3, 20)), ObjectState('soup', second_pot_loc, ('onion', 3, 20))] # Both cooking
+#     h_locs_layout = {'counter_circuit': (1, 2), 'coordination_ring': (1, 2), 'bottleneck': (4, 1), 'room': (1, 5)}
+#     h_loc = h_locs_layout[layout]
+#     tom_player_state = PlayerState(h_loc, (0, 1), held_object=ObjectState('onion', h_loc))
 
-    # Make the TOM agents used for testing:
-    # stationary_tom_agent = ToMModel.get_stationary_ToM(mlp) #TODO: Can't we just use a StayAgent?
-    stationary_tom_agent = StayAgent() # 
-    median_tom_agent = make_median_tom_agent(mlp, layout)
-    # random_tom_agent = make_random_tom_agent(mlp, layout) # TODO: Can't we just use a RandomAgent?
-    random_tom_agent = RandomAgent() 
+#     r_d_locations_list = get_r_d_locations_list_1ai(layout)
+
+#     for i, r_d_locations in enumerate(r_d_locations_list):
+
+#         num_tests += 1
+#         if print_info:
+#             print('\nR and Dish locations: {}\n'.format(r_d_locations))
+
+#         # Arbitrarily but deterministically choose R's orientation:
+#         ppo_or = Direction.ALL_DIRECTIONS[(i+1) % 4]
+
+#         # Make the overcooked state:
+#         ppo_player_state = PlayerState(r_d_locations['r_loc'], ppo_or, held_object=None)
+
+#         dish_states = [ObjectState('dish', r_d_locations['d_locs'][k]) for k in range(len(r_d_locations['d_locs']))]
+#         objects_dict = {pots[k].position: pots[k] for k in range(len(pots))}
+#         objects_dict.update({dish_states[k].position: dish_states[k] for k in range(len(r_d_locations['d_locs']))})
+
+#         state_i = OvercookedState(players=[ppo_player_state, tom_player_state], objects=objects_dict,
+#                                     order_list=['any']*100)  # players: List of PlayerStates (order corresponds to player indices). objects: Dictionary mapping positions (x, y) to ObjectStates.
+#         # Check it's a valid state:
+#         mdp._check_valid_state(state_i)
+
+#         env = OvercookedEnv(mdp, start_state_fn=lambda : state_i)
+#         env.horizon = get_layout_horizon(layout, "medium", test_agent)
+
+#         # Play with the tom agent from this state and record score
+#         agent_pair = AgentPair(test_agent, other_player)
+#         trajs = env.get_rollouts(agent_pair, num_games=1, final_state=True, display=display_runs, info=False)
+
+#         # Score in terms of whether the pot state changes:
+#         state_f = trajs["ep_observations"][0][-1]
+#         env.state = state_f
+#         if print_info:
+#             print('\nInitial state:\n{}'.format(OvercookedEnv(mdp, start_state_fn=lambda: state_i)))
+#             print('\nFinal state:\n{}'.format(env))
+
+#         if (state_f.players[0].has_object() and state_f.players[0].get_object().name == 'dish') or \
+#                 state_i.all_objects_by_type['soup'] != state_f.all_objects_by_type['soup']:
+#             if print_info:
+#                 print('PPO has object, or the pot state has changed --> success!')
+#             count_success += 1
+#             subtest_successes.append('S')
+#         else:
+#             subtest_successes.append('F')
+
+#         if print_info:
+#             print(count_success/num_tests)
+#             print('Subtest successes: {}'.format(subtest_successes))
+
+#     score = count_success/num_tests
+#     return score
+
+
+# def get_r_d_locations_list_1ai(layout):
+#     """R and Dish locations for test 1ai
+#     2 R locs near the dish. 2 far away
+#     Both with one dish and with lots of dishes"""
+#     if layout == 'counter_circuit':
+#         return [{'r_loc': (1, 1), 'd_locs': [(0, 1)]},
+#                 {'r_loc': (1, 1), 'd_locs': [(0, 1), (1, 0), (6, 0)]},
+#                 {'r_loc': (6, 1), 'd_locs': [(6, 0)]},
+#                 {'r_loc': (6, 1), 'd_locs': [(0, 1), (1, 0), (6, 0)]}]
+#     elif layout == 'coordination_ring':
+#         return [{'r_loc': (2, 1), 'd_locs': [(2, 0)]},
+#                 {'r_loc': (2, 1), 'd_locs': [(2, 0), (1, 0), (0, 1)]},
+#                 {'r_loc': (3, 3), 'd_locs': [(4, 3)]},
+#                 {'r_loc': (3, 3), 'd_locs': [(4, 3), (4, 2), (3, 4)]}]
+#     elif layout == 'bottleneck':
+#         return [{'r_loc': (5, 1), 'd_locs': [(6, 1)]},
+#                 {'r_loc': (5, 1), 'd_locs': [(6, 1), (5, 0), (3, 2)]},
+#                 {'r_loc': (1, 1), 'd_locs': [(0, 1)]},
+#                 {'r_loc': (1, 1), 'd_locs': [(0, 1), (1, 0), (0, 2)]}]
+#     elif layout == 'room':
+#         return [{'r_loc': (2, 4), 'd_locs': [(0, 4)]},
+#                 {'r_loc': (2, 4), 'd_locs': [(0, 4), (2, 6), (3, 6)]},
+#                 {'r_loc': (4, 1), 'd_locs': [(4, 0)]},
+#                 {'r_loc': (4, 1), 'd_locs': [(4, 0), (5, 0), (6, 2)]}]
+#     elif layout == 'centre_pots':
+#         return None
+#     elif layout == 'centre_objects':
+#         return None
+
+
+# def run_tests(layout, test_agent, tests_to_run, print_info, num_avg, mdp, mlp, display_runs, agent_name):
+#     """..."""
+
+#     # Make TOM test agent:
+#     if test_agent.__class__ is str and test_agent[:3] == 'tom':
+#         test_agent = make_test_tom_agent(layout, mlp, tom_num=test_agent[3])
+#         print('Setting prob_pausing = 0')
+#         test_agent.prob_pausing = 0
+
+#     # Make the TOM agents used for testing:
+#     # stationary_tom_agent = ToMModel.get_stationary_ToM(mlp) #TODO: Can't we just use a StayAgent?
+#     stationary_tom_agent = StayAgent() # 
+#     median_tom_agent = make_median_tom_agent(mlp, layout)
+#     # random_tom_agent = make_random_tom_agent(mlp, layout) # TODO: Can't we just use a RandomAgent?
+#     random_tom_agent = RandomAgent() 
     
 
-    # if layout == 'counter_circuit':
-    #     standard_test_positions = make_cc_standard_test_positions()
-    # elif layout == 'coordination_ring':
-    #     standard_test_positions = make_cring_standard_test_positions()
+#     # if layout == 'counter_circuit':
+#     #     standard_test_positions = make_cc_standard_test_positions()
+#     # elif layout == 'coordination_ring':
+#     #     standard_test_positions = make_cring_standard_test_positions()
 
-    results_this_agent = []
-
-
-
-    # Test 1ai:
-    test_metadata = {
-        'type': '1) Interacting with counters',
-        'description': 'Pick up a dish from a counter; H blocks dispenser (valid for layouts with one blockable dispenser)',
-        'number': '1ai',
-        'layouts': ['bottleneck', 'room', 'coordination_ring', 'counter_circuit'],
-        # TODO: None means "not sure if True or False"!
-        'robustness_to_states': None,  # Whether this test is testing robustness to (potentially unseen) states
-        'robustness_to_agents': None,  # Whether this test is testing robustness to unseen
-        'testing_other': ['reacting_to_other_agent', 'off_distribution_game_state']
-    }
-    # If this test isn't valid for this layout, then give a score of None,
-    test_score = run_test_1ai(test_agent, mdp, print_info, stationary_tom_agent, layout, display_runs) if layout in test_metadata['layouts'] else None, 
-    results_this_agent.append(
-        (test_score, test_metadata)
-    )
+#     results_this_agent = []
 
 
 
+#     # Test 1ai:
+#     test_metadata = {
+#         'type': '1) Interacting with counters',
+#         'description': 'Pick up a dish from a counter; H blocks dispenser (valid for layouts with one blockable dispenser)',
+#         'number': '1ai',
+#         'layouts': ['bottleneck', 'room', 'coordination_ring', 'counter_circuit'],
+#         # TODO: None means "not sure if True or False"!
+#         'robustness_to_states': None,  # Whether this test is testing robustness to (potentially unseen) states
+#         'robustness_to_agents': None,  # Whether this test is testing robustness to unseen
+#         'testing_other': ['reacting_to_other_agent', 'off_distribution_game_state']
+#     }
+#     # If this test isn't valid for this layout, then give a score of None,
+#     test_score = run_test_1ai(test_agent, mdp, print_info, stationary_tom_agent, display_runs)
+#     results_this_agent.append(
+#         (test_score, test_metadata)
+#     )
 
 
-    results_dict_this_agent = {agent_name: results_this_agent}
 
 
-    # percent_success = [None]*10
-    #
-    # if "1" in tests_to_run or tests_to_run == "all":
-    #     # TEST 1: "H stands still with X, where X CANNOT currently be used"
-    #     count_successes = []
-    #     for _ in range(num_avg):
-    #         count_success, num_tests = h_random_unusable_object(test_agent, mdp, standard_test_positions,
-    #                                                             print_info, random_tom_agent, layout, display_runs)
-    #         count_successes.append(count_success)
-    #     percent_success[1] = round(100 * np.mean(count_successes) / num_tests)
-    #     # num_tests_all[1] = num_tests
 
-    # print('RESULT: {}'.format(?))
-    return results_this_agent
+#     results_dict_this_agent = {agent_name: results_this_agent}
+
+
+#     # percent_success = [None]*10
+#     #
+#     # if "1" in tests_to_run or tests_to_run == "all":
+#     #     # TEST 1: "H stands still with X, where X CANNOT currently be used"
+#     #     count_successes = []
+#     #     for _ in range(num_avg):
+#     #         count_success, num_tests = h_random_unusable_object(test_agent, mdp, standard_test_positions,
+#     #                                                             print_info, random_tom_agent, layout, display_runs)
+#     #         count_successes.append(count_success)
+#     #     percent_success[1] = round(100 * np.mean(count_successes) / num_tests)
+#     #     # num_tests_all[1] = num_tests
+
+#     # print('RESULT: {}'.format(?))
+#     return results_this_agent
 
 
 

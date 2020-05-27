@@ -247,6 +247,21 @@ class GreedyHumanModel_pk(Agent):
 #                     path_teamwork=path_teamwork, rationality_coefficient=rationality_coeff,
 #                     prob_pausing=prob_pausing)
 
+# TODO: Eventually remove the alternate names altogether
+INIT_PARAMS_TO_ALTERNATE_PARAMS_NAMES = {
+    "compliance": "COMPLIANCE_TOM",
+    "retain_goals": "RETAIN_GOALS_TOM",
+    "prob_thinking_not_moving": "PROB_THINKING_NOT_MOVING_TOM",
+    "path_teamwork": "PATH_TEAMWORK_TOM",
+    "rationality_coefficient": "RAT_COEFF_TOM",
+    "prob_pausing": "PROB_PAUSING_TOM",
+    "prob_greedy": "PROB_GREEDY_TOM",
+    "prob_obs_other": "PROB_OBS_OTHER_TOM",
+    "look_ahead_steps": "LOOK_AHEAD_STEPS_TOM"
+}
+ALTERNATE_PARAM_TO_INIT_PARAMS_NAMES = { v:k  for k, v in INIT_PARAMS_TO_ALTERNATE_PARAMS_NAMES.items() }
+
+
 class ToMModel(Agent):
     """
     #TODO: need to update this description:
@@ -299,6 +314,17 @@ class ToMModel(Agent):
         # get onion but they get dish instead. Note: this should only work well if retain_goals is large
         self.teamwork = teamwork  # teamwork = 0 should make this agent similar to GreedyHuman
         self.use_OLD_ml_action = use_OLD_ml_action
+
+    @staticmethod
+    def get_stationary_ToM(mlp):
+        """Make a TOM agent that doesn't move: (prob_pausing == 1, prob_random_action=0 (all other params are irrelevant))"""
+        return ToMModel(mlp=mlp, prob_random_action=0, prob_pausing=1)
+
+    @staticmethod
+    def from_alternate_names_params_dict(mlp, alternate_names_params):
+        """Create a ToM model from a params dict that follows the key-value pairs of the `set_tom_params` method"""
+        params = { init_param : alternate_names_params[alternate_param_name] for init_param, alternate_param_name in INIT_PARAMS_TO_ALTERNATE_PARAMS_NAMES.items() }
+        return ToMModel(mlp, **params)
 
     def set_agent_index(self, agent_index):
         super().set_agent_index(agent_index)

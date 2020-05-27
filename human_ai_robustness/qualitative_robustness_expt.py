@@ -3,7 +3,7 @@ from argparse import ArgumentParser
 from human_aware_rl.ppo.ppo_pop import get_ppo_agent, make_tom_agent
 from human_aware_rl.data_dir import DATA_DIR
 from human_aware_rl.imitation.behavioural_cloning import get_bc_agent_from_saved
-from overcooked_ai_py.agents.agent import AgentPair
+from overcooked_ai_py.agents.agent import AgentPair, RandomAgent, StayAgent
 from overcooked_ai_py.mdp.overcooked_env import OvercookedEnv
 from overcooked_ai_py.mdp.overcooked_mdp import OvercookedGridworld, PlayerState, ObjectState, OvercookedState
 from overcooked_ai_py.planning.planners import MediumLevelPlanner
@@ -19,6 +19,7 @@ from human_ai_robustness.agent import ToMModel
 from human_ai_robustness.import_person_params import import_manual_tom_params
 from human_aware_rl.data_dir import DATA_DIR
 
+
 no_counters_params = {
     'start_orientations': False,
     'wait_allowed': False,
@@ -28,10 +29,6 @@ no_counters_params = {
     'same_motion_goals': True
 }
 
-def find_pot_locations(layout):
-    pot_locations_dict = {'counter_circuit': [(3, 0), (4, 0)], 'coordination_ring': [(3, 0), (4, 1)], 'room': [(3, 0)],
-                            'centre_objects': [(2, 2)], 'centre_pots': [(2, 2), (4, 2)], 'bottleneck': [(4, 4), (5, 4)]}
-    return pot_locations_dict[layout]
 
 def get_layout_horizon(layout, horizon_length, test_agent):
     """Return the horizon for given layout/length of task"""
@@ -54,48 +51,11 @@ def get_layout_horizon(layout, horizon_length, test_agent):
         elif layout == 'coordination_ring':
             return extra_time + 25
 
-def make_stationary_tom_agent(mlp):
-    """Make a TOM agent that doesn't move: (prob_pausing == 1, prob_random_action=0 (all other params are irrelevant))"""
-    compliance, teamwork, retain_goals, wrong_decisions, prob_thinking_not_moving, path_teamwork, \
-    rationality_coefficient, prob_pausing, prob_greedy, prob_obs_other, look_ahead_steps = [1] * 11
-    tom_agent = ToMModel(mlp=mlp, prob_random_action=0, compliance=compliance, teamwork=teamwork,
-                         retain_goals=retain_goals, wrong_decisions=wrong_decisions,
-                         prob_thinking_not_moving=prob_thinking_not_moving, path_teamwork=path_teamwork,
-                         rationality_coefficient=rationality_coefficient, prob_pausing=prob_pausing,
-                         use_OLD_ml_action=False, prob_greedy=prob_greedy, prob_obs_other=prob_obs_other,
-                         look_ahead_steps=look_ahead_steps)
-    return tom_agent
-
-def make_random_tom_agent(mlp, layout):
-    """Make a random TOM agent -- takes random actions"""
-    compliance, teamwork, retain_goals, wrong_decisions, prob_thinking_not_moving, path_teamwork, \
-    rationality_coefficient, prob_pausing, prob_greedy, prob_obs_other, look_ahead_steps = [99] * 11
-    tom_agent = ToMModel(mlp=mlp, prob_random_action=0, compliance=compliance, teamwork=teamwork,
-                         retain_goals=retain_goals, wrong_decisions=wrong_decisions,
-                         prob_thinking_not_moving=prob_thinking_not_moving, path_teamwork=path_teamwork,
-                         rationality_coefficient=rationality_coefficient, prob_pausing=prob_pausing,
-                         use_OLD_ml_action=False, prob_greedy=prob_greedy, prob_obs_other=prob_obs_other,
-                         look_ahead_steps=look_ahead_steps)
-    _, TOM_PARAMS, _ = import_manual_tom_params(layout, 1)
-    tom_agent.set_tom_params(None, None, TOM_PARAMS, tom_params_choice=0)
-    # Then make it take random steps (set both, just to be sure):
-    tom_agent.rationality_coefficient = 0.01
-    tom_agent.prob_random_action = 1
-    return tom_agent
 
 def make_median_tom_agent(mlp, layout):
     """Make the Median TOM agent -- with params such that is has the median score with other manual param TOMs"""
-    compliance, teamwork, retain_goals, wrong_decisions, prob_thinking_not_moving, path_teamwork, \
-    rationality_coefficient, prob_pausing, prob_greedy, prob_obs_other, look_ahead_steps = [99] * 11
-    tom_agent = ToMModel(mlp=mlp, prob_random_action=0, compliance=compliance, teamwork=teamwork,
-                         retain_goals=retain_goals, wrong_decisions=wrong_decisions,
-                         prob_thinking_not_moving=prob_thinking_not_moving, path_teamwork=path_teamwork,
-                         rationality_coefficient=rationality_coefficient, prob_pausing=prob_pausing,
-                         use_OLD_ml_action=False, prob_greedy=prob_greedy, prob_obs_other=prob_obs_other,
-                         look_ahead_steps=look_ahead_steps)
-    _, TOM_PARAMS, _ = import_manual_tom_params(layout, 1)
-    tom_agent.set_tom_params(None, None, TOM_PARAMS, tom_params_choice=0)
-    return tom_agent
+    _, alternate_names_params, _ = import_manual_tom_params(layout, 1)
+    return ToMModel.from_alternate_names_params_dict(mlp, alternate_names_params[0])
 
 # def make_cc_standard_test_positions():
 #     # Make the standard_test_positions for this layout:
@@ -164,7 +124,9 @@ def make_test_tom_agent(layout, mlp, tom_num):
 #                          )
 
 
-
+############
+# TEST 1Ai #
+############
 
 def get_r_d_locations_list_1ai(layout):
     """R and Dish locations for test 1ai
@@ -207,7 +169,7 @@ def run_test_1ai(test_agent, mdp, print_info, stationary_tom_agent, layout, disp
 
     other_player = stationary_tom_agent
     orientations = [(1, 0), (0, 1), (-1, 0), (0, -1)]
-    first_pot_loc, second_pot_loc = find_pot_locations(layout)
+    first_pot_loc, second_pot_loc = mdp.get_pot_locations()
     count_success = 0
     num_tests = 0
     subtest_successes = []
@@ -284,9 +246,12 @@ def run_tests(layout, test_agent, tests_to_run, print_info, num_avg, mdp, mlp, d
         test_agent.prob_pausing = 0
 
     # Make the TOM agents used for testing:
-    stationary_tom_agent = make_stationary_tom_agent(mlp)
+    # stationary_tom_agent = ToMModel.get_stationary_ToM(mlp) #TODO: Can't we just use a StayAgent?
+    stationary_tom_agent = StayAgent() # 
     median_tom_agent = make_median_tom_agent(mlp, layout)
-    random_tom_agent = make_random_tom_agent(mlp, layout)
+    # random_tom_agent = make_random_tom_agent(mlp, layout) # TODO: Can't we just use a RandomAgent?
+    random_tom_agent = RandomAgent() 
+    
 
     # if layout == 'counter_circuit':
     #     standard_test_positions = make_cc_standard_test_positions()
@@ -534,3 +499,23 @@ if __name__ == "__main__":
     # print('\nFinal average dict: {}'.format(avg_dict))
     # print('\nFinal wegihted avg: {}'.format(weighted_avg_dic))
     print('\nFinal "results": {}'.format(results))
+
+
+# OLD
+
+# def make_random_tom_agent(mlp, layout):
+#     """Make a random TOM agent -- takes random actions"""
+#     compliance, teamwork, retain_goals, wrong_decisions, prob_thinking_not_moving, path_teamwork, \
+#     rationality_coefficient, prob_pausing, prob_greedy, prob_obs_other, look_ahead_steps = [99] * 11
+#     tom_agent = ToMModel(mlp=mlp, prob_random_action=0, compliance=compliance, teamwork=teamwork,
+#                          retain_goals=retain_goals, wrong_decisions=wrong_decisions,
+#                          prob_thinking_not_moving=prob_thinking_not_moving, path_teamwork=path_teamwork,
+#                          rationality_coefficient=rationality_coefficient, prob_pausing=prob_pausing,
+#                          use_OLD_ml_action=False, prob_greedy=prob_greedy, prob_obs_other=prob_obs_other,
+#                          look_ahead_steps=look_ahead_steps)
+#     _, TOM_PARAMS, _ = import_manual_tom_params(layout, 1)
+#     tom_agent.set_tom_params(None, None, TOM_PARAMS, tom_params_choice=0)
+#     # Then make it take random steps (set both, just to be sure):
+#     tom_agent.rationality_coefficient = 0.01
+#     tom_agent.prob_random_action = 1
+#     return tom_agent

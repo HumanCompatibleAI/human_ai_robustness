@@ -470,7 +470,8 @@ def import_person_params(LAYOUT_NAME, num_toms):
     # return PERSON_PARAMS_HM0, PERSON_PARAMS_HM1, PERSON_PARAMS_HM2, PERSON_PARAMS_HM3
     return TOM_PARAMS
 
-def import_manual_tom_params(layout_name, POP_SIZE, MAXLIKE, SELECT_TOM=False):
+def import_manual_tom_params(layout_name, POP_SIZE, MAXLIKE=False, SELECT_TOM=False):
+    # TODO: Made MAXLIKE default to False, unclear what this does
     """Import params manually chosen to give a diverse population of TOMs"""
     ALL_TOM_PARAMS = []
 

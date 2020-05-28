@@ -589,7 +589,7 @@ def make_100_tom_params():
                                   'COMPLIANCE_TOM': compliance, 'PATH_TEAMWORK_TOM': path_teamwork, 'RAT_COEFF_TOM': 20,
                                   'PROB_PAUSING_TOM': 0.4})
             TOM_PARAMS_100.append({'PROB_GREEDY_TOM': prob_greedy, 'PROB_OBS_OTHER_TOM': prob_obs_other,
-                                  'RETAIN_GOALS_TOM': 0, 'LOOK_AHEAD_STEPS_TOM': 1, 'PROB_THINKING_NOT_MOVING_TOM': 0.2,
+                                  'RETAIN_GOALS_TOM': 0, 'LOOK_AHEAD_STEPS_TOM': 2, 'PROB_THINKING_NOT_MOVING_TOM': 0.2,
                                   'COMPLIANCE_TOM': compliance, 'PATH_TEAMWORK_TOM': path_teamwork, 'RAT_COEFF_TOM': 5,
                                   'PROB_PAUSING_TOM': 0.5})
     return TOM_PARAMS_100
@@ -632,7 +632,7 @@ def make_500_tom_params():
                                        'RAT_COEFF_TOM': rat_coeff,
                                        'PROB_PAUSING_TOM': 0.4})
                 TOM_PARAMS_500.append({'PROB_GREEDY_TOM': prob_greedy, 'PROB_OBS_OTHER_TOM': prob_obs_other,
-                                       'RETAIN_GOALS_TOM': 0, 'LOOK_AHEAD_STEPS_TOM': 1,
+                                       'RETAIN_GOALS_TOM': 0, 'LOOK_AHEAD_STEPS_TOM': 2,
                                        'PROB_THINKING_NOT_MOVING_TOM': 0.2,
                                        'COMPLIANCE_TOM': compliance, 'PATH_TEAMWORK_TOM': path_teamwork, 'RAT_COEFF_TOM': rat_coeff,
                                        'PROB_PAUSING_TOM': 0.5})

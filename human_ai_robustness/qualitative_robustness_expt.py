@@ -3,6 +3,7 @@ from argparse import ArgumentParser
 from human_aware_rl.ppo.ppo_pop import get_ppo_agent, make_tom_agent
 from human_aware_rl.data_dir import DATA_DIR
 from human_aware_rl.imitation.behavioural_cloning import get_bc_agent_from_saved
+from human_aware_rl.utils import set_global_seed
 from overcooked_ai_py.agents.agent import AgentPair, RandomAgent, StayAgent
 from overcooked_ai_py.mdp.actions import Direction
 from overcooked_ai_py.mdp.overcooked_env import OvercookedEnv
@@ -84,7 +85,22 @@ class InitialStatesCreator(object):
 
     def get_initial_states(self, display=False):
         states = []
-        for (h_loc, r_loc, objects_variation) in self.state_params[self.mdp.layout_name]:
+
+        # TODO: This framework probably needs to be improved some more. Right now it's somewhat arbitrary that
+        # the 3 elements of this tuple are H, R, and Objects. We should probably turn it into a dict and 
+        # accept other types of thigns too, depending if it's ever used in the tests?
+        for variation_params_dict in self.state_params[self.mdp.layout_name]:
+            
+            # Unpack info from variation params dict
+            # TODO: if necessary for other tests to have different variation fields, we should make
+            # the variation_params_dict have all possible data pieces and be either {data} or None
+            # and then assert that every data piece is either in the variation_params_dict or in the self.constants
+            # before proceeding
+            # We could then overwrite all None variation_params_dict items (potentially this would require making them
+            # lambdas too)
+            h_loc = variation_params_dict["h_loc"]
+            r_loc = variation_params_dict["r_loc"]
+            objects_variation = variation_params_dict["objects"]
 
             # Players
             h_state = PlayerState(h_loc, self.constants["h_orientation_fn"](), held_object=self.constants["h_held"](h_loc))
@@ -99,14 +115,18 @@ class InitialStatesCreator(object):
 
             # Overcooked state
             # TODO: Should have all order lists be None, but seems to break things?
-            s = OvercookedState([r_state, h_state], objects, order_list=['any'] * 100).deepcopy()
+            s = OvercookedState(players, objects, order_list=['any'] * 100).deepcopy()
             states.append(s)
 
         return states
 
 
-class RobustnessTest(object):
-    """Defines a specific robustness test"""
+class AbstractRobustnessTest(object):
+    """
+    Defines a specific robustness test
+    
+    # NOTE: For all tests, H_model is on index 0 and trained_agent is on index 1!
+    """
 
     def __init__(self, mdp, testing_horizon, print_info, display_runs):
         self.mdp = mdp
@@ -116,13 +136,43 @@ class RobustnessTest(object):
         self.env_horizon = get_layout_horizon(self.layout, testing_horizon)
 
     def setup_human_model(self):
-        pass
+        raise NotImplementedError()
 
     def evaluate_agent_on_layout(self, trained_agent):
-        pass
+        H_model = self.setup_human_model()
+
+        subtest_successes = []
+
+        for initial_state in self.get_initial_states():
+
+            # Check it's a valid state:
+            mdp._check_valid_state(initial_state)
+
+            # Setup env
+            env = OvercookedEnv(mdp, start_state_fn=lambda: initial_state, horizon=self.env_horizon)
+
+            # Play with the tom agent from this state and record score
+            agent_pair = AgentPair(H_model, trained_agent)
+            final_state = env.get_rollouts(agent_pair, num_games=1, final_state=True, display=display_runs, info=False)["ep_observations"][0][-1]
+            
+            if self.print_info:
+                env.state = initial_state
+                print('\nInitial state:\n{}'.format(env))
+                env.state = final_state
+                print('\nFinal state:\n{}'.format(env))
+
+            success = self.is_success(initial_state, final_state)
+            subtest_successes.append(success)
+
+            if self.print_info:
+                print(sum(subtest_successes)/len(subtest_successes))
+                print('Subtest successes: {}'.format(subtest_successes))
+
+        success_rate = sum(subtest_successes)/len(subtest_successes)
+        return success_rate
 
     def is_success(self, final_state):
-        pass
+        raise NotImplementedError()
 
 
 
@@ -131,7 +181,7 @@ class RobustnessTest(object):
 ############
 
 
-class Test1ai(RobustnessTest):
+class Test1ai(AbstractRobustnessTest):
     """
     Pick up a dish from a counter: H blocks dispenser (in layouts with only one dispenser)
     
@@ -148,20 +198,19 @@ class Test1ai(RobustnessTest):
         super().__init__(mdp, testing_horizon, print_info, display_runs)
 
     def get_initial_states(self):
+        # NOTE: Given that there are only 4 settings, does that mean that there are only 5 possible success values (0,25,50,75,100)?
         initial_states_params = {
             'counter_circuit': [
-                #   H           R           Objects
-                (   (1, 2),     (1, 1),     { "dish": [(0, 1)],               } ),
-                (   (1, 2),     (1, 1),     { "dish": [(0, 1), (1, 0), (6, 0)]} ),
-                (   (1, 2),     (6, 1),     { "dish": [(6, 0)],               } ),
-                (   (1, 2),     (6, 1),     { "dish": [(0, 1), (1, 0), (6, 0)]} )
+                {   "h_loc": (1, 2),     "r_loc": (1, 1),    "objects": { "dish": [(0, 1)]}                 },
+                {   "h_loc": (1, 2),     "r_loc": (1, 1),    "objects": { "dish": [(0, 1), (1, 0), (6, 0)]} },
+                {   "h_loc": (1, 2),     "r_loc": (6, 1),    "objects": { "dish": [(6, 0)],               } },
+                {   "h_loc": (1, 2),     "r_loc": (6, 1),    "objects": { "dish": [(0, 1), (1, 0), (6, 0)]} }
             ],
             'coordination_ring': [
-                #   H           R           Objects
-                (   (1, 2),     (2, 1),     { "dish": [(2, 0)],               } ),
-                (   (1, 2),     (2, 1),     { "dish": [(2, 0), (1, 0), (0, 1)]} ),
-                (   (1, 2),     (3, 3),     { "dish": [(4, 3)],               } ),
-                (   (1, 2),     (3, 3),     { "dish": [(4, 3), (4, 2), (3, 4)]} )
+                {   "h_loc": (1, 2),     "r_loc": (2, 1),    "objects": { "dish": [(2, 0)],               } },
+                {   "h_loc": (1, 2),     "r_loc": (2, 1),    "objects": { "dish": [(2, 0), (1, 0), (0, 1)]} },
+                {   "h_loc": (1, 2),     "r_loc": (3, 3),    "objects": { "dish": [(4, 3)],               } },
+                {   "h_loc": (1, 2),     "r_loc": (3, 3),    "objects": { "dish": [(4, 3), (4, 2), (3, 4)]} }
             ],
             'bottleneck': [(4, 1)], # TODO: Finish this
             'room': [(1, 5)]
@@ -178,71 +227,87 @@ class Test1ai(RobustnessTest):
     def setup_human_model(self):
         return StayAgent()
 
-    def evaluate_agent_on_layout(self, trained_agent):
-        H_model = self.setup_human_model()
-
-        count_success = 0
-        num_tests = 0
-        subtest_successes = []
-
-        for initial_state in self.get_initial_states():
-            num_tests += 1
-
-            # Check it's a valid state:
-            mdp._check_valid_state(initial_state)
-
-            # Setup env
-            env = OvercookedEnv(mdp, start_state_fn=lambda: initial_state, horizon=self.env_horizon)
-
-            # Play with the tom agent from this state and record score
-            agent_pair = AgentPair(trained_agent, H_model)
-            final_state = env.get_rollouts(agent_pair, num_games=1, final_state=True, display=display_runs, info=False)["ep_observations"][0][-1]
-            
-            if print_info:
-                env.state = initial_state
-                print('\nInitial state:\n{}'.format(env))
-                env.state = final_state
-                print('\nFinal state:\n{}'.format(env))
-
-            if self.is_success(initial_state, final_state):
-                if print_info:
-                    print('PPO has object, or the pot state has changed --> success!')
-                count_success += 1
-                subtest_successes.append('S')
-            else:
-                subtest_successes.append('F')
-
-            if print_info:
-                print(count_success/num_tests)
-                print('Subtest successes: {}'.format(subtest_successes))
-
-        score = count_success/num_tests
-        return score
-
-
     def is_success(self, initial_state, final_state):
-        trained_agent = final_state.players[0]
+        trained_agent = final_state.players[1]
         r_has_dish = trained_agent.has_object() and trained_agent.get_object().name == 'dish'
         # To change, soups must have either moved from the pot (picked up), delivered, or created (which is hard as all pots are already full)
         soups_have_changed = initial_state.all_objects_by_type['soup'] != final_state.all_objects_by_type['soup']
-        return r_has_dish or soups_have_changed
+        success = r_has_dish or soups_have_changed
+        if success and self.print_info:
+            print('PPO has object, or the pot state has changed --> success!')
+        return success
         
 
+############
+# TEST 1Bi #
+############
+
+def make_cring_standard_test_positions():
+    # Make the standard_test_positions for CRING:
+    standard_test_positions = []
+    # top-R / bottom-L:
+    standard_test_positions.append({'r_loc': (3, 1), 'h_loc': (3, 2)})
+    standard_test_positions.append({'r_loc': (3, 1), 'h_loc': (2, 1)})
+    standard_test_positions.append({'r_loc': (1, 3), 'h_loc': (1, 1)})
+    standard_test_positions.append({'r_loc': (1, 3), 'h_loc': (3, 3)})
+    # Both near dish/soup:
+    standard_test_positions.append({'r_loc': (1, 2), 'h_loc': (3, 3)})
+    standard_test_positions.append({'r_loc': (2, 3), 'h_loc': (1, 1)})
+    # Diagonal:
+    standard_test_positions.append({'r_loc': (1, 1), 'h_loc': (3, 3)})
+    standard_test_positions.append({'r_loc': (3, 3), 'h_loc': (1, 1)})
+    return standard_test_positions
+
+class Test1bi(AbstractRobustnessTest):
+    """
+    Interacting with counters -> Drop objects onto counter -> R holding the wrong object
+
+    Test: R is holding the wrong object, and must drop it
+    Details:Two variants:
+                A) R has D when O needed (both pots empty)
+                B) R has O when two Ds needed (both pots cooked)
+            For both A and B:
+                Starting locations in STPs
+                Other player (H) is the median TOM
+                H has nothing
+    """
+
+    def __init__(self, mdp, testing_horizon, print_info, display_runs):
+        super().__init__(mdp, testing_horizon, print_info, display_runs)
+
+    def get_initial_states(self):
+        # TODO: copy over starting locations from Standard Starting Locations?
+        pass
+
+    def setup_human_model(self):
+        return make_median_tom_agent(make_mlp(self.mdp), self.layout)
+
+    def is_success(self, initial_state, final_state):
+        trained_agent_initial_state = initial_state.players[1]
+        initial_object = trained_agent_initial_state.get_object().name
+        trained_agent_final_state = final_state.players[1]
+        # Agent must have gotten rid of initial object
+        success = not (trained_agent_final_state.has_object() and trained_agent_final_state.get_object().name == initial_object)
+        if success and self.print_info:
+            print('PPO no longer has the dish --> success!')
+        return success
 
 
+def run_tests(layout, test_agent, tests_to_run, print_info, num_avg, mdp, display_runs, agent_name):
 
-
-
-def run_tests(layout, test_agent, tests_to_run, print_info, num_avg, mdp, mlp, display_runs, agent_name):
+    # Make all randomness deterministic
+    set_global_seed(0)
 
     # Make TOM test agent:
     if test_agent.__class__ is str and test_agent[:3] == 'tom':
+        mlp = make_mlp(mdp)
         test_agent = make_test_tom_agent(layout, mlp, tom_num=test_agent[3])
         print('Setting prob_pausing = 0')
         test_agent.prob_pausing = 0
 
     # TODO: Add metadata in Test1ai class
     test1ai = Test1ai(mdp, "medium", print_info=print_info, display_runs=display_runs)
+    print("Horizon", test1ai.env_horizon)
     results_dict_this_agent = {agent_name: test1ai.evaluate_agent_on_layout(test_agent)}
 
 
@@ -263,6 +328,209 @@ def run_tests(layout, test_agent, tests_to_run, print_info, num_avg, mdp, mlp, d
 
 
 
+
+
+#####################################
+# SETUP AND RESULT PROCESSING UTILS #
+#####################################
+
+# def plot_results(avg_dict, shorten=False):
+#
+#     y_pos = np.arange(len(avg_dict.keys()))
+#     colour = ['B' if i % 2 == 0 else 'R' for i in range(12)]
+#     plt.bar(y_pos, avg_dict.values(), align='center', alpha=0.5, color=colour)
+#     avg_dict_keys = [list(avg_dict.keys())[i][0:6] for i in range(len(avg_dict))] if shorten else list(avg_dict.keys())
+#     plt.xticks(y_pos, avg_dict_keys, rotation=30)
+#     plt.ylabel('Avg % success')
+#     # plt.title('')
+#     plt.show()
+
+def make_average_dict(run_names, results, bests, seeds):
+    i = 0
+    avg_dict = {}
+    for j, run_name in enumerate(run_names):
+        for seed in seeds[j]:
+            for best in bests:
+                b = 'V' if best == 'val' else 'T'
+                this_avg = np.mean([results[i][j] for j in range(len(results[i])) if results[i][j] != None])
+                avg_dict['{}_{}_{}'.format(run_name, b, seed)] = this_avg
+                i += 1
+    return avg_dict
+
+# def make_plot_weighted_avg_dict(run_names, results, bests, seeds):
+#     i = 0
+#     weighted_avg_dict = {}
+#     weighting = [0] + [2] * 3 + [1] * 2 + [0] * 2 + [1] * 2  # Give extra weight to tests 1-3 because each has many more sub-tests than the rest, and it would've made sense to split them up
+#     for j, run_name in enumerate(run_names):
+#         for seed in seeds[j]:
+#             for best in bests:
+#                 b = 'V' if best == 'val' else 'T'
+#                 this_avg = np.sum([results[i][k]*weighting[k] for k in range(len(results[i])) if results[i][k] != None]) \
+#                                             / np.sum(weighting)
+#                 weighted_avg_dict['{}_{}_{}'.format(run_name, b, seed)] = this_avg
+#                 i += 1
+#     # plot_results(weighted_avg_dict, shorten=True)
+#     return weighted_avg_dict
+
+def make_average_results(results):
+    avg_results = []
+    for i in range(results):
+        this_avg = np.mean([results[i][j] for j in range(len(results[i])) if results[i][j] != None])
+        avg_results.append(this_avg)
+    return avg_results
+
+def save_results(avg_dict, weighted_avg_dict, results, run_folder, layout):
+    timestamp = time.strftime('%Y_%m_%d-%H_%M_%S_')
+    filename = DATA_DIR + 'qualitative_expts/{}_avg_dict_{}_{}.txt'.format(run_folder, layout, timestamp)
+    with open(filename, 'w') as json_file:
+        json.dump(avg_dict, json_file)
+    filename = DATA_DIR + 'qualitative_expts/{}_weighted_avg_dict_{}_{}.txt'.format(run_folder, layout, timestamp)
+    with open(filename, 'w') as json_file:
+        json.dump(weighted_avg_dict, json_file)
+    filename = DATA_DIR + 'qualitative_expts/{}_results_{}_{}.txt'.format(run_folder, layout, timestamp)
+    with open(filename, 'w') as json_file:
+        json.dump(results, json_file)
+
+def make_mdp(layout):
+    # Make the standard mdp for this layout:
+    mdp = OvercookedGridworld.from_layout_name(layout, start_order_list=['any'] * 100, cook_time=20,
+                                               rew_shaping_params=None)
+    return mdp
+
+def make_mlp(mdp):
+    no_counters_params['counter_drop'] = mdp.get_counter_locations()
+    no_counters_params['counter_goals'] = mdp.get_counter_locations()
+    return MediumLevelPlanner.from_pickle_or_compute(mdp, no_counters_params, force_compute=False)
+
+def get_bc_agent(seed, layout, mdp, run_on):
+    """Return the BC agent for this layout and seed"""
+    bc_name = layout + "_bc_train_seed{}".format(seed)
+    if run_on == 'local':
+        BC_LOCAL_DIR = '/home/pmzpk/bc_runs/'
+    bc_agent, _ = get_bc_agent_from_saved(bc_name, unblock_if_stuck=True,
+                                           stochastic=True,
+                                           overwrite_bc_save_dir=BC_LOCAL_DIR)
+    bc_agent.set_mdp(mdp)
+    return bc_agent
+
+def str2bool(v):
+    if isinstance(v, bool):
+        return v
+    if v.lower() in ('yes', 'true', 'True', 't', 'y', '1'):
+        return True
+    elif v.lower() in ('no', 'false', 'False', 'f', 'n', '0'):
+        return False
+    else:
+        raise ValueError('Boolean value expected')
+
+def get_run_info(agent_from):
+    """Return the seeds and run_names for the run in run_folder"""
+
+    # -------- Choose agents ---------
+    if agent_from == 'lstm_expt_cc0':
+        run_folder = agent_from
+        run_names = ['cc_1tom', 'cc_20tom', 'cc_1bc', 'cc_20bc']
+        seeds = [[3264, 4859, 9225]] * 4
+
+    elif agent_from == 'lstm_agent_cring_1tom_seed2732':
+        run_folder = agent_from
+        run_names = ["ok"]
+        seeds = [[2732]] #TODO why is seeds a list of lists?
+
+    # if agent_from == 'toms':
+    #     num_toms = 20
+    #     run_names = ['tom{}'.format(i) for i in range(num_toms)]
+    #     seeds, bests, shorten, run_folder = [[None]]*num_toms, [None], False, ''
+    #
+    # elif agent_from == 'bc':
+    #     run_names = ['bc']
+    #     bests, shorten, run_folder = [None], False, ''
+    #     seeds = [[8502, 7786, 9094, 7709]]  # , 103, 5048, 630, 7900, 5309, 8417, 862, 6459, 3459, 1047, 3759, 3806, 8413, 790, 7974, 9845]]  # BCs from ppo_pop
+
+    return run_folder, run_names, seeds
+
+
+def return_agent_dir(run_on, run_folder):
+    """Return the DIR where the agents are saved"""
+    if run_on == 'server0':
+        return '/home/paul/research/human_ai_robustness/human_ai_robustness/data/ppo_runs/' + run_folder
+    elif run_on == 'server1':
+        return '/home/paul/agents_to_QT/' + run_folder
+    if run_on == 'server_az':
+        return '/home/paul/human_ai_robustness/human_ai_robustness/data/ppo_runs/' + run_folder
+    elif run_on == 'local':
+        return '/Users/micah/Downloads/' + run_folder
+        # return '/home/pmzpk/Documents/hr_coordination_from_server_ONEDRIVE/' + run_folder \
+        #     if agent_from != 'toms' else ''
+
+def get_agent_to_test(agent_from, run_name, seed, layout, mdp, run_on):
+    """Return the agent that will undergo the qualitative tests"""
+    if agent_from == 'toms':
+        # The TOM agents are made within run_tests
+        return run_name
+    elif agent_from == 'bc':
+        return get_bc_agent(seed, layout, mdp, run_on)
+    else:
+        test_agent, config = get_ppo_agent(EXPT_DIR, seed, best='train')
+        if config['NETWORK_TYPE'] == 'cnn_lstm_overcooked':
+            test_agent.initial_lstm_state = np.zeros([config['sim_threads'], 2 * config['NLSTM']],
+                                                     dtype=float)  # The lstm state [has shape num_envs , 2*nlstm] (see baselines_utils.cnn_and_lstm_network)
+            test_agent.reset()  # This sets test_agent.state_lstm = test_agent.initial_lstm_state, and sets self.mask=[False, False, ...]
+        return test_agent
+
+
+
+if __name__ == "__main__":
+    """
+    Run a qualitative experiment to test robustness of a trained agent. This code works through a suite of tests,
+    largely involving putting the test-subject-agent in a specific state, with a specific other player, then seeing if 
+    they can still play Overcooked from that position.
+    """
+    parser = ArgumentParser()
+    parser.add_argument("-l", "--layout", help="layout", required=False, default="counter_circuit")
+    parser.add_argument("-t", "--tests_to_run", default="all")
+    parser.add_argument("-pr", "--print_info", default=False, action='store_true')
+    parser.add_argument("-dr", "--display_runs", default=False, action='store_true')
+    # parser.add_argument("-pl", "--final_plot")
+    parser.add_argument("-a", "--num_avg", type=int, required=False, default=1)
+    parser.add_argument("-f", "--agent_from", type=str, required=True, help='e.g. lstm_expt_cc0')
+    parser.add_argument("-r", "--run_on", required=False, type=str, help="e.g. server or local", default='local')
+
+    args = parser.parse_args()
+
+    layout, tests_to_run, print_info, display_runs, num_avg, agent_from, run_on = \
+        args.layout, args.tests_to_run, str2bool(args.print_info), str2bool(args.display_runs), \
+        args.num_avg, args.agent_from, args.run_on
+
+    run_folder, run_names, seeds = get_run_info(agent_from)
+    DIR = return_agent_dir(run_on, run_folder)
+    mdp = make_mdp(layout)
+
+    results = []
+
+    for i, run_name in enumerate(run_names):
+
+        EXPT_DIR = DIR + '/' + run_name + '/'
+
+        for seed in seeds[i]:
+
+            agent_to_test = get_agent_to_test(agent_from, run_name, seed, layout, mdp, run_on)
+            agent_name = "{}{}".format(run_name, seed)
+
+            print('\n' + run_name + ' >> seed_' + str(seed))
+            time0 = time.perf_counter()
+            results.append(run_tests(layout, agent_to_test, tests_to_run, print_info, num_avg, mdp, display_runs, agent_name))
+            print('Time for this agent: {}'.format(time.perf_counter() - time0))
+
+    """POST PROCESSING..."""
+    # avg_dict = make_average_dict(run_names, results, bests, seeds)
+    # if final_plot is True:
+    #     plot_results(avg_dict, shorten)
+    # weighted_avg_dic = make_plot_weighted_avg_dict(run_names, results, bests, seeds)
+    # # save_results(avg_dict, weighted_avg_dic, results, run_folder, layout)
+    # print('\nFinal average dict: {}'.format(avg_dict))
+    # print('\nFinal wegihted avg: {}'.format(weighted_avg_dic))
+    print('\nFinal "results": {}'.format(results))
 
 
 
@@ -552,202 +820,6 @@ def run_tests(layout, test_agent, tests_to_run, print_info, num_avg, mdp, mlp, d
 
 
 
-
-# def plot_results(avg_dict, shorten=False):
-#
-#     y_pos = np.arange(len(avg_dict.keys()))
-#     colour = ['B' if i % 2 == 0 else 'R' for i in range(12)]
-#     plt.bar(y_pos, avg_dict.values(), align='center', alpha=0.5, color=colour)
-#     avg_dict_keys = [list(avg_dict.keys())[i][0:6] for i in range(len(avg_dict))] if shorten else list(avg_dict.keys())
-#     plt.xticks(y_pos, avg_dict_keys, rotation=30)
-#     plt.ylabel('Avg % success')
-#     # plt.title('')
-#     plt.show()
-
-def make_average_dict(run_names, results, bests, seeds):
-    i = 0
-    avg_dict = {}
-    for j, run_name in enumerate(run_names):
-        for seed in seeds[j]:
-            for best in bests:
-                b = 'V' if best == 'val' else 'T'
-                this_avg = np.mean([results[i][j] for j in range(len(results[i])) if results[i][j] != None])
-                avg_dict['{}_{}_{}'.format(run_name, b, seed)] = this_avg
-                i += 1
-    return avg_dict
-
-# def make_plot_weighted_avg_dict(run_names, results, bests, seeds):
-#     i = 0
-#     weighted_avg_dict = {}
-#     weighting = [0] + [2] * 3 + [1] * 2 + [0] * 2 + [1] * 2  # Give extra weight to tests 1-3 because each has many more sub-tests than the rest, and it would've made sense to split them up
-#     for j, run_name in enumerate(run_names):
-#         for seed in seeds[j]:
-#             for best in bests:
-#                 b = 'V' if best == 'val' else 'T'
-#                 this_avg = np.sum([results[i][k]*weighting[k] for k in range(len(results[i])) if results[i][k] != None]) \
-#                                             / np.sum(weighting)
-#                 weighted_avg_dict['{}_{}_{}'.format(run_name, b, seed)] = this_avg
-#                 i += 1
-#     # plot_results(weighted_avg_dict, shorten=True)
-#     return weighted_avg_dict
-
-def make_average_results(results):
-    avg_results = []
-    for i in range(results):
-        this_avg = np.mean([results[i][j] for j in range(len(results[i])) if results[i][j] != None])
-        avg_results.append(this_avg)
-    return avg_results
-
-def save_results(avg_dict, weighted_avg_dict, results, run_folder, layout):
-    timestamp = time.strftime('%Y_%m_%d-%H_%M_%S_')
-    filename = DATA_DIR + 'qualitative_expts/{}_avg_dict_{}_{}.txt'.format(run_folder, layout, timestamp)
-    with open(filename, 'w') as json_file:
-        json.dump(avg_dict, json_file)
-    filename = DATA_DIR + 'qualitative_expts/{}_weighted_avg_dict_{}_{}.txt'.format(run_folder, layout, timestamp)
-    with open(filename, 'w') as json_file:
-        json.dump(weighted_avg_dict, json_file)
-    filename = DATA_DIR + 'qualitative_expts/{}_results_{}_{}.txt'.format(run_folder, layout, timestamp)
-    with open(filename, 'w') as json_file:
-        json.dump(results, json_file)
-
-def make_mdp_mlp(layout):
-    # Make the standard mdp for this layout:
-    mdp = OvercookedGridworld.from_layout_name(layout, start_order_list=['any'] * 100, cook_time=20,
-                                               rew_shaping_params=None)
-    no_counters_params['counter_drop'] = mdp.get_counter_locations()
-    no_counters_params['counter_goals'] = mdp.get_counter_locations()
-    mlp = MediumLevelPlanner.from_pickle_or_compute(mdp, no_counters_params, force_compute=False)
-    return mdp, mlp
-
-def get_bc_agent(seed, layout, mdp, run_on):
-    """Return the BC agent for this layout and seed"""
-    bc_name = layout + "_bc_train_seed{}".format(seed)
-    if run_on == 'local':
-        BC_LOCAL_DIR = '/home/pmzpk/bc_runs/'
-    bc_agent, _ = get_bc_agent_from_saved(bc_name, unblock_if_stuck=True,
-                                           stochastic=True,
-                                           overwrite_bc_save_dir=BC_LOCAL_DIR)
-    bc_agent.set_mdp(mdp)
-    return bc_agent
-
-def str2bool(v):
-    if isinstance(v, bool):
-        return v
-    if v.lower() in ('yes', 'true', 'True', 't', 'y', '1'):
-        return True
-    elif v.lower() in ('no', 'false', 'False', 'f', 'n', '0'):
-        return False
-    else:
-        raise ValueError('Boolean value expected')
-
-def get_run_info(agent_from):
-    """Return the seeds and run_names for the run in run_folder"""
-
-    # -------- Choose agents ---------
-    if agent_from == 'lstm_expt_cc0':
-        run_folder = agent_from
-        run_names = ['cc_1tom', 'cc_20tom', 'cc_1bc', 'cc_20bc']
-        seeds = [[3264, 4859, 9225]] * 4
-
-    elif agent_from == 'lstm_agent_cring_1tom_seed2732':
-        run_folder = agent_from
-        run_names = ["ok"]
-        seeds = [[2732]] #TODO why is seeds a list of lists?
-
-    # if agent_from == 'toms':
-    #     num_toms = 20
-    #     run_names = ['tom{}'.format(i) for i in range(num_toms)]
-    #     seeds, bests, shorten, run_folder = [[None]]*num_toms, [None], False, ''
-    #
-    # elif agent_from == 'bc':
-    #     run_names = ['bc']
-    #     bests, shorten, run_folder = [None], False, ''
-    #     seeds = [[8502, 7786, 9094, 7709]]  # , 103, 5048, 630, 7900, 5309, 8417, 862, 6459, 3459, 1047, 3759, 3806, 8413, 790, 7974, 9845]]  # BCs from ppo_pop
-
-    return run_folder, run_names, seeds
-
-
-def return_agent_dir(run_on, run_folder):
-    """Return the DIR where the agents are saved"""
-    if run_on == 'server0':
-        return '/home/paul/research/human_ai_robustness/human_ai_robustness/data/ppo_runs/' + run_folder
-    elif run_on == 'server1':
-        return '/home/paul/agents_to_QT/' + run_folder
-    if run_on == 'server_az':
-        return '/home/paul/human_ai_robustness/human_ai_robustness/data/ppo_runs/' + run_folder
-    elif run_on == 'local':
-        return '/Users/micah/Downloads/' + run_folder
-        # return '/home/pmzpk/Documents/hr_coordination_from_server_ONEDRIVE/' + run_folder \
-        #     if agent_from != 'toms' else ''
-
-def get_agent_to_test(agent_from, run_name, seed, layout, mdp, run_on):
-    """Return the agent that will undergo the qualitative tests"""
-    if agent_from == 'toms':
-        # The TOM agents are made within run_tests
-        return run_name
-    elif agent_from == 'bc':
-        return get_bc_agent(seed, layout, mdp, run_on)
-    else:
-        test_agent, config = get_ppo_agent(EXPT_DIR, seed, best='train')
-        if config['NETWORK_TYPE'] == 'cnn_lstm_overcooked':
-            test_agent.initial_lstm_state = np.zeros([config['sim_threads'], 2 * config['NLSTM']],
-                                                     dtype=float)  # The lstm state [has shape num_envs , 2*nlstm] (see baselines_utils.cnn_and_lstm_network)
-            test_agent.reset()  # This sets test_agent.state_lstm = test_agent.initial_lstm_state, and sets self.mask=[False, False, ...]
-        return test_agent
-
-
-
-if __name__ == "__main__":
-    """
-    Run a qualitative experiment to test robustness of a trained agent. This code works through a suite of tests,
-    largely involving putting the test-subject-agent in a specific state, with a specific other player, then seeing if 
-    they can still play Overcooked from that position.
-    """
-    parser = ArgumentParser()
-    parser.add_argument("-l", "--layout", help="layout", required=False, default="counter_circuit")
-    parser.add_argument("-t", "--tests_to_run", default="all")
-    parser.add_argument("-pr", "--print_info", default=False, action='store_true')
-    parser.add_argument("-dr", "--display_runs", default=False, action='store_true')
-    # parser.add_argument("-pl", "--final_plot")
-    parser.add_argument("-a", "--num_avg", type=int, required=False, default=1)
-    parser.add_argument("-f", "--agent_from", type=str, required=True, help='e.g. lstm_expt_cc0')
-    parser.add_argument("-r", "--run_on", required=False, type=str, help="e.g. server or local", default='local')
-
-    args = parser.parse_args()
-
-    layout, tests_to_run, print_info, display_runs, num_avg, agent_from, run_on = \
-        args.layout, args.tests_to_run, str2bool(args.print_info), str2bool(args.display_runs), \
-        args.num_avg, args.agent_from, args.run_on
-
-    run_folder, run_names, seeds = get_run_info(agent_from)
-    DIR = return_agent_dir(run_on, run_folder)
-    mdp, mlp = make_mdp_mlp(layout)
-
-    results = []
-
-    for i, run_name in enumerate(run_names):
-
-        EXPT_DIR = DIR + '/' + run_name + '/'
-
-        for seed in seeds[i]:
-
-            agent_to_test = get_agent_to_test(agent_from, run_name, seed, layout, mdp, run_on)
-            agent_name = "{}{}".format(run_name, seed)
-
-            print('\n' + run_name + ' >> seed_' + str(seed))
-            time0 = time.perf_counter()
-            results.append(run_tests(layout, agent_to_test, tests_to_run, print_info, num_avg, mdp, mlp, display_runs, agent_name))
-            print('Time for this agent: {}'.format(time.perf_counter() - time0))
-
-    """POST PROCESSING..."""
-    # avg_dict = make_average_dict(run_names, results, bests, seeds)
-    # if final_plot is True:
-    #     plot_results(avg_dict, shorten)
-    # weighted_avg_dic = make_plot_weighted_avg_dict(run_names, results, bests, seeds)
-    # # save_results(avg_dict, weighted_avg_dic, results, run_folder, layout)
-    # print('\nFinal average dict: {}'.format(avg_dict))
-    # print('\nFinal wegihted avg: {}'.format(weighted_avg_dic))
-    print('\nFinal "results": {}'.format(results))
 
 
 # OLD

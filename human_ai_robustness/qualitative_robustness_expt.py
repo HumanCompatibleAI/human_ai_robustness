@@ -198,7 +198,9 @@ class Test1ai(AbstractRobustnessTest):
         super().__init__(mdp, testing_horizon, print_info, display_runs)
 
     def get_initial_states(self):
-        # NOTE: Given that there are only 4 settings, does that mean that there are only 5 possible success values (0,25,50,75,100)?
+        #TODO: Given that there are only 4 settings, does that mean that there are only 5 possible success values (0,25,50,75,100)?
+        # #pk: Yes this is correct. I was thinking about making all the tests have the same number of settings (e.g. 10)
+        # so that this is standardised, then all tests can get 0, 10, 20,... Any thought on this?
         initial_states_params = {
             'counter_circuit': [
                 {   "h_loc": (1, 2),     "r_loc": (1, 1),    "objects": { "dish": [(0, 1)]}                 },

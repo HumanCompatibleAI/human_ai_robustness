@@ -296,17 +296,24 @@ def run_tests(layout, test_agent, tests_to_run, print_info, num_avg, mdp, mlp, d
     results_this_agent = []
 
 
+
     # Test 1ai:
-    results_this_agent.append({'type': '1) Interacting with counters',
-            'description': 'Pick up a dish from a counter; H blocks dispenser (valid for layouts with one blockable dispenser)',
-            'number': '1ai',
-            'layouts': ['bottleneck', 'room', 'coordination_ring', 'counter_circuit'],
-            'score': None,
-            #TODO: None means "not sure if True or False"!
-            'robustness_to_states': None,  # Whether this test is testing robustness to (potentially unseen) states
-            'robustness_to_agents': None,  # Whether this test is testing robustness to unseen
-            'testing_other': ['reacting_to_other_agent', 'off_distribution_game_state']})
-    results_this_agent[-1]['score'] = run_test_1ai(...) if layout in results_this_agent[-1]['layouts'] else None  # If this test isn't valid for this layout, then give a score of None
+    test_metadata = {
+        'type': '1) Interacting with counters',
+        'description': 'Pick up a dish from a counter; H blocks dispenser (valid for layouts with one blockable dispenser)',
+        'number': '1ai',
+        'layouts': ['bottleneck', 'room', 'coordination_ring', 'counter_circuit'],
+        # TODO: None means "not sure if True or False"!
+        'robustness_to_states': None,  # Whether this test is testing robustness to (potentially unseen) states
+        'robustness_to_agents': None,  # Whether this test is testing robustness to unseen
+        'testing_other': ['reacting_to_other_agent', 'off_distribution_game_state']
+    }
+    # If this test isn't valid for this layout, then give a score of None,
+    test_score = run_test_1ai(test_agent, mdp, print_info, stationary_tom_agent, layout, display_runs) if layout in test_metadata['layouts'] else None, 
+    results_this_agent.append(
+        (test_score, test_metadata)
+    )
+
 
 
 
@@ -327,7 +334,7 @@ def run_tests(layout, test_agent, tests_to_run, print_info, num_avg, mdp, mlp, d
     #     # num_tests_all[1] = num_tests
 
     # print('RESULT: {}'.format(?))
-    return percent_success
+    return results_this_agent
 
 
 
@@ -428,6 +435,11 @@ def get_run_info(agent_from):
         run_names = ['cc_1tom', 'cc_20tom', 'cc_1bc', 'cc_20bc']
         seeds = [[3264, 4859, 9225]] * 4
 
+    elif agent_from == 'lstm_agent_cring_1tom_seed2732':
+        run_folder = agent_from
+        run_names = ["ok"]
+        seeds = [[2732]] #TODO why is seeds a list of lists?
+
     # if agent_from == 'toms':
     #     num_toms = 20
     #     run_names = ['tom{}'.format(i) for i in range(num_toms)]
@@ -450,8 +462,9 @@ def return_agent_dir(run_on, run_folder):
     if run_on == 'server_az':
         return '/home/paul/human_ai_robustness/human_ai_robustness/data/ppo_runs/' + run_folder
     elif run_on == 'local':
-        return '/home/pmzpk/Documents/hr_coordination_from_server_ONEDRIVE/' + run_folder \
-            if agent_from != 'toms' else ''
+        return '/Users/micah/Downloads/' + run_folder
+        # return '/home/pmzpk/Documents/hr_coordination_from_server_ONEDRIVE/' + run_folder \
+        #     if agent_from != 'toms' else ''
 
 def get_agent_to_test(agent_from, run_name, seed, layout, mdp, run_on):
     """Return the agent that will undergo the qualitative tests"""
@@ -479,8 +492,8 @@ if __name__ == "__main__":
     parser = ArgumentParser()
     parser.add_argument("-l", "--layout", help="layout", required=False, default="counter_circuit")
     parser.add_argument("-t", "--tests_to_run", default="all")
-    parser.add_argument("-pr", "--print_info", required=False, type=str, default=False)
-    parser.add_argument("-dr", "--display_runs", required=False, type=str, default=False)
+    parser.add_argument("-pr", "--print_info", default=False, action='store_true')
+    parser.add_argument("-dr", "--display_runs", default=False, action='store_true')
     # parser.add_argument("-pl", "--final_plot")
     parser.add_argument("-a", "--num_avg", type=int, required=False, default=1)
     parser.add_argument("-f", "--agent_from", type=str, required=True, help='e.g. lstm_expt_cc0')

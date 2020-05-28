@@ -102,6 +102,9 @@ venv.bak/
 
 # mypy
 .mypy_cache/
+
+# Custom gitignore
+.vscode
 /human_ai_robustness/data/ppo_runs/
 /human_ai_robustness/data/pbt_hms_runs/
 /human_ai_robustness/data/layouts/OLD_NAMES/

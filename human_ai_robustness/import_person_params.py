@@ -651,7 +651,8 @@ def make_random_tom_params(POP_SIZE):
 
 #------------------------------------------------------------------------------------#
 
-def import_manual_tom_params(layout_name, POP_SIZE, MAXLIKE, SELECT_TOM=False, TOM_PARAMS_TYPE="manual"):
+def import_manual_tom_params(layout_name, POP_SIZE, MAXLIKE=False, SELECT_TOM=False, TOM_PARAMS_TYPE="manual"):
+    # TODO: Made MAXLIKE default to False, unclear what this does
     """Import params manually chosen to give a diverse population of TOMs"""
 
     TOM_PARAMS_30 = make_30_tom_params()  # Needed to make 20-tom pop, and the validation set of 10 toms

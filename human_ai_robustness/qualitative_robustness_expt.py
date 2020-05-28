@@ -438,7 +438,9 @@ def get_run_info(agent_from):
     elif agent_from == 'lstm_agent_cring_1tom_seed2732':
         run_folder = agent_from
         run_names = ["ok"]
-        seeds = [[2732]] #TODO why is seeds a list of lists?
+        seeds = [[2732]] #TODO why is seeds a list of lists?  #pk This is a bad way to do it... but the first element
+        # in the list is a list of the seeds for the first "run_names", and so on. I did this because sometimes I was
+        # comparing two different runs that had different seeds.
 
     # if agent_from == 'toms':
     #     num_toms = 20

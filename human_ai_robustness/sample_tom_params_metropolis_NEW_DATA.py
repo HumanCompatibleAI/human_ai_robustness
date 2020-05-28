@@ -679,7 +679,7 @@ if __name__ == "__main__":
     #
     # ONLY FOR NEW LAYOUTS
     if layout in ['bottleneck', 'room', 'centre_objects', 'centre_pots']:
-        data_path = "data/human/anonymized/new_layouts/final_{}_trajs_paul.pickle".format('train')
+        data_path = "data/human/anonymized/clean_{}_trials_new_layouts.pkl".format('train')
         joint_expert_trajs = get_trajs_for_new_data_format(data_path, train_mdps)
 
     # Load (file I saved using pickle) instead FOR SIMPLE ONLY???: pickle_in = open('expert_trajs.pkl',

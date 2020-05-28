@@ -298,6 +298,9 @@ def run_tests(layout, test_agent, tests_to_run, print_info, num_avg, mdp, displa
     # Make all randomness deterministic
     set_global_seed(0)
 
+    # TODO: This method probably needs to be cleaned up a lot, but I'm not quite sure how it connects to
+    # the rest of the post-processing infrastructure so didn't yet attempt to
+    
     # Make TOM test agent:
     if test_agent.__class__ is str and test_agent[:3] == 'tom':
         mlp = make_mlp(mdp)

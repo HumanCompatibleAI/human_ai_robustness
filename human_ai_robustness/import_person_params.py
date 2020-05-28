@@ -1,5 +1,7 @@
 
 """Import the personality params for the different layouts"""
+import random
+
 
 def import_person_params(LAYOUT_NAME, num_toms):
 
@@ -470,32 +472,35 @@ def import_person_params(LAYOUT_NAME, num_toms):
     # return PERSON_PARAMS_HM0, PERSON_PARAMS_HM1, PERSON_PARAMS_HM2, PERSON_PARAMS_HM3
     return TOM_PARAMS
 
-def import_manual_tom_params(layout_name, POP_SIZE, MAXLIKE, SELECT_TOM=False):
-    """Import params manually chosen to give a diverse population of TOMs"""
-    ALL_TOM_PARAMS = []
+
+#---------- Manually choose TOM params for different POP sizes -----------------------#
+def make_30_tom_params():
+    TOM_PARAMS_30 = []
 
     # Agents with a fixed "personality type":
     for prob_greedy in range(2):
         for prob_obs_other in range(2):
-            ALL_TOM_PARAMS.append({'PROB_GREEDY_TOM': prob_greedy, 'PROB_OBS_OTHER_TOM': prob_obs_other,
-                                   'RETAIN_GOALS_TOM': 0, 'LOOK_AHEAD_STEPS_TOM': 4, 'PROB_THINKING_NOT_MOVING_TOM': 0.2,
+            TOM_PARAMS_30.append({'PROB_GREEDY_TOM': prob_greedy, 'PROB_OBS_OTHER_TOM': prob_obs_other,
+                                   'RETAIN_GOALS_TOM': 0, 'LOOK_AHEAD_STEPS_TOM': 4,
+                                   'PROB_THINKING_NOT_MOVING_TOM': 0.2,
                                    'COMPLIANCE_TOM': 0.9, 'PATH_TEAMWORK_TOM': 0.9, 'RAT_COEFF_TOM': 10,
                                    'PROB_PAUSING_TOM': 0.6})
-            ALL_TOM_PARAMS.append({'PROB_GREEDY_TOM': prob_greedy, 'PROB_OBS_OTHER_TOM': prob_obs_other,
+            TOM_PARAMS_30.append({'PROB_GREEDY_TOM': prob_greedy, 'PROB_OBS_OTHER_TOM': prob_obs_other,
                                    'RETAIN_GOALS_TOM': 0.8, 'LOOK_AHEAD_STEPS_TOM': 4,
                                    'PROB_THINKING_NOT_MOVING_TOM': 0,
                                    'COMPLIANCE_TOM': 0.1, 'PATH_TEAMWORK_TOM': 0.1, 'RAT_COEFF_TOM': 3,
                                    'PROB_PAUSING_TOM': 0.3})
-            ALL_TOM_PARAMS.append({'PROB_GREEDY_TOM': prob_greedy, 'PROB_OBS_OTHER_TOM': prob_obs_other,
-                                   'RETAIN_GOALS_TOM': 0, 'LOOK_AHEAD_STEPS_TOM': 4, 'PROB_THINKING_NOT_MOVING_TOM': 0.7,
+            TOM_PARAMS_30.append({'PROB_GREEDY_TOM': prob_greedy, 'PROB_OBS_OTHER_TOM': prob_obs_other,
+                                   'RETAIN_GOALS_TOM': 0, 'LOOK_AHEAD_STEPS_TOM': 4,
+                                   'PROB_THINKING_NOT_MOVING_TOM': 0.7,
                                    'COMPLIANCE_TOM': 0.9, 'PATH_TEAMWORK_TOM': 0.1, 'RAT_COEFF_TOM': 1,
                                    'PROB_PAUSING_TOM': 0.3})
-            ALL_TOM_PARAMS.append({'PROB_GREEDY_TOM': prob_greedy, 'PROB_OBS_OTHER_TOM': prob_obs_other,
+            TOM_PARAMS_30.append({'PROB_GREEDY_TOM': prob_greedy, 'PROB_OBS_OTHER_TOM': prob_obs_other,
                                    'RETAIN_GOALS_TOM': 0, 'LOOK_AHEAD_STEPS_TOM': 4,
                                    'PROB_THINKING_NOT_MOVING_TOM': 0.4,
                                    'COMPLIANCE_TOM': 0.5, 'PATH_TEAMWORK_TOM': 0.5, 'RAT_COEFF_TOM': 20,
                                    'PROB_PAUSING_TOM': 0.4})
-            ALL_TOM_PARAMS.append({'PROB_GREEDY_TOM': prob_greedy, 'PROB_OBS_OTHER_TOM': prob_obs_other,
+            TOM_PARAMS_30.append({'PROB_GREEDY_TOM': prob_greedy, 'PROB_OBS_OTHER_TOM': prob_obs_other,
                                    'RETAIN_GOALS_TOM': 0, 'LOOK_AHEAD_STEPS_TOM': 4,
                                    'PROB_THINKING_NOT_MOVING_TOM': 0.2,
                                    'COMPLIANCE_TOM': 0.1, 'PATH_TEAMWORK_TOM': 0.1, 'RAT_COEFF_TOM': 5,
@@ -505,106 +510,252 @@ def import_manual_tom_params(layout_name, POP_SIZE, MAXLIKE, SELECT_TOM=False):
     values = [[0.7, 0.3], [0.3, 0.7]]
     for i in range(len(values)):
         prob_greedy, prob_obs_other = values[i]
-        ALL_TOM_PARAMS.append({'PROB_GREEDY_TOM': prob_greedy, 'PROB_OBS_OTHER_TOM': prob_obs_other,
-                           'RETAIN_GOALS_TOM': 0, 'LOOK_AHEAD_STEPS_TOM': 4, 'PROB_THINKING_NOT_MOVING_TOM': 0.2,
-                           'COMPLIANCE_TOM': 0.9, 'PATH_TEAMWORK_TOM': 0.9, 'RAT_COEFF_TOM': 10, 'PROB_PAUSING_TOM': 0.6})
-        ALL_TOM_PARAMS.append({'PROB_GREEDY_TOM': prob_greedy, 'PROB_OBS_OTHER_TOM': prob_obs_other,
-                           'RETAIN_GOALS_TOM': 0.8, 'LOOK_AHEAD_STEPS_TOM': 4, 'PROB_THINKING_NOT_MOVING_TOM': 0,
-                           'COMPLIANCE_TOM': 0.1, 'PATH_TEAMWORK_TOM': 0.1, 'RAT_COEFF_TOM': 3, 'PROB_PAUSING_TOM': 0.3})
-        ALL_TOM_PARAMS.append({'PROB_GREEDY_TOM': prob_greedy, 'PROB_OBS_OTHER_TOM': prob_obs_other,
-                           'RETAIN_GOALS_TOM': 0, 'LOOK_AHEAD_STEPS_TOM': 4, 'PROB_THINKING_NOT_MOVING_TOM': 0.7,
-                           'COMPLIANCE_TOM': 0.9, 'PATH_TEAMWORK_TOM': 0.1, 'RAT_COEFF_TOM': 1, 'PROB_PAUSING_TOM': 0.3})
-        ALL_TOM_PARAMS.append({'PROB_GREEDY_TOM': prob_greedy, 'PROB_OBS_OTHER_TOM': prob_obs_other,
-                           'RETAIN_GOALS_TOM': 0, 'LOOK_AHEAD_STEPS_TOM': 4, 'PROB_THINKING_NOT_MOVING_TOM': 0.4,
-                           'COMPLIANCE_TOM': 0.5, 'PATH_TEAMWORK_TOM': 0.5, 'RAT_COEFF_TOM': 20, 'PROB_PAUSING_TOM': 0.4})
-        ALL_TOM_PARAMS.append({'PROB_GREEDY_TOM': prob_greedy, 'PROB_OBS_OTHER_TOM': prob_obs_other,
-                           'RETAIN_GOALS_TOM': 0, 'LOOK_AHEAD_STEPS_TOM': 4, 'PROB_THINKING_NOT_MOVING_TOM': 0.2,
-                           'COMPLIANCE_TOM': 0.1, 'PATH_TEAMWORK_TOM': 0.1, 'RAT_COEFF_TOM': 5, 'PROB_PAUSING_TOM': 0.5})
+        TOM_PARAMS_30.append({'PROB_GREEDY_TOM': prob_greedy, 'PROB_OBS_OTHER_TOM': prob_obs_other,
+                               'RETAIN_GOALS_TOM': 0, 'LOOK_AHEAD_STEPS_TOM': 4, 'PROB_THINKING_NOT_MOVING_TOM': 0.2,
+                               'COMPLIANCE_TOM': 0.9, 'PATH_TEAMWORK_TOM': 0.9, 'RAT_COEFF_TOM': 10,
+                               'PROB_PAUSING_TOM': 0.6})
+        TOM_PARAMS_30.append({'PROB_GREEDY_TOM': prob_greedy, 'PROB_OBS_OTHER_TOM': prob_obs_other,
+                               'RETAIN_GOALS_TOM': 0.8, 'LOOK_AHEAD_STEPS_TOM': 4, 'PROB_THINKING_NOT_MOVING_TOM': 0,
+                               'COMPLIANCE_TOM': 0.1, 'PATH_TEAMWORK_TOM': 0.1, 'RAT_COEFF_TOM': 3,
+                               'PROB_PAUSING_TOM': 0.3})
+        TOM_PARAMS_30.append({'PROB_GREEDY_TOM': prob_greedy, 'PROB_OBS_OTHER_TOM': prob_obs_other,
+                               'RETAIN_GOALS_TOM': 0, 'LOOK_AHEAD_STEPS_TOM': 4, 'PROB_THINKING_NOT_MOVING_TOM': 0.7,
+                               'COMPLIANCE_TOM': 0.9, 'PATH_TEAMWORK_TOM': 0.1, 'RAT_COEFF_TOM': 1,
+                               'PROB_PAUSING_TOM': 0.3})
+        TOM_PARAMS_30.append({'PROB_GREEDY_TOM': prob_greedy, 'PROB_OBS_OTHER_TOM': prob_obs_other,
+                               'RETAIN_GOALS_TOM': 0, 'LOOK_AHEAD_STEPS_TOM': 4, 'PROB_THINKING_NOT_MOVING_TOM': 0.4,
+                               'COMPLIANCE_TOM': 0.5, 'PATH_TEAMWORK_TOM': 0.5, 'RAT_COEFF_TOM': 20,
+                               'PROB_PAUSING_TOM': 0.4})
+        TOM_PARAMS_30.append({'PROB_GREEDY_TOM': prob_greedy, 'PROB_OBS_OTHER_TOM': prob_obs_other,
+                               'RETAIN_GOALS_TOM': 0, 'LOOK_AHEAD_STEPS_TOM': 4, 'PROB_THINKING_NOT_MOVING_TOM': 0.2,
+                               'COMPLIANCE_TOM': 0.1, 'PATH_TEAMWORK_TOM': 0.1, 'RAT_COEFF_TOM': 5,
+                               'PROB_PAUSING_TOM': 0.5})
+    return TOM_PARAMS_30
 
-    # Validation TOMs -- pick every 3rd:
+def make_5_tom_params():
+    TOM_PARAMS_5 = []
+    # Greedy and strong:
+    TOM_PARAMS_5.append({'PROB_GREEDY_TOM': 0.9, 'PROB_OBS_OTHER_TOM': 0.1,
+                          'RETAIN_GOALS_TOM': 0.5, 'LOOK_AHEAD_STEPS_TOM': 4, 'PROB_THINKING_NOT_MOVING_TOM': 0.3,
+                          'COMPLIANCE_TOM': 0.2, 'PATH_TEAMWORK_TOM': 0.8, 'RAT_COEFF_TOM': 10,
+                          'PROB_PAUSING_TOM': 0.3})
+    # Greedy and weak:
+    TOM_PARAMS_5.append({'PROB_GREEDY_TOM': 0.9, 'PROB_OBS_OTHER_TOM': 0.1,
+                         'RETAIN_GOALS_TOM': 0, 'LOOK_AHEAD_STEPS_TOM': 4, 'PROB_THINKING_NOT_MOVING_TOM': 0.1,
+                         'COMPLIANCE_TOM': 0.2, 'PATH_TEAMWORK_TOM': 0.2, 'RAT_COEFF_TOM': 2,
+                         'PROB_PAUSING_TOM': 0.7})
+    # Teamworky and strong:
+    TOM_PARAMS_5.append({'PROB_GREEDY_TOM': 0.1, 'PROB_OBS_OTHER_TOM': 0.2,
+                         'RETAIN_GOALS_TOM': 0.5, 'LOOK_AHEAD_STEPS_TOM': 4, 'PROB_THINKING_NOT_MOVING_TOM': 0.3,
+                         'COMPLIANCE_TOM': 0.8, 'PATH_TEAMWORK_TOM': 0.8, 'RAT_COEFF_TOM': 10,
+                         'PROB_PAUSING_TOM': 0.3})
+    # Teamworky and weak:
+    TOM_PARAMS_5.append({'PROB_GREEDY_TOM': 0.2, 'PROB_OBS_OTHER_TOM': 0.6,
+                         'RETAIN_GOALS_TOM': 0.2, 'LOOK_AHEAD_STEPS_TOM': 4, 'PROB_THINKING_NOT_MOVING_TOM': 0.1,
+                         'COMPLIANCE_TOM': 0.9, 'PATH_TEAMWORK_TOM': 0.4, 'RAT_COEFF_TOM': 4,
+                         'PROB_PAUSING_TOM': 0.6})
+    # Undecided:
+    TOM_PARAMS_5.append({'PROB_GREEDY_TOM': 0.5, 'PROB_OBS_OTHER_TOM': 0.5,
+                         'RETAIN_GOALS_TOM': 0.5, 'LOOK_AHEAD_STEPS_TOM': 4, 'PROB_THINKING_NOT_MOVING_TOM': 0.1,
+                         'COMPLIANCE_TOM': 0.5, 'PATH_TEAMWORK_TOM': 0.5, 'RAT_COEFF_TOM': 6,
+                         'PROB_PAUSING_TOM': 0.5})
+    return TOM_PARAMS_5
+
+def make_100_tom_params():
+    TOM_PARAMS_100 = []
+    # 4 different almost-fixed personality types, and one that flips between them
+    personality_values = [[0.1, 0.9], [0.9, 0.1], [0.1, 0.1], [0.9, 0.9], [0.5, 0.5]]
+    # Different levels of compliance and avoidance:
+    path_choice_values = [[1, 1], [0.9, 0.2], [0.2, 0.9], [0.1, 0.1]]
+    for i in range(len(personality_values)):
+        prob_greedy, prob_obs_other = personality_values[i]
+        for j in range(len(path_choice_values)):
+            compliance, path_teamwork = path_choice_values[j]
+
+            TOM_PARAMS_100.append({'PROB_GREEDY_TOM': prob_greedy, 'PROB_OBS_OTHER_TOM': prob_obs_other,
+                                  'RETAIN_GOALS_TOM': 0, 'LOOK_AHEAD_STEPS_TOM': 4, 'PROB_THINKING_NOT_MOVING_TOM': 0.2,
+                                  'COMPLIANCE_TOM': compliance, 'PATH_TEAMWORK_TOM': path_teamwork, 'RAT_COEFF_TOM': 10,
+                                  'PROB_PAUSING_TOM': 0.6})
+            TOM_PARAMS_100.append({'PROB_GREEDY_TOM': prob_greedy, 'PROB_OBS_OTHER_TOM': prob_obs_other,
+                                  'RETAIN_GOALS_TOM': 0.8, 'LOOK_AHEAD_STEPS_TOM': 4, 'PROB_THINKING_NOT_MOVING_TOM': 0,
+                                  'COMPLIANCE_TOM': compliance, 'PATH_TEAMWORK_TOM': path_teamwork, 'RAT_COEFF_TOM': 3,
+                                  'PROB_PAUSING_TOM': 0.3})
+            TOM_PARAMS_100.append({'PROB_GREEDY_TOM': prob_greedy, 'PROB_OBS_OTHER_TOM': prob_obs_other,
+                                  'RETAIN_GOALS_TOM': 0, 'LOOK_AHEAD_STEPS_TOM': 4, 'PROB_THINKING_NOT_MOVING_TOM': 0.7,
+                                  'COMPLIANCE_TOM': compliance, 'PATH_TEAMWORK_TOM': path_teamwork, 'RAT_COEFF_TOM': 1,
+                                  'PROB_PAUSING_TOM': 0.3})
+            TOM_PARAMS_100.append({'PROB_GREEDY_TOM': prob_greedy, 'PROB_OBS_OTHER_TOM': prob_obs_other,
+                                  'RETAIN_GOALS_TOM': 0, 'LOOK_AHEAD_STEPS_TOM': 4, 'PROB_THINKING_NOT_MOVING_TOM': 0.4,
+                                  'COMPLIANCE_TOM': compliance, 'PATH_TEAMWORK_TOM': path_teamwork, 'RAT_COEFF_TOM': 20,
+                                  'PROB_PAUSING_TOM': 0.4})
+            TOM_PARAMS_100.append({'PROB_GREEDY_TOM': prob_greedy, 'PROB_OBS_OTHER_TOM': prob_obs_other,
+                                  'RETAIN_GOALS_TOM': 0, 'LOOK_AHEAD_STEPS_TOM': 1, 'PROB_THINKING_NOT_MOVING_TOM': 0.2,
+                                  'COMPLIANCE_TOM': compliance, 'PATH_TEAMWORK_TOM': path_teamwork, 'RAT_COEFF_TOM': 5,
+                                  'PROB_PAUSING_TOM': 0.5})
+    return TOM_PARAMS_100
+
+def make_500_tom_params():
+
+    TOM_PARAMS_500 = []
+
+    # 4 different almost-fixed personality types, and one that flips between them
+    personality_values = [[0.1, 0.9], [0.9, 0.1], [0.1, 0.1], [0.9, 0.9], [0.5, 0.5]]
+    # Different levels of compliance and avoidance:
+    path_choice_values = [[1, 1], [0.9, 0.2], [0.2, 0.9], [0.1, 0.1]]
+    for i in range(len(personality_values)):
+        prob_greedy, prob_obs_other = personality_values[i]
+        for j in range(len(path_choice_values)):
+            compliance, path_teamwork = path_choice_values[j]
+
+            for rat_coeff in [0.5, 2, 5, 10, 20]:
+
+                TOM_PARAMS_500.append({'PROB_GREEDY_TOM': prob_greedy, 'PROB_OBS_OTHER_TOM': prob_obs_other,
+                                       'RETAIN_GOALS_TOM': 0, 'LOOK_AHEAD_STEPS_TOM': 4,
+                                       'PROB_THINKING_NOT_MOVING_TOM': 0.2,
+                                       'COMPLIANCE_TOM': compliance, 'PATH_TEAMWORK_TOM': path_teamwork,
+                                       'RAT_COEFF_TOM': rat_coeff,
+                                       'PROB_PAUSING_TOM': 0.6})
+                TOM_PARAMS_500.append({'PROB_GREEDY_TOM': prob_greedy, 'PROB_OBS_OTHER_TOM': prob_obs_other,
+                                       'RETAIN_GOALS_TOM': 0.8, 'LOOK_AHEAD_STEPS_TOM': 4,
+                                       'PROB_THINKING_NOT_MOVING_TOM': 0,
+                                       'COMPLIANCE_TOM': compliance, 'PATH_TEAMWORK_TOM': path_teamwork, 'RAT_COEFF_TOM': rat_coeff,
+                                       'PROB_PAUSING_TOM': 0.3})
+                TOM_PARAMS_500.append({'PROB_GREEDY_TOM': prob_greedy, 'PROB_OBS_OTHER_TOM': prob_obs_other,
+                                       'RETAIN_GOALS_TOM': 0, 'LOOK_AHEAD_STEPS_TOM': 4,
+                                       'PROB_THINKING_NOT_MOVING_TOM': 0.7,
+                                       'COMPLIANCE_TOM': compliance, 'PATH_TEAMWORK_TOM': path_teamwork, 'RAT_COEFF_TOM': rat_coeff,
+                                       'PROB_PAUSING_TOM': 0.3})
+                TOM_PARAMS_500.append({'PROB_GREEDY_TOM': prob_greedy, 'PROB_OBS_OTHER_TOM': prob_obs_other,
+                                       'RETAIN_GOALS_TOM': 0, 'LOOK_AHEAD_STEPS_TOM': 4,
+                                       'PROB_THINKING_NOT_MOVING_TOM': 0.4,
+                                       'COMPLIANCE_TOM': compliance, 'PATH_TEAMWORK_TOM': path_teamwork,
+                                       'RAT_COEFF_TOM': rat_coeff,
+                                       'PROB_PAUSING_TOM': 0.4})
+                TOM_PARAMS_500.append({'PROB_GREEDY_TOM': prob_greedy, 'PROB_OBS_OTHER_TOM': prob_obs_other,
+                                       'RETAIN_GOALS_TOM': 0, 'LOOK_AHEAD_STEPS_TOM': 1,
+                                       'PROB_THINKING_NOT_MOVING_TOM': 0.2,
+                                       'COMPLIANCE_TOM': compliance, 'PATH_TEAMWORK_TOM': path_teamwork, 'RAT_COEFF_TOM': rat_coeff,
+                                       'PROB_PAUSING_TOM': 0.5})
+    return TOM_PARAMS_500
+
+def make_random_tom_params(POP_SIZE):
+    TOM_PARAMS_RAND = []
+    for _ in range(POP_SIZE):
+        TOM_PARAMS_RAND.append({'PROB_GREEDY_TOM': random.random(), 'PROB_OBS_OTHER_TOM': random.random(),
+                                'RETAIN_GOALS_TOM': random.random(), 'LOOK_AHEAD_STEPS_TOM': random.random()*3+1.5,
+                                'PROB_THINKING_NOT_MOVING_TOM': random.random(),
+                                'COMPLIANCE_TOM': random.random(), 'PATH_TEAMWORK_TOM': random.random(),
+                                'RAT_COEFF_TOM': random.random()*10+0.5,
+                                'PROB_PAUSING_TOM': random.random()})
+    return TOM_PARAMS_RAND
+
+#------------------------------------------------------------------------------------#
+
+def import_manual_tom_params(layout_name, POP_SIZE, MAXLIKE, SELECT_TOM=False, TOM_PARAMS_TYPE="manual"):
+    """Import params manually chosen to give a diverse population of TOMs"""
+
+    TOM_PARAMS_30 = make_30_tom_params()  # Needed to make 20-tom pop, and the validation set of 10 toms
+
+    # Validation TOMs -- pick every 3rd of the 30 toms:
     val_indices = [3*i for i in range(10)]
-    VAL_TOM_PARAMS = [ALL_TOM_PARAMS[i] for i in val_indices]
-
-    # Training TOMs -- pick all others:
+    VAL_TOM_PARAMS = [TOM_PARAMS_30[i] for i in val_indices]
+    # Need to do this here, because when we use "SELECT_TOM", we're selecting specifically from the pop of 20:
     all_indices = [i for i in range(30)]
     train_indices = [i for i in all_indices if i not in val_indices]
-    TRAIN_TOM_PARAMS = [ALL_TOM_PARAMS[i] for i in train_indices]
+    TOM_PARAMS_20 = [TOM_PARAMS_30[i] for i in train_indices]
+
+    if TOM_PARAMS_TYPE == "manual":
+        if POP_SIZE == 20:
+            TRAIN_TOM_PARAMS = TOM_PARAMS_20
+        elif POP_SIZE == 5:
+            TRAIN_TOM_PARAMS = make_5_tom_params()
+        elif POP_SIZE == 100:
+            TRAIN_TOM_PARAMS = make_100_tom_params()
+        elif POP_SIZE == 500:
+            TRAIN_TOM_PARAMS = make_500_tom_params()
+        elif POP_SIZE == 1:
+            # Pick max likelihood params for the single TOM:
+            if MAXLIKE and SELECT_TOM == "False":  # Using the word "False", because if we want to select TOM=0 then SELECT_TOM = 0, but 0 == False!!
+                """For the single TOM, select the maximum likelihood set of params, found by doing metropolis sampling with HH data"""
+                if layout_name == "counter_circuit":
+                    # Highest likelihood up to 3000 samples. Likelihood: -14921.55667607874
+                    PROB_PAUSING = 0.49366365430559883
+                    TRAIN_TOM_PARAMS = [{'COMPLIANCE_TOM': 0.22539833701285775, 'RETAIN_GOALS_TOM': 3.885110977163834e-13,
+                                   'PATH_TEAMWORK_TOM': 0.7562684786967098, 'RAT_COEFF_TOM': 19.999999999967933,
+                                   'PROB_GREEDY_TOM': 0.5716194260999599, 'PROB_OBS_OTHER_TOM': 0.1330860714823573,
+                                   'LOOK_AHEAD_STEPS_TOM': 1.5000024536934997, 'PROB_THINKING_NOT_MOVING_TOM': 0,
+                                   'PROB_PAUSING_TOM': PROB_PAUSING}]
+                elif layout_name == "coordination_ring":
+                    # Highest likelihood up to 3000 samples. Likelihood: -17921.932272682305
+                    PROB_PAUSING = 0.5098243060609211
+                    TRAIN_TOM_PARAMS = [{'COMPLIANCE_TOM': 0.2646342605002149, 'RETAIN_GOALS_TOM': 0.010708449749251368,
+                                  'PATH_TEAMWORK_TOM': 0.4371879185279047, 'RAT_COEFF_TOM': 18.106521401923274,
+                                  'PROB_GREEDY_TOM': 0.3877372924867373, 'PROB_OBS_OTHER_TOM': 0.1867037186130322,
+                                  'LOOK_AHEAD_STEPS_TOM': 3.2141783158401314, 'PROB_THINKING_NOT_MOVING_TOM': 0,
+                                  'PROB_PAUSING_TOM': PROB_PAUSING}]
+                elif layout_name == "large_room":
+                    # Max likelihood up to 800 samples, but starting from params picked from a combo of what worked for other layouts
+                    PROB_PAUSING = 0.6038128538128538
+                    TRAIN_TOM_PARAMS = [{'COMPLIANCE_TOM': 0.22379399662155358, 'RETAIN_GOALS_TOM': 0.07587855435009,
+                                         'PATH_TEAMWORK_TOM': 0.6686248822994333, 'RAT_COEFF_TOM': 4.294084309293811,
+                                         'PROB_GREEDY_TOM': 0.21924930021200742, 'PROB_OBS_OTHER_TOM': 0.19623636267479602,
+                                         'LOOK_AHEAD_STEPS_TOM': 3.470639654438611, 'PROB_THINKING_NOT_MOVING_TOM': 0,
+                                         'PROB_PAUSING_TOM': PROB_PAUSING}]
+                elif layout_name == "bottleneck":
+                    # Max likelihood up to 800 samples, but starting from params picked from a combo of what worked for other layouts
+                    PROB_PAUSING = 0.6042189854344551
+                    TRAIN_TOM_PARAMS = [{'COMPLIANCE_TOM': 0.17546947032339116, 'RETAIN_GOALS_TOM': 0.1467081498151364,
+                                         'PATH_TEAMWORK_TOM': 0.5103522276091106, 'RAT_COEFF_TOM': 3.974656910215492,
+                                         'PROB_GREEDY_TOM': 0.4299872769651207, 'PROB_OBS_OTHER_TOM': 0.17359961740727764,
+                                         'LOOK_AHEAD_STEPS_TOM': 3.197079738534957, 'PROB_THINKING_NOT_MOVING_TOM': 0,
+                                         'PROB_PAUSING_TOM': PROB_PAUSING}]
+                elif layout_name == "centre_objects":
+                    # Max likelihood up to 600 samples, but starting from params picked from a combo of what worked for other layouts
+                    PROB_PAUSING = 0.6911542972022114
+                    TRAIN_TOM_PARAMS = [{'COMPLIANCE_TOM': 0.15028794098952822, 'RETAIN_GOALS_TOM': 0.094154094816602,
+                                         'PATH_TEAMWORK_TOM': 0.6522601047338349, 'RAT_COEFF_TOM': 5.356615185521225,
+                                         'PROB_GREEDY_TOM': 0.2655004908785008, 'PROB_OBS_OTHER_TOM': 0.3414306290487593,
+                                         'LOOK_AHEAD_STEPS_TOM': 3.0445140720248047, 'PROB_THINKING_NOT_MOVING_TOM': 0,
+                                         'PROB_PAUSING_TOM': PROB_PAUSING}]
+                elif layout_name == "centre_pots":
+                    # Max likelihood up to 600 samples, but starting from params picked from a combo of what worked for other layouts
+                    PROB_PAUSING = 0.6481668348469559
+                    TRAIN_TOM_PARAMS = [{'COMPLIANCE_TOM': 0.18577949715541736, 'RETAIN_GOALS_TOM': 0.08037119539531669,
+                                         'PATH_TEAMWORK_TOM': 0.6813200407380992, 'RAT_COEFF_TOM': 4.6965533857786435,
+                                         'PROB_GREEDY_TOM': 0.33725489330107356, 'PROB_OBS_OTHER_TOM': 0.2129522849017117,
+                                         'LOOK_AHEAD_STEPS_TOM': 2.9622148666795725, 'PROB_THINKING_NOT_MOVING_TOM': 0,
+                                         'PROB_PAUSING_TOM': PROB_PAUSING}]
+                else:
+                    raise ValueError("Need to find the maxlike params for this layout!")
+
+            else:
+                if SELECT_TOM == "True":
+                    TRAIN_TOM_PARAMS = [TOM_PARAMS_20[SELECT_TOM]]
+                    print("\nTOM selected from the pop of 20, with these params: {}\n".format(TRAIN_TOM_PARAMS))
+                else:
+                    raise ValueError("Not set up for this TOM type")
+                    # # For 1-pop, choose the median TOM (from the training set -- it shouldn't be in the validation set!), i.e. the
+                    # # TOM which gets the median score across TRAIN_TOM_PARAMS:
+                    # if layout_name == "counter_circuit":
+                    #     TRAIN_TOM_PARAMS = [TRAIN_TOM_PARAMS[0]]
+                    # elif layout_name == "asymmetric_advantages":
+                    #     TRAIN_TOM_PARAMS = [TRAIN_TOM_PARAMS[18]]
+                    # elif layout_name == "coordination_ring":
+                    #     TRAIN_TOM_PARAMS = [TRAIN_TOM_PARAMS[5]]
+                    # else:
+                    #     raise ValueError("Need to find the median for this layout!")
+        else:
+            raise ValueError("Not set up for this pop size ({})".format(POP_SIZE))
+    elif TOM_PARAMS_TYPE == "random":
+        TRAIN_TOM_PARAMS = make_random_tom_params(POP_SIZE)
 
     for param in VAL_TOM_PARAMS:  #TODO: Is there a one-line way to do this?
         assert param not in TRAIN_TOM_PARAMS
 
-    if POP_SIZE == 20:
-        pass
-    elif POP_SIZE == 1:
-        if MAXLIKE and SELECT_TOM == "False":  # Using the word "False", because if we want to select TOM=0 then SELECT_TOM = 0, but 0 == False!!
-            """For the single TOM, select the maximum likelihood set of params, found by doing metropolis sampling with HH data"""
-            if layout_name == "counter_circuit":
-                # Highest likelihood up to 3000 samples. Likelihood: -14921.55667607874
-                PROB_PAUSING = 0.49366365430559883
-                TRAIN_TOM_PARAMS = [{'COMPLIANCE_TOM': 0.22539833701285775, 'RETAIN_GOALS_TOM': 3.885110977163834e-13,
-                               'PATH_TEAMWORK_TOM': 0.7562684786967098, 'RAT_COEFF_TOM': 19.999999999967933,
-                               'PROB_GREEDY_TOM': 0.5716194260999599, 'PROB_OBS_OTHER_TOM': 0.1330860714823573,
-                               'LOOK_AHEAD_STEPS_TOM': 1.5000024536934997, 'PROB_THINKING_NOT_MOVING_TOM': 0,
-                               'PROB_PAUSING_TOM': PROB_PAUSING}]
-            elif layout_name == "coordination_ring":
-                # Highest likelihood up to 3000 samples. Likelihood: -17921.932272682305
-                PROB_PAUSING = 0.5098243060609211
-                TRAIN_TOM_PARAMS = [{'COMPLIANCE_TOM': 0.2646342605002149, 'RETAIN_GOALS_TOM': 0.010708449749251368,
-                              'PATH_TEAMWORK_TOM': 0.4371879185279047, 'RAT_COEFF_TOM': 18.106521401923274,
-                              'PROB_GREEDY_TOM': 0.3877372924867373, 'PROB_OBS_OTHER_TOM': 0.1867037186130322,
-                              'LOOK_AHEAD_STEPS_TOM': 3.2141783158401314, 'PROB_THINKING_NOT_MOVING_TOM': 0,
-                              'PROB_PAUSING_TOM': PROB_PAUSING}]
-            elif layout_name == "large_room":
-                # Max likelihood up to 800 samples, but starting from params picked from a combo of what worked for other layouts
-                PROB_PAUSING = 0.6038128538128538
-                TRAIN_TOM_PARAMS = [{'COMPLIANCE_TOM': 0.22379399662155358, 'RETAIN_GOALS_TOM': 0.07587855435009,
-                                     'PATH_TEAMWORK_TOM': 0.6686248822994333, 'RAT_COEFF_TOM': 4.294084309293811,
-                                     'PROB_GREEDY_TOM': 0.21924930021200742, 'PROB_OBS_OTHER_TOM': 0.19623636267479602,
-                                     'LOOK_AHEAD_STEPS_TOM': 3.470639654438611, 'PROB_THINKING_NOT_MOVING_TOM': 0,
-                                     'PROB_PAUSING_TOM': PROB_PAUSING}]
-            elif layout_name == "bottleneck":
-                # Max likelihood up to 800 samples, but starting from params picked from a combo of what worked for other layouts
-                PROB_PAUSING = 0.6042189854344551
-                TRAIN_TOM_PARAMS = [{'COMPLIANCE_TOM': 0.17546947032339116, 'RETAIN_GOALS_TOM': 0.1467081498151364,
-                                     'PATH_TEAMWORK_TOM': 0.5103522276091106, 'RAT_COEFF_TOM': 3.974656910215492,
-                                     'PROB_GREEDY_TOM': 0.4299872769651207, 'PROB_OBS_OTHER_TOM': 0.17359961740727764,
-                                     'LOOK_AHEAD_STEPS_TOM': 3.197079738534957, 'PROB_THINKING_NOT_MOVING_TOM': 0,
-                                     'PROB_PAUSING_TOM': PROB_PAUSING}]
-            elif layout_name == "centre_objects":
-                # Max likelihood up to 600 samples, but starting from params picked from a combo of what worked for other layouts
-                PROB_PAUSING = 0.6911542972022114
-                TRAIN_TOM_PARAMS = [{'COMPLIANCE_TOM': 0.15028794098952822, 'RETAIN_GOALS_TOM': 0.094154094816602,
-                                     'PATH_TEAMWORK_TOM': 0.6522601047338349, 'RAT_COEFF_TOM': 5.356615185521225,
-                                     'PROB_GREEDY_TOM': 0.2655004908785008, 'PROB_OBS_OTHER_TOM': 0.3414306290487593,
-                                     'LOOK_AHEAD_STEPS_TOM': 3.0445140720248047, 'PROB_THINKING_NOT_MOVING_TOM': 0,
-                                     'PROB_PAUSING_TOM': PROB_PAUSING}]
-            elif layout_name == "centre_pots":
-                # Max likelihood up to 600 samples, but starting from params picked from a combo of what worked for other layouts
-                PROB_PAUSING = 0.6481668348469559
-                TRAIN_TOM_PARAMS = [{'COMPLIANCE_TOM': 0.18577949715541736, 'RETAIN_GOALS_TOM': 0.08037119539531669,
-                                     'PATH_TEAMWORK_TOM': 0.6813200407380992, 'RAT_COEFF_TOM': 4.6965533857786435,
-                                     'PROB_GREEDY_TOM': 0.33725489330107356, 'PROB_OBS_OTHER_TOM': 0.2129522849017117,
-                                     'LOOK_AHEAD_STEPS_TOM': 2.9622148666795725, 'PROB_THINKING_NOT_MOVING_TOM': 0,
-                                     'PROB_PAUSING_TOM': PROB_PAUSING}]
-            else:
-                raise ValueError("Need to find the maxlike params for this layout!")
+    # Check no params are the same:
+    for i, param in enumerate(TRAIN_TOM_PARAMS):
+        for j, param2 in enumerate(TRAIN_TOM_PARAMS):
+            if i != j:
+                assert param != param2, "{} {}\n{}\n{}".format(i, j, param, param2)
 
-        else:
-            if SELECT_TOM == "False":
-                # For 1-pop, choose the median TOM (from the training set -- it shouldn't be in the validation set!), i.e. the
-                # TOM which gets the median score across TRAIN_TOM_PARAMS:
-                if layout_name == "counter_circuit":
-                    TRAIN_TOM_PARAMS = [TRAIN_TOM_PARAMS[0]]
-                elif layout_name == "asymmetric_advantages":
-                    TRAIN_TOM_PARAMS = [TRAIN_TOM_PARAMS[18]]
-                elif layout_name == "coordination_ring":
-                    TRAIN_TOM_PARAMS = [TRAIN_TOM_PARAMS[5]]
-                else:
-                    raise ValueError("Need to find the median for this layout!")
-            else:
-                TRAIN_TOM_PARAMS = [TRAIN_TOM_PARAMS[SELECT_TOM]]
-                print("\nTOM selected from the pop of 20, with these params: {}\n".format(TRAIN_TOM_PARAMS))
-    else:
-        raise ValueError("Only currently designed for pops of 1 or 20")
-
-    return VAL_TOM_PARAMS, TRAIN_TOM_PARAMS, ALL_TOM_PARAMS
+    return VAL_TOM_PARAMS, TRAIN_TOM_PARAMS, TOM_PARAMS_30

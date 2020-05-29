@@ -212,7 +212,9 @@ class Test1ai(AbstractRobustnessTest):
     test_types = ["state_robustness"] # TODO: actually check this, currently placeholder
 
     def get_initial_states(self):
-        # NOTE: Given that there are only 4 settings, does that mean that there are only 5 possible success values (0,25,50,75,100)?
+        #TODO: Given that there are only 4 settings, does that mean that there are only 5 possible success values (0,25,50,75,100)?
+        # #pk: Yes this is correct. I was thinking about making all the tests have the same number of settings (e.g. 10)
+        # so that this is standardised, then all tests can get 0, 10, 20,... Any thought on this?
         initial_states_params = {
             'counter_circuit': [
                 {   "h_loc": (1, 2),     "r_loc": (1, 1),    "objects": { "dish": [(0, 1)]}                 },
@@ -580,7 +582,9 @@ def get_run_info(agent_from):
     elif agent_from == 'lstm_agent_cring_1tom_seed2732':
         run_folder = agent_from
         run_names = ["ok"]
-        seeds = [[2732]] #TODO why is seeds a list of lists?
+        seeds = [[2732]] #TODO why is seeds a list of lists?  #pk This is a bad way to do it... but the first element
+        # in the list is a list of the seeds for the first "run_names", and so on. I did this because sometimes I was
+        # comparing two different runs that had different seeds.
 
     # if agent_from == 'toms':
     #     num_toms = 20

@@ -689,10 +689,11 @@ def import_manual_tom_params(layout_name, POP_SIZE, MAXLIKE=False, SELECT_TOM=Fa
                 elif layout_name == "coordination_ring":
                     # Highest likelihood up to 3000 samples. Likelihood: -17921.932272682305
                     PROB_PAUSING = 0.5098243060609211
+                    # TODO: Not sure why the LOOK_AHEAD_STEPS_TOM was not an int -> this will cause models to break. Temporarily fixed here for just this layout.
                     TRAIN_TOM_PARAMS = [{'COMPLIANCE_TOM': 0.2646342605002149, 'RETAIN_GOALS_TOM': 0.010708449749251368,
                                   'PATH_TEAMWORK_TOM': 0.4371879185279047, 'RAT_COEFF_TOM': 18.106521401923274,
                                   'PROB_GREEDY_TOM': 0.3877372924867373, 'PROB_OBS_OTHER_TOM': 0.1867037186130322,
-                                  'LOOK_AHEAD_STEPS_TOM': 3.2141783158401314, 'PROB_THINKING_NOT_MOVING_TOM': 0,
+                                  'LOOK_AHEAD_STEPS_TOM': int(3.2141783158401314), 'PROB_THINKING_NOT_MOVING_TOM': 0,
                                   'PROB_PAUSING_TOM': PROB_PAUSING}]
                 elif layout_name == "large_room":
                     # Max likelihood up to 800 samples, but starting from params picked from a combo of what worked for other layouts

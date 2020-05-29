@@ -1,26 +1,24 @@
-import time
+import time, copy, json
+import numpy as np
 from argparse import ArgumentParser
-from human_aware_rl.ppo.ppo_pop import get_ppo_agent, make_tom_agent
-from human_aware_rl.data_dir import DATA_DIR
-from human_aware_rl.imitation.behavioural_cloning import get_bc_agent_from_saved
-from human_aware_rl.utils import set_global_seed
+import matplotlib.pyplot as plt; plt.rcdefaults()
+
+from overcooked_ai_py.utils import mean_and_std_err
 from overcooked_ai_py.agents.agent import AgentPair, RandomAgent, StayAgent
 from overcooked_ai_py.mdp.actions import Direction
 from overcooked_ai_py.mdp.overcooked_env import OvercookedEnv
 from overcooked_ai_py.mdp.overcooked_mdp import OvercookedGridworld, PlayerState, ObjectState, OvercookedState
 from overcooked_ai_py.planning.planners import MediumLevelPlanner
-import numpy as np
-import copy
-import json
-
-import matplotlib.pyplot as plt; plt.rcdefaults()
-import numpy as np
-import matplotlib.pyplot as plt
+from human_aware_rl.ppo.ppo_pop import get_ppo_agent, make_tom_agent, get_ppo_run_seeds, PPO_DATA_DIR
+from human_aware_rl.data_dir import DATA_DIR
+from human_aware_rl.imitation.behavioural_cloning import get_bc_agent_from_saved
+from human_aware_rl.utils import set_global_seed
 
 from human_ai_robustness.agent import ToMModel
 from human_ai_robustness.import_person_params import import_manual_tom_params
-from human_aware_rl.data_dir import DATA_DIR
 
+
+ALL_LAYOUTS = ["counter_circuit", "coordination_ring", "bottleneck", "room", "centre_objects", "centre_pots"]
 
 no_counters_params = {
     'start_orientations': False,
@@ -30,7 +28,6 @@ no_counters_params = {
     'counter_pickup': [],
     'same_motion_goals': True
 }
-
 
 def get_layout_horizon(layout, horizon_length):
     """Return the horizon for given layout/length of task"""
@@ -54,21 +51,10 @@ def get_layout_horizon(layout, horizon_length):
         elif layout == 'coordination_ring':
             return extra_time + 25
 
-
-def make_median_tom_agent(mlp, layout):
-    """Make the Median TOM agent -- with params such that is has the median score with other manual param TOMs"""
-    _, alternate_names_params, _ = import_manual_tom_params(layout, 1)
-    return ToMModel.from_alternate_names_params_dict(mlp, alternate_names_params[0])
-
-def make_test_tom_agent(layout, mlp, tom_num):
-    """Make a TOM from the VAL OR TRAIN? set used for ppo"""
-    VAL_TOM_PARAMS, TRAIN_TOM_PARAMS, _ = import_manual_tom_params(layout, 20)
-    tom_agent = make_tom_agent(mlp)
-    tom_agent.set_tom_params(None, None, TRAIN_TOM_PARAMS, tom_params_choice=int(tom_num))
-    return tom_agent
-
 def make_ready_soup_at_loc(loc):
     return ObjectState('soup', loc, ('onion', 3, 20))
+
+
 
 
 ###################
@@ -100,7 +86,6 @@ class InitialStatesCreator(object):
             # lambdas too)
             h_loc = variation_params_dict["h_loc"]
             r_loc = variation_params_dict["r_loc"]
-            objects_variation = variation_params_dict["objects"]
 
             # Players
             h_state = PlayerState(h_loc, self.constants["h_orientation_fn"](), held_object=self.constants["h_held"](h_loc))
@@ -109,9 +94,10 @@ class InitialStatesCreator(object):
 
             # Objects
             objects = copy.deepcopy(self.constants["objects"])
-            for obj_name, obj_loc_list in objects_variation.items():
-                for obj_loc in obj_loc_list:
-                    objects[obj_loc] = (ObjectState(obj_name, obj_loc))
+            if "objects" in variation_params_dict.keys():
+                for obj_name, obj_loc_list in variation_params_dict["objects"].items():
+                    for obj_loc in obj_loc_list:
+                        objects[obj_loc] = (ObjectState(obj_name, obj_loc))
 
             # Overcooked state
             # TODO: Should have all order lists be None, but seems to break things?
@@ -128,12 +114,40 @@ class AbstractRobustnessTest(object):
     # NOTE: For all tests, H_model is on index 0 and trained_agent is on index 1!
     """
 
-    def __init__(self, mdp, testing_horizon, print_info, display_runs):
+    # Constant attributes
+    ALL_TEST_TYPES = ["state_robustness", "agent_robustness", "memory"]
+
+    # Attributes meant to be overwitten by subclasses
+    valid_layouts = ALL_LAYOUTS
+    test_types = None
+
+    def __init__(self, mdp, testing_horizon, trained_agent, trained_agent_type, agent_run_name, num_rollouts_per_initial_state=1, print_info=False, display_runs=False):
         self.mdp = mdp
         self.layout = mdp.layout_name
+        self.env_horizon = get_layout_horizon(self.layout, testing_horizon)
+        self.num_rollouts_per_initial_state = num_rollouts_per_initial_state
+
         self.print_info = print_info
         self.display_runs = display_runs
-        self.env_horizon = get_layout_horizon(self.layout, testing_horizon)
+
+        # Just a string of the name
+        self.trained_agent_type = trained_agent_type
+        self.agent_run_name = agent_run_name
+        self.success_rate = self.evaluate_agent_on_layout(trained_agent)
+
+        assert all(test_type in self.ALL_TEST_TYPES for test_type in self.test_types), "You need to set the self.test_types class attribute for this specific test class, and each test type must be among the following: {}".format(self.test_types)
+
+    def to_dict(self):
+        """To enable pickling if one wants to save the test data for later processing"""
+        return {
+            "layout": self.layout,
+            "env_horizon": self.env_horizon,
+            "test_types": self.test_types,
+            "num_rollouts_per_initial_state": self.num_rollouts_per_initial_state,
+            "trained_agent_type": self.trained_agent_type,
+            "agent_run_name": self.agent_run_name,
+            "success_rate": self.success_rate
+        }
 
     def setup_human_model(self):
         raise NotImplementedError()
@@ -145,31 +159,31 @@ class AbstractRobustnessTest(object):
 
         for initial_state in self.get_initial_states():
 
-            # Check it's a valid state:
-            mdp._check_valid_state(initial_state)
+            for _ in range(self.num_rollouts_per_initial_state):
+                # Check it's a valid state:
+                self.mdp._check_valid_state(initial_state)
 
-            # Setup env
-            env = OvercookedEnv(mdp, start_state_fn=lambda: initial_state, horizon=self.env_horizon)
+                # Setup env
+                env = OvercookedEnv(self.mdp, start_state_fn=lambda: initial_state, horizon=self.env_horizon)
 
-            # Play with the tom agent from this state and record score
-            agent_pair = AgentPair(H_model, trained_agent)
-            final_state = env.get_rollouts(agent_pair, num_games=1, final_state=True, display=display_runs, info=False)["ep_observations"][0][-1]
-            
-            if self.print_info:
-                env.state = initial_state
-                print('\nInitial state:\n{}'.format(env))
-                env.state = final_state
-                print('\nFinal state:\n{}'.format(env))
+                # Play with the tom agent from this state and record score
+                agent_pair = AgentPair(H_model, trained_agent)
+                final_state = env.get_rollouts(agent_pair, num_games=1, final_state=True, display=self.display_runs, info=False)["ep_observations"][0][-1]
+                
+                if self.print_info:
+                    env.state = initial_state
+                    print('\nInitial state:\n{}'.format(env))
+                    env.state = final_state
+                    print('\nFinal state:\n{}'.format(env))
 
-            success = self.is_success(initial_state, final_state)
-            subtest_successes.append(success)
+                success = self.is_success(initial_state, final_state)
+                subtest_successes.append(success)
 
-            if self.print_info:
-                print(sum(subtest_successes)/len(subtest_successes))
-                print('Subtest successes: {}'.format(subtest_successes))
+                if self.print_info:
+                    print(sum(subtest_successes)/len(subtest_successes))
+                    print('Subtest successes: {}'.format(subtest_successes))
 
-        success_rate = sum(subtest_successes)/len(subtest_successes)
-        return success_rate
+        return sum(subtest_successes)/len(subtest_successes)
 
     def is_success(self, final_state):
         raise NotImplementedError()
@@ -194,8 +208,8 @@ class Test1ai(AbstractRobustnessTest):
     POSSIBLE ADDITIONS: Give H no object. More positions for R.
     """
 
-    def __init__(self, mdp, testing_horizon, print_info, display_runs):
-        super().__init__(mdp, testing_horizon, print_info, display_runs)
+    valid_layouts = ['bottleneck', 'room', 'coordination_ring', 'counter_circuit']
+    test_types = ["state_robustness"] # TODO: actually check this, currently placeholder
 
     def get_initial_states(self):
         #TODO: Given that there are only 4 settings, does that mean that there are only 5 possible success values (0,25,50,75,100)?
@@ -224,7 +238,7 @@ class Test1ai(AbstractRobustnessTest):
             "r_orientation_fn": lambda: Direction.random_direction(),
             "objects": { loc : make_ready_soup_at_loc(loc) for loc in self.mdp.get_pot_locations() }
         }
-        return InitialStatesCreator(initial_states_params, constants, mdp).get_initial_states()
+        return InitialStatesCreator(initial_states_params, constants, self.mdp).get_initial_states()
 
     def setup_human_model(self):
         return StayAgent()
@@ -244,21 +258,6 @@ class Test1ai(AbstractRobustnessTest):
 # TEST 1Bi #
 ############
 
-def make_cring_standard_test_positions():
-    # Make the standard_test_positions for CRING:
-    standard_test_positions = []
-    # top-R / bottom-L:
-    standard_test_positions.append({'r_loc': (3, 1), 'h_loc': (3, 2)})
-    standard_test_positions.append({'r_loc': (3, 1), 'h_loc': (2, 1)})
-    standard_test_positions.append({'r_loc': (1, 3), 'h_loc': (1, 1)})
-    standard_test_positions.append({'r_loc': (1, 3), 'h_loc': (3, 3)})
-    # Both near dish/soup:
-    standard_test_positions.append({'r_loc': (1, 2), 'h_loc': (3, 3)})
-    standard_test_positions.append({'r_loc': (2, 3), 'h_loc': (1, 1)})
-    # Diagonal:
-    standard_test_positions.append({'r_loc': (1, 1), 'h_loc': (3, 3)})
-    standard_test_positions.append({'r_loc': (3, 3), 'h_loc': (1, 1)})
-    return standard_test_positions
 
 class Test1bi(AbstractRobustnessTest):
     """
@@ -274,15 +273,46 @@ class Test1bi(AbstractRobustnessTest):
                 H has nothing
     """
 
-    def __init__(self, mdp, testing_horizon, print_info, display_runs):
-        super().__init__(mdp, testing_horizon, print_info, display_runs)
+    test_types = ["state_robustness"] # TODO: actually check this, currently placeholder
 
     def get_initial_states(self):
-        # TODO: copy over starting locations from Standard Starting Locations?
-        pass
+        initial_states_params = {
+            'coordination_ring': [
+                # top-R / bottom-L:
+                {   "h_loc": (3, 2),     "r_loc": (3, 1) },
+                {   "h_loc": (2, 1),     "r_loc": (3, 1) },
+                {   "h_loc": (1, 1),     "r_loc": (1, 3) },
+                {   "h_loc": (3, 3),     "r_loc": (1, 3) },
+                # Both near dish/soup:
+                {   "h_loc": (3, 3),     "r_loc": (1, 2) },
+                {   "h_loc": (1, 1),     "r_loc": (2, 3) },
+                # Diagonal:
+                {   "h_loc": (3, 3),     "r_loc": (1, 1) },
+                {   "h_loc": (1, 1),     "r_loc": (3, 3) }
+            ],
+        }
+        constants_variant_A = {
+            "h_held": lambda h_loc: None,
+            "h_orientation_fn": lambda: Direction.random_direction(),
+            "r_held": lambda r_loc: ObjectState("dish", r_loc),
+            "r_orientation_fn": lambda: Direction.random_direction(),
+            "objects": {}
+        }
+
+        constants_variant_B = {
+            "h_held": lambda h_loc: None,
+            "h_orientation_fn": lambda: Direction.random_direction(),
+            "r_held": lambda r_loc: ObjectState("onion", r_loc),
+            "r_orientation_fn": lambda: Direction.random_direction(),
+            "objects": { loc : make_ready_soup_at_loc(loc) for loc in self.mdp.get_pot_locations() }
+        }
+
+        variant_A_states = InitialStatesCreator(initial_states_params, constants_variant_A, self.mdp).get_initial_states()
+        variant_B_states = InitialStatesCreator(initial_states_params, constants_variant_B, self.mdp).get_initial_states()
+        return variant_A_states + variant_B_states
 
     def setup_human_model(self):
-        return make_median_tom_agent(make_mlp(self.mdp), self.layout)
+        return make_median_tom_agent(self.mdp)
 
     def is_success(self, initial_state, final_state):
         trained_agent_initial_state = initial_state.players[1]
@@ -291,53 +321,186 @@ class Test1bi(AbstractRobustnessTest):
         # Agent must have gotten rid of initial object
         success = not (trained_agent_final_state.has_object() and trained_agent_final_state.get_object().name == initial_object)
         if success and self.print_info:
-            print('PPO no longer has the dish --> success!')
+            print('PPO no longer has the {} --> success!'.format(initial_object))
         return success
 
 
-def run_tests(layout, test_agent, tests_to_run, print_info, num_avg, mdp, display_runs, agent_name):
+#####################
+# AGENT SETUP UTILS #
+#####################
+
+def setup_agents_to_evaluate(mdp, agent_type, agent_run_name, agent_seeds, agent_save_location):
+    assert agent_save_location == "local", "Currently anything else is unsupported"
+
+    if agent_type != "ppo":
+        assert agent_seeds is None, "For all agent types except ppo agents, agent_seeds should be None"
+
+    if agent_type == "ppo":
+        seeds = get_ppo_run_seeds(agent_run_name) if agent_seeds is None else agent_seeds
+        agents = []
+        for seed in seeds:
+            ppo_agent_base_path = PPO_DATA_DIR + agent_run_name + "/"
+            agent, _ = get_ppo_agent(ppo_agent_base_path, seed=seed)
+            agents.append(agent)
+    elif agent_type == "bc":
+        raise [get_bc_agent(agent_run_name)]
+    elif agent_type == "tom":
+        agents = [make_median_tom_agent(mdp)]
+    elif agent_type == "opt_tom":
+        raise NotImplementedError("need to implement this")
+    elif agent_type == "rnd":
+        agents = [RandomAgent()]
+    else:
+        raise ValueError("Unrecognized agent type")
+
+    assert len(agents) > 0
+    return agents
+
+def get_bc_agent(agent_run_name):
+    """Return the BC agent for this layout and seed"""
+    raise NotImplementedError("Should port over code from ppo_pop to ensure that the BC agent used is the same as the one used for PPO_BC_1 training")
+    bc_agent, _ = get_bc_agent_from_saved(agent_run_name, unblock_if_stuck=True, stochastic=True, overwrite_bc_save_dir=None)
+    return bc_agent
+
+
+##################
+# MAKE TOM UTILS #
+##################
+
+def make_test_tom(mdp):
+    # TODO: Not sure what type of agent this is supposed to be - OPT?
+    mlp = make_mlp(mdp)
+    test_agent = make_test_tom_agent(mdp.layout_name, mlp, tom_num=test_agent[3])
+    print('Setting prob_pausing = 0')
+    test_agent.prob_pausing = 0
+
+def make_median_tom_agent(mdp):
+    """Make the Median TOM agent -- with params such that is has the median score with other manual param TOMs"""
+    mlp = make_mlp(mdp)
+    _, alternate_names_params, _ = import_manual_tom_params(mdp.layout_name, 1)
+    return ToMModel.from_alternate_names_params_dict(mlp, alternate_names_params[0])
+
+def make_test_tom_agent(mdp, tom_num):
+    # TODO: What is this?
+    """Make a TOM from the VAL OR TRAIN? set used for ppo"""
+    mlp = make_mlp(mdp)
+    VAL_TOM_PARAMS, TRAIN_TOM_PARAMS, _ = import_manual_tom_params(mdp.layout_name, 20)
+    tom_agent = make_tom_agent(mlp)
+    tom_agent.set_tom_params(None, None, TRAIN_TOM_PARAMS, tom_params_choice=int(tom_num))
+    return tom_agent
+
+
+#####################
+# MAIN TEST RUNNING #
+#####################
+
+all_tests = [Test1ai, Test1bi]
+
+def run_tests(tests_to_run, layout, num_avg, agent_type, agent_run_name, agent_save_location, agent_seeds, print_info, display_runs):
 
     # Make all randomness deterministic
     set_global_seed(0)
 
-    # TODO: This method probably needs to be cleaned up a lot, but I'm not quite sure how it connects to
-    # the rest of the post-processing infrastructure so didn't yet attempt to
-    
-    # Make TOM test agent:
-    if test_agent.__class__ is str and test_agent[:3] == 'tom':
-        mlp = make_mlp(mdp)
-        test_agent = make_test_tom_agent(layout, mlp, tom_num=test_agent[3])
-        print('Setting prob_pausing = 0')
-        test_agent.prob_pausing = 0
+    # Set up agent to evaluate
+    mdp = make_mdp(layout)
+    agents_to_eval = setup_agents_to_evaluate(mdp, agent_type, agent_run_name, agent_seeds, agent_save_location)
 
-    # TODO: Add metadata in Test1ai class
-    test1ai = Test1ai(mdp, "medium", print_info=print_info, display_runs=display_runs)
-    print("Horizon", test1ai.env_horizon)
-    results_dict_this_agent = {agent_name: test1ai.evaluate_agent_on_layout(test_agent)}
+    tests = {}
+    for test_class in all_tests:
+        results_across_seeds = []
 
+        for agent_to_eval in agents_to_eval:
+            test_object = test_class(mdp, "medium", trained_agent=agent_to_eval, trained_agent_type=agent_type, agent_run_name=agent_run_name, num_rollouts_per_initial_state=num_avg, print_info=print_info, display_runs=display_runs)
+            results_across_seeds.append(test_object.to_dict())
 
-    # percent_success = [None]*10
-    #
-    # if "1" in tests_to_run or tests_to_run == "all":
-    #     # TEST 1: "H stands still with X, where X CANNOT currently be used"
-    #     count_successes = []
-    #     for _ in range(num_avg):
-    #         count_success, num_tests = h_random_unusable_object(test_agent, mdp, standard_test_positions,
-    #                                                             print_info, random_tom_agent, layout, display_runs)
-    #         count_successes.append(count_success)
-    #     percent_success[1] = round(100 * np.mean(count_successes) / num_tests)
-    #     # num_tests_all[1] = num_tests
+        tests[test_object.__class__.__name__] = aggregate_test_results_across_seeds(results_across_seeds)
 
-    # print('RESULT: {}'.format(?))
-    return results_dict_this_agent
+    # TODO: once we have these objects, we can easily apply filtering on all the data to generate
+    # test-type specific plots and so on.
 
+    print("Test results", tests)
 
+    return tests
 
+def aggregate_test_results_across_seeds(results):
+    for result_dict in results:
+        for k, v in result_dict.items():
+            if k != "success_rate":
+                # All dict entries across seeds should be the same except for the success rate
+                assert v == results[0][k]
+
+    final_dict = copy.deepcopy(results[0])
+    del final_dict["success_rate"]
+    final_dict["success_rate_mean_and_se"] = mean_and_std_err([result["success_rate"] for result in results])
+    return final_dict
 
 
 #####################################
 # SETUP AND RESULT PROCESSING UTILS #
 #####################################
+
+def make_mdp(layout):
+    # Make the standard mdp for this layout:
+    mdp = OvercookedGridworld.from_layout_name(layout, start_order_list=['any'] * 100, cook_time=20,
+                                               rew_shaping_params=None)
+    return mdp
+
+def make_mlp(mdp):
+    no_counters_params['counter_drop'] = mdp.get_counter_locations()
+    no_counters_params['counter_goals'] = mdp.get_counter_locations()
+    return MediumLevelPlanner.from_pickle_or_compute(mdp, no_counters_params, force_compute=False)
+
+
+
+if __name__ == "__main__":
+    """
+    Run a qualitative experiment to test robustness of a trained agent. This code works through a suite of tests,
+    largely involving putting the test-subject-agent in a specific state, with a specific other player, then seeing if 
+    they can still play Overcooked from that position.
+    """
+    parser = ArgumentParser()
+    parser.add_argument("-t", "--tests_to_run", default="all")
+    parser.add_argument("-l", "--layout", help="layout", required=True)
+    parser.add_argument("-n", "--num_avg", type=int, required=False, default=1)
+    parser.add_argument("-a_t", "--agent_type", type=str, required=True, default="ppo") # Must be one of ["ppo", "bc", "tom", "opt_tom"]
+    parser.add_argument("-a_n", "--agent_run_name", type=str, required=False, help='e.g. lstm_expt_cc0')
+    parser.add_argument("-a_s", "--agent_seeds", type=str, required=False, help='[9999, 8888]')
+    parser.add_argument("-r", "--agent_save_location", required=False, type=str, help="e.g. server or local", default='local') # NOTE: removed support for this temporarily
+    parser.add_argument("-pr", "--print_info", default=False, action='store_true')
+    parser.add_argument("-dr", "--display_runs", default=False, action='store_true')
+
+    args = parser.parse_args()
+    run_tests(**args.__dict__)
+
+
+
+
+############
+# OLD CODE #
+############
+
+
+    # results = []
+
+    # for i, run_name in enumerate(run_names):
+
+    #     for seed in seeds[i]:
+
+    #         print('\n' + run_name + ' >> seed_' + str(seed))
+    #         time0 = time.perf_counter()
+    #         results.append()
+    #         print('Time for this agent: {}'.format(time.perf_counter() - time0))
+
+    # """POST PROCESSING..."""
+    # # avg_dict = make_average_dict(run_names, results, bests, seeds)
+    # # if final_plot is True:
+    # #     plot_results(avg_dict, shorten)
+    # # weighted_avg_dic = make_plot_weighted_avg_dict(run_names, results, bests, seeds)
+    # # # save_results(avg_dict, weighted_avg_dic, results, run_folder, layout)
+    # # print('\nFinal average dict: {}'.format(avg_dict))
+    # # print('\nFinal wegihted avg: {}'.format(weighted_avg_dic))
+    # print('\nFinal "results": {}'.format(results))
+
 
 # def plot_results(avg_dict, shorten=False):
 #
@@ -396,17 +559,6 @@ def save_results(avg_dict, weighted_avg_dict, results, run_folder, layout):
     with open(filename, 'w') as json_file:
         json.dump(results, json_file)
 
-def make_mdp(layout):
-    # Make the standard mdp for this layout:
-    mdp = OvercookedGridworld.from_layout_name(layout, start_order_list=['any'] * 100, cook_time=20,
-                                               rew_shaping_params=None)
-    return mdp
-
-def make_mlp(mdp):
-    no_counters_params['counter_drop'] = mdp.get_counter_locations()
-    no_counters_params['counter_goals'] = mdp.get_counter_locations()
-    return MediumLevelPlanner.from_pickle_or_compute(mdp, no_counters_params, force_compute=False)
-
 def get_bc_agent(seed, layout, mdp, run_on):
     """Return the BC agent for this layout and seed"""
     bc_name = layout + "_bc_train_seed{}".format(seed)
@@ -417,16 +569,6 @@ def get_bc_agent(seed, layout, mdp, run_on):
                                            overwrite_bc_save_dir=BC_LOCAL_DIR)
     bc_agent.set_mdp(mdp)
     return bc_agent
-
-def str2bool(v):
-    if isinstance(v, bool):
-        return v
-    if v.lower() in ('yes', 'true', 'True', 't', 'y', '1'):
-        return True
-    elif v.lower() in ('no', 'false', 'False', 'f', 'n', '0'):
-        return False
-    else:
-        raise ValueError('Boolean value expected')
 
 def get_run_info(agent_from):
     """Return the seeds and run_names for the run in run_folder"""
@@ -478,73 +620,7 @@ def get_agent_to_test(agent_from, run_name, seed, layout, mdp, run_on):
     elif agent_from == 'bc':
         return get_bc_agent(seed, layout, mdp, run_on)
     else:
-        test_agent, config = get_ppo_agent(EXPT_DIR, seed, best='train')
-        if config['NETWORK_TYPE'] == 'cnn_lstm_overcooked':
-            test_agent.initial_lstm_state = np.zeros([config['sim_threads'], 2 * config['NLSTM']],
-                                                     dtype=float)  # The lstm state [has shape num_envs , 2*nlstm] (see baselines_utils.cnn_and_lstm_network)
-            test_agent.reset()  # This sets test_agent.state_lstm = test_agent.initial_lstm_state, and sets self.mask=[False, False, ...]
-        return test_agent
-
-
-
-if __name__ == "__main__":
-    """
-    Run a qualitative experiment to test robustness of a trained agent. This code works through a suite of tests,
-    largely involving putting the test-subject-agent in a specific state, with a specific other player, then seeing if 
-    they can still play Overcooked from that position.
-    """
-    parser = ArgumentParser()
-    parser.add_argument("-l", "--layout", help="layout", required=False, default="counter_circuit")
-    parser.add_argument("-t", "--tests_to_run", default="all")
-    parser.add_argument("-pr", "--print_info", default=False, action='store_true')
-    parser.add_argument("-dr", "--display_runs", default=False, action='store_true')
-    # parser.add_argument("-pl", "--final_plot")
-    parser.add_argument("-a", "--num_avg", type=int, required=False, default=1)
-    parser.add_argument("-f", "--agent_from", type=str, required=True, help='e.g. lstm_expt_cc0')
-    parser.add_argument("-r", "--run_on", required=False, type=str, help="e.g. server or local", default='local')
-
-    args = parser.parse_args()
-
-    layout, tests_to_run, print_info, display_runs, num_avg, agent_from, run_on = \
-        args.layout, args.tests_to_run, str2bool(args.print_info), str2bool(args.display_runs), \
-        args.num_avg, args.agent_from, args.run_on
-
-    run_folder, run_names, seeds = get_run_info(agent_from)
-    DIR = return_agent_dir(run_on, run_folder)
-    mdp = make_mdp(layout)
-
-    results = []
-
-    for i, run_name in enumerate(run_names):
-
-        EXPT_DIR = DIR + '/' + run_name + '/'
-
-        for seed in seeds[i]:
-
-            agent_to_test = get_agent_to_test(agent_from, run_name, seed, layout, mdp, run_on)
-            agent_name = "{}{}".format(run_name, seed)
-
-            print('\n' + run_name + ' >> seed_' + str(seed))
-            time0 = time.perf_counter()
-            results.append(run_tests(layout, agent_to_test, tests_to_run, print_info, num_avg, mdp, display_runs, agent_name))
-            print('Time for this agent: {}'.format(time.perf_counter() - time0))
-
-    """POST PROCESSING..."""
-    # avg_dict = make_average_dict(run_names, results, bests, seeds)
-    # if final_plot is True:
-    #     plot_results(avg_dict, shorten)
-    # weighted_avg_dic = make_plot_weighted_avg_dict(run_names, results, bests, seeds)
-    # # save_results(avg_dict, weighted_avg_dic, results, run_folder, layout)
-    # print('\nFinal average dict: {}'.format(avg_dict))
-    # print('\nFinal wegihted avg: {}'.format(weighted_avg_dic))
-    print('\nFinal "results": {}'.format(results))
-
-
-
-
-############
-# OLD CODE #
-############
+        return get_ppo_agent(EXPT_DIR, seed, best='train')[0]
 
 
 # def make_cc_standard_test_positions():

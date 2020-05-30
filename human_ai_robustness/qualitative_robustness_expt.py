@@ -52,6 +52,18 @@ def get_layout_horizon(layout, horizon_length):
             return extra_time + 25
 
 
+# TODO: Should be using AgentEvaluator everywhere for standard mdp/mlp setups
+def make_mdp(layout):
+    # Make the standard mdp for this layout:
+    mdp = OvercookedGridworld.from_layout_name(layout, start_order_list=['any'] * 100, cook_time=20, rew_shaping_params=None)
+    return mdp
+
+def make_mlp(mdp):
+    no_counters_params['counter_drop'] = mdp.get_counter_locations()
+    no_counters_params['counter_goals'] = mdp.get_counter_locations()
+    return MediumLevelPlanner.from_pickle_or_compute(mdp, no_counters_params, force_compute=False)
+
+
 ##############################
 # INITIAL STATES SETUP UTILS #
 ##############################
@@ -107,8 +119,9 @@ class InitialStatesCreator(object):
             players = [h_state, r_state]
 
             # Objects
-            objects = copy.deepcopy(self.constants["objects"])
+            objects = {}
             if "objects" in variation_params_dict.keys():
+                objects = copy.deepcopy(self.constants["objects"])
                 for obj_name, obj_loc_list in variation_params_dict["objects"].items():
                     for obj_loc in obj_loc_list:
                         objects[obj_loc] = self.custom_object_creation(obj_name, obj_loc)
@@ -232,6 +245,7 @@ class Test1(AbstractRobustnessTest):
 
     # NOTE: all subtests are state_robustness tests excpet for 1ai
     test_types = ["state_robustness"]
+
 
 class Test1ai(Test1):
     """
@@ -559,6 +573,119 @@ class Test1bii(Test1):
         return success
 
 
+##########
+# TEST 2 #
+##########
+
+
+class Test2(AbstractRobustnessTest):
+    
+    # TODO: think more about this classification, and in general we should double check them all at the end
+    test_types = ["state_robustness"]
+
+
+class Test2a(Test2):
+    """
+    Getting out the way of H: R in the way of H, where H has the right object
+
+    A:
+    - H has onion, onion needed in pot
+
+    B:
+    - H has dish, dish needed
+
+    Success: pot state has changed
+    """
+
+    def get_initial_states(self):
+        initial_states_params_AB = {
+            'coordination_ring': [
+                { "h_loc": (1, 1),     "r_loc": (2, 1) },
+                { "h_loc": (2, 1),     "r_loc": (3, 1) },
+                { "h_loc": (3, 2),     "r_loc": (3, 1) },
+                { "h_loc": (3, 3),     "r_loc": (3, 2) },
+            ]
+        }
+        constants_A = {
+            "h_held": lambda h_loc: ObjectState("onion", h_loc),
+            "r_held": lambda r_loc: None,
+            "objects": { loc : make_soup_missing_one_onion(loc) for loc in self.mdp.get_pot_locations() }
+        }
+        constants_B = {
+            "h_held": lambda h_loc: ObjectState("dish", h_loc),
+            "r_held": lambda r_loc: None,
+            "objects": { loc : make_ready_soup_at_loc(loc) for loc in self.mdp.get_pot_locations() }
+        }
+
+        initial_states_A = InitialStatesCreator(initial_states_params_AB, constants_A, self.mdp).get_initial_states()
+        initial_states_B = InitialStatesCreator(initial_states_params_AB, constants_B, self.mdp).get_initial_states()
+        return initial_states_A + initial_states_B
+
+    def setup_human_model(self):
+        return make_median_tom_agent(self.mdp)
+
+    def is_success(self, initial_state, final_state, success_info=None):
+        initial_soup_state = initial_state.unowned_objects_by_type["soup"]
+        final_soup_state = final_state.unowned_objects_by_type["soup"]
+        success = initial_soup_state != final_soup_state
+        if success and self.print_info:
+            print('The pot state has changed --> success!')
+        return success
+
+
+class Test2b(Test2):
+    """
+    Getting out the way of H: H is holding a soup, and R is on the shortest path for H to deliver soup
+
+    - H has soup
+
+    Success: H not holding soup anymore
+    """
+
+    def get_initial_states(self):
+        initial_states_params = {
+            'coordination_ring': [
+                { "h_loc": (1, 3),     "r_loc": (2, 3) },
+                { "h_loc": (3, 1),     "r_loc": (3, 2) },
+                { "h_loc": (3, 2),     "r_loc": (3, 3) }
+            ]
+        }
+        constants = {
+            "h_held": lambda h_loc: make_ready_soup_at_loc(h_loc),
+            "r_held": lambda r_loc: None
+        }
+        return InitialStatesCreator(initial_states_params, constants, self.mdp).get_initial_states()
+
+    def setup_human_model(self):
+        return make_median_tom_agent(self.mdp)
+
+    def is_success(self, initial_state, final_state, success_info=None):
+        tom_agent = final_state.players[0]
+        tom_holding_soup = tom_agent.has_object() and tom_agent.get_object().name == "soup"
+        success = not tom_holding_soup
+        if success and self.print_info:
+            print('ToM not longer holding soup --> success!')
+        return success
+
+
+##########
+# TEST 3 #
+##########
+
+class Test3(AbstractRobustnessTest):
+    
+    test_types = ["agent_robustness"]
+
+
+##########
+# TEST 4 #
+##########
+
+class Test4(AbstractRobustnessTest):
+    
+    test_types = ["agent_robustness", "memory"]
+
+
 #####################
 # AGENT SETUP UTILS #
 #####################
@@ -632,7 +759,9 @@ def make_test_tom_agent(mdp, tom_num):
 # MAIN TEST RUN MANAGEMENT #
 ############################
 
-all_tests = [Test1bii] # [Test1ai, Test1aii, Test1bi]
+
+all_tests = [Test1ai, Test1aii, Test1aiii, Test1bi, Test1bii, Test2a, Test2b]
+
 
 def run_tests(tests_to_run, layout, num_avg, agent_type, agent_run_name, agent_save_location, agent_seeds, print_info, display_runs):
 
@@ -648,6 +777,7 @@ def run_tests(tests_to_run, layout, num_avg, agent_type, agent_run_name, agent_s
         results_across_seeds = []
 
         for agent_to_eval in agents_to_eval:
+            # TODO: Fix env horizon -> currently I've just set it to be medium acrosss all tests
             test_object = test_class(mdp, "medium", trained_agent=agent_to_eval, trained_agent_type=agent_type, agent_run_name=agent_run_name, num_rollouts_per_initial_state=num_avg, print_info=print_info, display_runs=display_runs)
             results_across_seeds.append(test_object.to_dict())
 
@@ -658,7 +788,15 @@ def run_tests(tests_to_run, layout, num_avg, agent_type, agent_run_name, agent_s
 
     print("Test results", tests)
 
+    state_robustness_tests = filter_tests_by_attribute(tests, "test_types", ["state_robustness"])
+    print(get_average_success_rate_across_tests(state_robustness_tests))
+
     return tests
+
+
+###########################
+# RESULT PROCESSING UTILS #
+###########################
 
 def aggregate_test_results_across_seeds(results):
     for result_dict in results:
@@ -672,23 +810,23 @@ def aggregate_test_results_across_seeds(results):
     final_dict["success_rate_mean_and_se"] = mean_and_std_err([result["success_rate"] for result in results])
     return final_dict
 
+def filter_tests_by_attribute(tests_dict, attribute, value):
+    """
+    Returns tests that have `attribute` == `value`
+    """
+    filtered_tests = {}
+    for test_name, test_data_dict in tests_dict.items():
+        if test_data_dict[attribute] == value:
+            filtered_tests[test_name] = test_data_dict
+    return filtered_tests
 
-#####################################
-# SETUP AND RESULT PROCESSING UTILS #
-#####################################
-
-def make_mdp(layout):
-    # Make the standard mdp for this layout:
-    mdp = OvercookedGridworld.from_layout_name(layout, start_order_list=['any'] * 100, cook_time=20,
-                                               rew_shaping_params=None)
-    return mdp
-
-def make_mlp(mdp):
-    no_counters_params['counter_drop'] = mdp.get_counter_locations()
-    no_counters_params['counter_goals'] = mdp.get_counter_locations()
-    return MediumLevelPlanner.from_pickle_or_compute(mdp, no_counters_params, force_compute=False)
+def get_average_success_rate_across_tests(tests_dict):
+    return np.mean([test["success_rate_mean_and_se"][0] for test in tests_dict.values()])
 
 
+##########################
+# COMMAND LINE INTERFACE #
+##########################
 
 if __name__ == "__main__":
     """

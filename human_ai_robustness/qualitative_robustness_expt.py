@@ -826,9 +826,6 @@ def filter_tests_by_attribute(tests_dict, attribute, value):
 def get_average_success_rate_across_tests(tests_dict):
     return np.mean([test["success_rate_mean_and_se"][0] for test in tests_dict.values()])
 
-def plot_test_dict(tests_dict):
-    pass
-
 
 ##########################
 # COMMAND LINE INTERFACE #

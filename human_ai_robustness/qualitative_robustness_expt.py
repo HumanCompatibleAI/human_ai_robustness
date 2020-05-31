@@ -3,7 +3,7 @@ import numpy as np
 from argparse import ArgumentParser
 import matplotlib.pyplot as plt; plt.rcdefaults()
 
-from overcooked_ai_py.utils import mean_and_std_err
+from overcooked_ai_py.utils import mean_and_std_err, save_pickle
 from overcooked_ai_py.agents.agent import AgentPair, RandomAgent, StayAgent
 from overcooked_ai_py.mdp.actions import Direction
 from overcooked_ai_py.mdp.overcooked_env import OvercookedEnv
@@ -791,6 +791,9 @@ def run_tests(tests_to_run, layout, num_avg, agent_type, agent_run_name, agent_s
     state_robustness_tests = filter_tests_by_attribute(tests, "test_types", ["state_robustness"])
     print(get_average_success_rate_across_tests(state_robustness_tests))
 
+    # This is how I created the sample data
+    # save_pickle(tests, "sample_data")
+
     return tests
 
 
@@ -822,6 +825,9 @@ def filter_tests_by_attribute(tests_dict, attribute, value):
 
 def get_average_success_rate_across_tests(tests_dict):
     return np.mean([test["success_rate_mean_and_se"][0] for test in tests_dict.values()])
+
+def plot_test_dict(tests_dict):
+    pass
 
 
 ##########################

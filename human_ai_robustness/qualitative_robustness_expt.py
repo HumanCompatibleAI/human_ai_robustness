@@ -9,7 +9,7 @@ from overcooked_ai_py.mdp.actions import Direction
 from overcooked_ai_py.mdp.overcooked_env import OvercookedEnv
 from overcooked_ai_py.mdp.overcooked_mdp import OvercookedGridworld, PlayerState, ObjectState, OvercookedState
 from overcooked_ai_py.planning.planners import MediumLevelPlanner
-from human_aware_rl.ppo.ppo_pop import get_ppo_agent, make_tom_agent, get_ppo_run_seeds, PPO_DATA_DIR
+from human_aware_rl.ppo.ppo_pop import get_ppo_agent, make_tom_agent, get_ppo_run_seeds
 from human_aware_rl.data_dir import DATA_DIR
 from human_aware_rl.imitation.behavioural_cloning import get_bc_agent_from_saved
 from human_aware_rl.utils import set_global_seed
@@ -32,25 +32,20 @@ no_counters_params = {
 def get_layout_horizon(layout, horizon_length):
     """Return the horizon for given layout/length of task"""
     # TODO: Clean this function: either make horizon a hardcoded property of each test, or turn this into a global dictionary
-    # extra_time = 0 if test_agent.__class__ is ToMModel else 0  # For test runs, e.g. if we want to give the TOM extra time
-    extra_time = 0
-    if extra_time != 0:
-        print('>>>>>>> Extra time = {} <<<<<<<<'.format(extra_time))
     if horizon_length == 'short':
-        return extra_time + 10
-
+        return 10
     elif horizon_length == 'medium':
         if layout in ['coordination_ring', 'centre_pots']:
-            return extra_time + 15
+            return 15
         else:
-            return extra_time + 20
-
+            return 20
     elif horizon_length == 'long':
         if layout == 'counter_circuit':
-            return extra_time + 30
+            return 30
         elif layout == 'coordination_ring':
-            return extra_time + 25
-
+            return 25
+        else:
+            raise NotImplementedError
 
 # TODO: Should be using AgentEvaluator everywhere for standard mdp/mlp setups
 def make_mdp(layout):
@@ -118,9 +113,8 @@ class InitialStatesCreator(object):
             players = [h_state, r_state]
 
             # Objects
-            objects = {}
+            objects = {} if "objects" not in self.constants.keys() else copy.deepcopy(self.constants["objects"])
             if "objects" in variation_params_dict.keys():
-                objects = copy.deepcopy(self.constants["objects"])
                 for obj_name, obj_loc_list in variation_params_dict["objects"].items():
                     for obj_loc in obj_loc_list:
                         objects[obj_loc] = self.custom_object_creation(obj_name, obj_loc)
@@ -166,10 +160,10 @@ class AbstractRobustnessTest(object):
     valid_layouts = ALL_LAYOUTS
     test_types = None
 
-    def __init__(self, mdp, testing_horizon, trained_agent, trained_agent_type, agent_run_name, num_rollouts_per_initial_state=1, print_info=False, display_runs=False):
+    def __init__(self, mdp, trained_agent, trained_agent_type, agent_run_name, num_rollouts_per_initial_state=1, print_info=False, display_runs=False):
         self.mdp = mdp
         self.layout = mdp.layout_name
-        self.env_horizon = get_layout_horizon(self.layout, testing_horizon)
+        self.env_horizon = self.set_testing_horizon()
         self.num_rollouts_per_initial_state = num_rollouts_per_initial_state
 
         self.print_info = print_info
@@ -178,7 +172,8 @@ class AbstractRobustnessTest(object):
         # Just a string of the name
         self.trained_agent_type = trained_agent_type
         self.agent_run_name = agent_run_name
-        self.success_rate = self.evaluate_agent_on_layout(trained_agent)        
+        #TODO: What to do if the layout isn't valid for this test?
+        self.success_rate = self.evaluate_agent_on_layout(trained_agent) if self.layout in self.valid_layouts else None
         self._check_valid_class()
 
     def to_dict(self):
@@ -192,6 +187,9 @@ class AbstractRobustnessTest(object):
             "agent_run_name": self.agent_run_name,
             "success_rate": self.success_rate
         }
+
+    def set_testing_horizon(self):
+        raise NotImplementedError()
 
     def setup_human_model(self):
         raise NotImplementedError()
@@ -218,7 +216,7 @@ class AbstractRobustnessTest(object):
                     env.state = initial_state
                     print('\nInitial state:\n{}'.format(env))
                     env.state = final_state
-                    print('\nFinal state:\n{}'.format(env))
+                    print('Final state:\n{}'.format(env))
 
                 success = self.is_success(initial_state, final_state, success_info)
                 subtest_successes.append(success)
@@ -317,7 +315,6 @@ class Test1(AbstractRobustnessTest):
     # NOTE: all subtests are state_robustness tests excpet for 1ai
     test_types = ["state_robustness"]
 
-
 class Test1ai(Test1):
     """
     Pick up a dish from a counter: H blocks dispenser (in layouts with a dispenser that can be blocked)
@@ -330,6 +327,9 @@ class Test1ai(Test1):
 
     POSSIBLE ADDITIONS: Give H no object. More positions for R.
     """
+
+    def set_testing_horizon(self):
+        return get_layout_horizon(self.layout, "medium")
 
     valid_layouts = ['bottleneck', 'room', 'coordination_ring', 'counter_circuit']
     test_types = ["memory"]
@@ -401,6 +401,9 @@ class Test1aii(Test1):
     
     Success: R picks up the counter object
     """
+
+    def set_testing_horizon(self):
+        return get_layout_horizon(self.layout, "short")
 
     def get_initial_states(self):
 
@@ -521,7 +524,8 @@ class Test1aii(Test1):
 
         all_initial_objects_still_in_same_position = all(init_loc in final_counter_objs_locations for init_loc in initial_counter_obj_locations)
 
-        # TODO: Should make this more stringent to make sure that it was the trained agent who picked up the object
+        # TODO: Should make this more stringent to make sure that it was the trained agent who picked up the object. pk:
+        #  Isn't it a separate test to see whether an agent can correctly use an object they're holding?
         # Could make this more stringent by requiring trained agent to still be holding object or have successfully used it
         success = not all_initial_objects_still_in_same_position 
         if success and self.print_info:
@@ -540,6 +544,9 @@ class Test1aiii(Test1):
 
     Success: R picking up any soup
     """
+
+    def set_testing_horizon(self):
+        return get_layout_horizon(self.layout, "short")
 
     def get_initial_states(self):
         initial_states_params = {
@@ -630,6 +637,9 @@ class Test1bi(Test1):
                 H has nothing
     """
 
+    def set_testing_horizon(self):
+        return get_layout_horizon(self.layout, "short")
+
     def get_initial_states(self):
 
         initial_states_params = standard_test_positions
@@ -688,6 +698,9 @@ class Test1bii(Test1):
     """
 
     # test_types # TODO: could make a variant that is dependent on "how much faster H is than R", making it "agent_robustness"
+
+    def set_testing_horizon(self):
+        return get_layout_horizon(self.layout, "short")
 
     def get_initial_states(self):
         initial_states_params = {
@@ -782,6 +795,9 @@ class Test2a(Test2):
     Success: pot state has changed
     """
 
+    def set_testing_horizon(self):
+        return get_layout_horizon(self.layout, "medium")
+
     valid_layouts = ['bottleneck', 'room', 'coordination_ring', 'counter_circuit', 'centre_objects']
 
     def get_initial_states(self):
@@ -834,7 +850,7 @@ class Test2a(Test2):
         return initial_states_A + initial_states_B
 
     def setup_human_model(self):
-        return make_mle_tom_agent(self.mdp)
+        return make_greedy_opt_tom(self.mdp)  # The score depends on the *partner* delivering the soup, so it's important to have an opponent who will do this quickly
 
     def is_success(self, initial_state, final_state, success_info=None):
         initial_soup_state = initial_state.unowned_objects_by_type["soup"]
@@ -853,6 +869,9 @@ class Test2b(Test2):
 
     Success: H not holding soup anymore
     """
+
+    def set_testing_horizon(self):
+        return get_layout_horizon(self.layout, "medium")
 
     def get_initial_states(self):
         initial_states_params = {
@@ -894,7 +913,7 @@ class Test2b(Test2):
         return InitialStatesCreator(initial_states_params, constants, self.mdp).get_initial_states()
 
     def setup_human_model(self):
-        return make_mle_tom_agent(self.mdp)
+        return make_greedy_opt_tom(self.mdp)  # The score depends on the *partner* delivering the soup, so it's important to have an opponent who will do this quickly
 
     def is_success(self, initial_state, final_state, success_info=None):
         tom_agent = final_state.players[0]
@@ -925,8 +944,10 @@ class Test3(AbstractRobustnessTest):
             print('The pot state has changed --> success!')
         return success
 
+    def set_testing_horizon(self):
+        return get_layout_horizon(self.layout, "long")
 
-class Test3a(AbstractRobustnessTest):
+class Test3a(Test3):
 
     """Tests 3a: H is a stationary agent"""
 
@@ -941,8 +962,6 @@ class Test3ai(Test3a):
     def get_initial_states(self):
 
         initial_states_params = standard_test_positions
-
-        #TODO: pk: Check that make_soup_missing_one_onion and make_ready_soup_at_loc are used correctly here
 
         constants_A = {
             "h_held": lambda h_loc: None,
@@ -974,8 +993,6 @@ class Test3aii(Test3a):
 
         initial_states_params = standard_test_positions
 
-        # TODO: pk: Check that make_soup_missing_one_onion and make_ready_soup_at_loc are used correctly here
-
         constants_A = {
             "h_held": lambda h_loc: ObjectState("onion", h_loc),
             "r_held": lambda r_loc: None,
@@ -1000,8 +1017,6 @@ class Test3aiii(Test3a):
 
         initial_states_params = standard_test_positions
 
-        # TODO: pk: Check that make_soup_missing_one_onion and make_ready_soup_at_loc are used correctly here
-
         constants = {
             "h_held": lambda h_loc: make_ready_soup_at_loc(h_loc),
             "r_held": lambda r_loc: None,
@@ -1025,9 +1040,8 @@ class Test3bi(Test3b):
     """H is holding nothing or an object that can’t currently be used"""
 
     def get_initial_states(self):
-        initial_states_params = standard_test_positions
 
-        # TODO: pk: Check that make_soup_missing_one_onion and make_ready_soup_at_loc are used correctly here
+        initial_states_params = standard_test_positions
 
         constants_A = {
             "h_held": lambda h_loc: None,
@@ -1056,9 +1070,8 @@ class Test3bii(Test3b):
     """H is holding a dish or onion, which can currently be used"""
 
     def get_initial_states(self):
-        initial_states_params = standard_test_positions
 
-        # TODO: pk: Check that make_soup_missing_one_onion and make_ready_soup_at_loc are used correctly here
+        initial_states_params = standard_test_positions
 
         constants_A = {
             "h_held": lambda h_loc: ObjectState("onion", h_loc),
@@ -1081,9 +1094,8 @@ class Test3biii(Test3b):
     """H is holding a soup"""
 
     def get_initial_states(self):
-        initial_states_params = standard_test_positions
 
-        # TODO: pk: Check that make_soup_missing_one_onion and make_ready_soup_at_loc are used correctly here
+        initial_states_params = standard_test_positions
 
         constants = {
             "h_held": lambda h_loc: make_ready_soup_at_loc(h_loc),
@@ -1100,60 +1112,22 @@ class Test3biii(Test3b):
 
 class Test4(AbstractRobustnessTest):
 
-    """R is in a state that it probably wouldn’t see often  -- R must just carry on and keep playing"""
-    
-    test_types = ["agent_robustness", "memory"]
-
-
-class Test4a(Test4):
-
     """
-    R and H are far apart. R is in a location that it probably wouldn’t have encountered during training.
-    H is the StayAgent (so this has similarities to Test3, but here we explicitly put R is unlikely states)
+    R is in a state that it probably wouldn’t see often  -- R must just carry on and keep playing.
+
+    Details: R has correct object. Other has incorrect object and is stationary. Random orientations. R is in an
+    unlikely location given the circumstances (e.g. holding O/D, and neither near the dispenser or the pot).
+
+    Success: R has used the object, so the pot state has changed .
+
+    Possible additions: More locations? R holding dish?
     """
-
-    def get_initial_states(self):
-        
-        # Holding a dish near the pot, but pots are empty:  #TODO: too similar to 1bi?
-        initial_states_params_A = {
-            'coordination_ring': [
-                {   "h_loc": (1, 3),     "r_loc": (3, 1),
-                    "r_orientation_fn": lambda: Direction.NORTH},
-                {   "h_loc": (1, 2),     "r_loc": (3, 1),   
-                    "r_orientation_fn": lambda: Direction.EAST}
-            ],
-            'counter_circuit': [
-                {   "h_loc": (3, 3),     "r_loc": (3, 1),   
-                    "r_orientation_fn": lambda: Direction.NORTH},
-                {   "h_loc": (5, 3),     "r_loc": (4, 1),   
-                    "r_orientation_fn": lambda: Direction.NORTH}],
-            'bottleneck': [
-                {   "h_loc": (2, 1),     "r_loc": (4, 3),   
-                    "r_orientation_fn": lambda: Direction.SOUTH},
-                {   "h_loc": (2, 2),     "r_loc": (5, 3),   
-                    "r_orientation_fn": lambda: Direction.SOUTH}],
-            'large_room': [
-                {   "h_loc": (3, 4),     "r_loc": (3, 1),   
-                    "r_orientation_fn": lambda: Direction.NORTH},
-                {   "h_loc": (4, 5),     "r_loc": (3, 2),   
-                    "r_orientation_fn": lambda: Direction.NORTH}],
-
-        # TODO: THIS IS UNFINISHED! Need to check it and add more locations
-
-            'centre_pots': ...,
-            'centre_objects': ...,
-        }
-        constants_A = {
-            "h_held": lambda h_loc: ObjectState("onion", h_loc),
-            "h_orientation_fn": lambda: Direction.random_direction(),
-            "r_held": lambda r_loc: ObjectState("dish", r_loc),
-            "objects": {}
-        }
-
-        initial_states_A = InitialStatesCreator(initial_states_params_A, constants_A, self.mdp).get_initial_states()
-
-        return initial_states_A
     
+    test_types = ["state_robustness"]
+
+    def set_testing_horizon(self):
+        return get_layout_horizon(self.layout, "medium")
+
     def setup_human_model(self):
         return StayAgent()
 
@@ -1166,10 +1140,115 @@ class Test4a(Test4):
         return success
 
 
-class Test4(Test4):
+class Test4a(Test4):
 
-    """R and H are next to one another and both in locations probably not encountered during training"""
-    raise NotImplementedError()
+    """4a) R has onion, pot needs onion."""
+
+    valid_layouts = ['bottleneck', 'room', 'centre_objects', 'centre_pots']  # For cc and cring, all locations are reasonable
+
+    def get_initial_states(self):
+        initial_states_params = {
+            'coordination_ring': None,
+            'counter_circuit': None,
+        }
+
+        constants = {
+            "h_held": lambda h_loc: ObjectState("dish", h_loc),
+            "r_held": lambda r_loc: ObjectState("onion", r_loc),
+            "objects": {loc: make_soup_missing_one_onion(loc) for loc in self.mdp.get_pot_locations()}
+        }
+
+        return InitialStatesCreator(initial_states_params, constants, self.mdp).get_initial_states()
+
+
+class Test4b(Test4):
+
+    """4b) R has dish"""
+
+    valid_layouts = ['bottleneck', 'room', 'centre_objects', 'centre_pots']  # For cc and cring, all locations are reasonable
+
+    def get_initial_states(self):
+        initial_states_params = {
+            'coordination_ring': None,
+            'counter_circuit': None,
+        }
+
+        constants = {
+            "h_held": lambda h_loc: ObjectState("onion", h_loc),
+            "r_held": lambda r_loc: ObjectState("dish", r_loc),
+            "objects": {loc: make_ready_soup_at_loc(loc) for loc in self.mdp.get_pot_locations()}
+        }
+
+        return InitialStatesCreator(initial_states_params, constants, self.mdp).get_initial_states()
+
+
+class Test4c(Test4):
+
+    """4c) R has onion, pot needs onion, and there are onions all over the counters"""
+
+    def get_initial_states(self):
+
+        initial_states_params = standard_test_positions
+
+        objects = {loc: make_soup_missing_one_onion(loc) for loc in self.mdp.get_pot_locations()}
+        objects.update({loc: ObjectState("onion", loc) for loc in self.mdp.get_counter_locations()})
+
+        constants = {
+            "h_held": lambda h_loc: ObjectState("dish", h_loc),
+            "r_held": lambda r_loc: ObjectState("onion", r_loc),
+            "objects": objects
+        }
+
+        return InitialStatesCreator(initial_states_params, constants, self.mdp).get_initial_states()
+
+
+# OLD TEST 4a and 4b:
+# class Test4a(Test4):
+#
+#     """
+#     R and H are far apart. R is in a location that it probably wouldn’t have encountered during training.
+#     H is the StayAgent (so this has similarities to Test3, but here we explicitly put R is unlikely states)
+#     """
+#
+#     def get_initial_states(self):
+#
+#         # Holding a dish near the pot, but pots are empty:
+#         initial_states_params_A = {
+#             'coordination_ring': [
+#                 {   "h_loc": (1, 3),     "r_loc": (3, 1),
+#                     "r_orientation_fn": lambda: Direction.NORTH},
+#                 {   "h_loc": (1, 2),     "r_loc": (3, 1),
+#                     "r_orientation_fn": lambda: Direction.EAST}
+#             ],
+#             'counter_circuit': [
+#                 {   "h_loc": (3, 3),     "r_loc": (3, 1),
+#                     "r_orientation_fn": lambda: Direction.NORTH},
+#                 {   "h_loc": (5, 3),     "r_loc": (4, 1),
+#                     "r_orientation_fn": lambda: Direction.NORTH}],
+#             'bottleneck': [
+#                 {   "h_loc": (2, 1),     "r_loc": (4, 3),
+#                     "r_orientation_fn": lambda: Direction.SOUTH},
+#                 {   "h_loc": (2, 2),     "r_loc": (5, 3),
+#                     "r_orientation_fn": lambda: Direction.SOUTH}],
+#             'large_room': [
+#                 {   "h_loc": (3, 4),     "r_loc": (3, 1),
+#                     "r_orientation_fn": lambda: Direction.NORTH},
+#                 {   "h_loc": (4, 5),     "r_loc": (3, 2),
+#                     "r_orientation_fn": lambda: Direction.NORTH}],
+##
+#             'centre_pots': ...,
+#             'centre_objects': ...,
+#         }
+#         constants_A = {
+#             "h_held": lambda h_loc: ObjectState("onion", h_loc),
+#             "h_orientation_fn": lambda: Direction.random_direction(),
+#             "r_held": lambda r_loc: ObjectState("dish", r_loc),
+#             "objects": {}
+#         }
+#
+#         initial_states_A = InitialStatesCreator(initial_states_params_A, constants_A, self.mdp).get_initial_states()
+#
+#         return initial_states_A
 
 
 
@@ -1180,21 +1259,28 @@ class Test4(Test4):
 def setup_agents_to_evaluate(mdp, agent_type, agent_run_name, agent_seeds, agent_save_location):
     assert agent_save_location == "local", "Currently anything else is unsupported"
 
+    # Put seeds in correct format
+    #TODO: Check this works if multiple seeds are specified, e.g. "-a_s 2732,4859'
+    if agent_seeds is not None:
+        agent_seeds = [int(item) for item in args.agent_seeds.split(',')]
+
     if agent_type != "ppo":
         assert agent_seeds is None, "For all agent types except ppo agents, agent_seeds should be None"
 
     if agent_type == "ppo":
-        seeds = get_ppo_run_seeds(agent_run_name) if agent_seeds is None else agent_seeds
+        seeds = get_ppo_run_seeds(agent_run_name, use_data_dir=True) if agent_seeds is None else agent_seeds
         agents = []
         for seed in seeds:
-            ppo_agent_base_path = PPO_DATA_DIR + agent_run_name + "/"
-            agent, _ = get_ppo_agent(ppo_agent_base_path, seed=seed)
+            ppo_agent_base_path = DATA_DIR + agent_run_name + "/"
+            agent, _ = get_ppo_agent(ppo_agent_base_path, seed=seed, best="train")
             agents.append(agent)
     elif agent_type == "bc":
         raise [get_bc_agent(agent_run_name)]
     elif agent_type == "tom":
         agents = [make_mle_tom_agent(mdp)]
-    elif agent_type == "opt_tom":
+    elif agent_type == "semigreedy_opt_tom":  # This is probably the TOM agent that gets the best score when paired with PPO
+        agents = [make_semigreedy_opt_tom(mdp)]
+    elif agent_type == "teamworky_opt_tom":
         raise NotImplementedError("need to implement this")
     elif agent_type == "rnd":
         agents = [RandomAgent()]
@@ -1221,6 +1307,22 @@ def make_mle_tom_agent(mdp):
     _, alternate_names_params, _ = import_manual_tom_params(mdp.layout_name, 1, MAXLIKE=True)
     return ToMModel.from_alternate_names_params_dict(mlp, alternate_names_params[0])
 
+def make_greedy_opt_tom(mdp):
+    """Make the greedy optimal TOM: Ignores other player; fully rational and doesn't pause"""
+    mlp = make_mlp(mdp)
+    alternate_names_params = {  'COMPLIANCE_TOM': 0, 'RETAIN_GOALS_TOM': 0, 'PATH_TEAMWORK_TOM': 0, 'RAT_COEFF_TOM': 20,
+                                'PROB_GREEDY_TOM': 1, 'PROB_OBS_OTHER_TOM': 0, 'LOOK_AHEAD_STEPS_TOM': 4,
+                                'PROB_THINKING_NOT_MOVING_TOM': 0, 'PROB_PAUSING_TOM': 0    }
+    return ToMModel.from_alternate_names_params_dict(mlp, alternate_names_params)
+
+def make_semigreedy_opt_tom(mdp):
+    """Make a semi-greedy optimal TOM: Ignores other player's expected actions, but considered their position; fully rational and doesn't pause"""
+    mlp = make_mlp(mdp)
+    alternate_names_params = {  'COMPLIANCE_TOM': 0, 'RETAIN_GOALS_TOM': 0, 'PATH_TEAMWORK_TOM': 1, 'RAT_COEFF_TOM': 20,
+                                'PROB_GREEDY_TOM': 1, 'PROB_OBS_OTHER_TOM': 0, 'LOOK_AHEAD_STEPS_TOM': 4,
+                                'PROB_THINKING_NOT_MOVING_TOM': 0, 'PROB_PAUSING_TOM': 0    }
+    return ToMModel.from_alternate_names_params_dict(mlp, alternate_names_params)
+
 
 # def make_test_tom_agent(mdp, tom_num):
 #     """Make a TOM from the VAL OR TRAIN? set used for ppo"""
@@ -1237,13 +1339,17 @@ def make_mle_tom_agent(mdp):
 ############################
 
 
-all_tests = [Test1ai, Test1aii, Test1aiii, Test1bi, Test1bii, Test2a, Test2b]
+all_tests = [Test1ai, Test1aii, Test1aiii, Test1bi, Test1bii, Test2a, Test2b,
+             Test3ai, Test3aii, Test3aiii, Test4a, Test4b, Test4c]
 
 
 def run_tests(tests_to_run, layout, num_avg, agent_type, agent_run_name, agent_save_location, agent_seeds, print_info, display_runs):
 
     # Make all randomness deterministic
     set_global_seed(0)
+
+    # Start timer
+    start_time = time.perf_counter()
 
     # Set up agent to evaluate
     mdp = make_mdp(layout)
@@ -1254,19 +1360,27 @@ def run_tests(tests_to_run, layout, num_avg, agent_type, agent_run_name, agent_s
         results_across_seeds = []
 
         for agent_to_eval in agents_to_eval:
-            # TODO: Fix env horizon -> currently I've just set it to be medium across all tests
-            test_object = test_class(mdp, "medium", trained_agent=agent_to_eval, trained_agent_type=agent_type, agent_run_name=agent_run_name, num_rollouts_per_initial_state=num_avg, print_info=print_info, display_runs=display_runs)
+            test_object = test_class(mdp, trained_agent=agent_to_eval, trained_agent_type=agent_type, agent_run_name=agent_run_name, num_rollouts_per_initial_state=num_avg, print_info=print_info, display_runs=display_runs)
             results_across_seeds.append(test_object.to_dict())
 
         tests[test_object.__class__.__name__] = aggregate_test_results_across_seeds(results_across_seeds)
+        print("Test {} complete. Running time so far: {}mins".
+              format(test_object, round((time.perf_counter() - start_time)/60, 1)))
 
     # TODO: once we have these objects, we can easily apply filtering on all the data to generate
     # test-type specific plots and so on.
 
-    print("Test results", tests)
+    print("Test results:", tests)
 
     state_robustness_tests = filter_tests_by_attribute(tests, "test_types", ["state_robustness"])
-    print(get_average_success_rate_across_tests(state_robustness_tests))
+    print("\nAverage score for state_robustnest tests: {}".format(
+        get_average_success_rate_across_tests(state_robustness_tests)))
+    agent_robustness_tests = filter_tests_by_attribute(tests, "test_types", ["agent_robustness"])
+    print("Average score for agent_robustnest tests: {}".format(
+        get_average_success_rate_across_tests(agent_robustness_tests)))
+    memory_tests = filter_tests_by_attribute(tests, "test_types", ["memory"])
+    print("Average score for memory tests: {}".format(
+        get_average_success_rate_across_tests(memory_tests)))
 
     # This is how I created the sample data
     # save_pickle(tests, "sample_data")
@@ -1287,7 +1401,8 @@ def aggregate_test_results_across_seeds(results):
 
     final_dict = copy.deepcopy(results[0])
     del final_dict["success_rate"]
-    final_dict["success_rate_mean_and_se"] = mean_and_std_err([result["success_rate"] for result in results])
+    final_dict["success_rate_mean_and_se"] = mean_and_std_err([result["success_rate"] for result in results]) \
+        if results[0]["success_rate"] is not None else [None, None]
     return final_dict
 
 def filter_tests_by_attribute(tests_dict, attribute, value):
@@ -1301,7 +1416,8 @@ def filter_tests_by_attribute(tests_dict, attribute, value):
     return filtered_tests
 
 def get_average_success_rate_across_tests(tests_dict):
-    return np.mean([test["success_rate_mean_and_se"][0] for test in tests_dict.values()])
+    return np.mean([test["success_rate_mean_and_se"][0] for test in tests_dict.values()
+                    if test["success_rate_mean_and_se"][0] is not None])
 
 
 ##########################
@@ -1318,9 +1434,9 @@ if __name__ == "__main__":
     parser.add_argument("-t", "--tests_to_run", default="all")
     parser.add_argument("-l", "--layout", help="layout", required=True)
     parser.add_argument("-n", "--num_avg", type=int, required=False, default=1)
-    parser.add_argument("-a_t", "--agent_type", type=str, required=True, default="ppo") # Must be one of ["ppo", "bc", "tom", "opt_tom"]
+    parser.add_argument("-a_t", "--agent_type", type=str, required=False, default="ppo") # Must be one of ["ppo", "bc", "tom", "opt_tom"]
     parser.add_argument("-a_n", "--agent_run_name", type=str, required=False, help='e.g. lstm_expt_cc0')
-    parser.add_argument("-a_s", "--agent_seeds", type=str, required=False, help='[9999, 8888]')
+    parser.add_argument("-a_s", "--agent_seeds", required=False, help='Give seeds separated by commas: 9999,8888')
     parser.add_argument("-r", "--agent_save_location", required=False, type=str, help="e.g. server or local", default='local') # NOTE: removed support for this temporarily
     parser.add_argument("-pr", "--print_info", default=False, action='store_true')
     parser.add_argument("-dr", "--display_runs", default=False, action='store_true')

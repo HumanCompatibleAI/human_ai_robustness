@@ -684,7 +684,7 @@ def import_manual_tom_params(layout_name, POP_SIZE, MAXLIKE=False, SELECT_TOM="F
                     TRAIN_TOM_PARAMS = [{'COMPLIANCE_TOM': 0.22539833701285775, 'RETAIN_GOALS_TOM': 3.885110977163834e-13,
                                    'PATH_TEAMWORK_TOM': 0.7562684786967098, 'RAT_COEFF_TOM': 19.999999999967933,
                                    'PROB_GREEDY_TOM': 0.5716194260999599, 'PROB_OBS_OTHER_TOM': 0.1330860714823573,
-                                   'LOOK_AHEAD_STEPS_TOM': int(1.5000024536934997), 'PROB_THINKING_NOT_MOVING_TOM': 0,
+                                   'LOOK_AHEAD_STEPS_TOM': round(1.5000024536934997), 'PROB_THINKING_NOT_MOVING_TOM': 0,
                                    'PROB_PAUSING_TOM': PROB_PAUSING}]
                 elif layout_name == "coordination_ring":
                     # Highest likelihood up to 3000 samples. Likelihood: -17921.932272682305
@@ -693,7 +693,7 @@ def import_manual_tom_params(layout_name, POP_SIZE, MAXLIKE=False, SELECT_TOM="F
                     TRAIN_TOM_PARAMS = [{'COMPLIANCE_TOM': 0.2646342605002149, 'RETAIN_GOALS_TOM': 0.010708449749251368,
                                   'PATH_TEAMWORK_TOM': 0.4371879185279047, 'RAT_COEFF_TOM': 18.106521401923274,
                                   'PROB_GREEDY_TOM': 0.3877372924867373, 'PROB_OBS_OTHER_TOM': 0.1867037186130322,
-                                  'LOOK_AHEAD_STEPS_TOM': int(3.2141783158401314), 'PROB_THINKING_NOT_MOVING_TOM': 0,
+                                  'LOOK_AHEAD_STEPS_TOM': round(3.2141783158401314), 'PROB_THINKING_NOT_MOVING_TOM': 0,
                                   'PROB_PAUSING_TOM': PROB_PAUSING}]
                 elif layout_name == "large_room":
                     # Max likelihood up to 800 samples, but starting from params picked from a combo of what worked for other layouts
@@ -701,7 +701,7 @@ def import_manual_tom_params(layout_name, POP_SIZE, MAXLIKE=False, SELECT_TOM="F
                     TRAIN_TOM_PARAMS = [{'COMPLIANCE_TOM': 0.22379399662155358, 'RETAIN_GOALS_TOM': 0.07587855435009,
                                          'PATH_TEAMWORK_TOM': 0.6686248822994333, 'RAT_COEFF_TOM': 4.294084309293811,
                                          'PROB_GREEDY_TOM': 0.21924930021200742, 'PROB_OBS_OTHER_TOM': 0.19623636267479602,
-                                         'LOOK_AHEAD_STEPS_TOM': int(3.470639654438611), 'PROB_THINKING_NOT_MOVING_TOM': 0,
+                                         'LOOK_AHEAD_STEPS_TOM': round(3.470639654438611), 'PROB_THINKING_NOT_MOVING_TOM': 0,
                                          'PROB_PAUSING_TOM': PROB_PAUSING}]
                 elif layout_name == "bottleneck":
                     # Max likelihood up to 800 samples, but starting from params picked from a combo of what worked for other layouts
@@ -709,7 +709,7 @@ def import_manual_tom_params(layout_name, POP_SIZE, MAXLIKE=False, SELECT_TOM="F
                     TRAIN_TOM_PARAMS = [{'COMPLIANCE_TOM': 0.17546947032339116, 'RETAIN_GOALS_TOM': 0.1467081498151364,
                                          'PATH_TEAMWORK_TOM': 0.5103522276091106, 'RAT_COEFF_TOM': 3.974656910215492,
                                          'PROB_GREEDY_TOM': 0.4299872769651207, 'PROB_OBS_OTHER_TOM': 0.17359961740727764,
-                                         'LOOK_AHEAD_STEPS_TOM': int(3.197079738534957), 'PROB_THINKING_NOT_MOVING_TOM': 0,
+                                         'LOOK_AHEAD_STEPS_TOM': round(3.197079738534957), 'PROB_THINKING_NOT_MOVING_TOM': 0,
                                          'PROB_PAUSING_TOM': PROB_PAUSING}]
                 elif layout_name == "centre_objects":
                     # Max likelihood up to 600 samples, but starting from params picked from a combo of what worked for other layouts
@@ -717,7 +717,7 @@ def import_manual_tom_params(layout_name, POP_SIZE, MAXLIKE=False, SELECT_TOM="F
                     TRAIN_TOM_PARAMS = [{'COMPLIANCE_TOM': 0.15028794098952822, 'RETAIN_GOALS_TOM': 0.094154094816602,
                                          'PATH_TEAMWORK_TOM': 0.6522601047338349, 'RAT_COEFF_TOM': 5.356615185521225,
                                          'PROB_GREEDY_TOM': 0.2655004908785008, 'PROB_OBS_OTHER_TOM': 0.3414306290487593,
-                                         'LOOK_AHEAD_STEPS_TOM': int(3.0445140720248047), 'PROB_THINKING_NOT_MOVING_TOM': 0,
+                                         'LOOK_AHEAD_STEPS_TOM': round(3.0445140720248047), 'PROB_THINKING_NOT_MOVING_TOM': 0,
                                          'PROB_PAUSING_TOM': PROB_PAUSING}]
                 elif layout_name == "centre_pots":
                     # Max likelihood up to 600 samples, but starting from params picked from a combo of what worked for other layouts
@@ -725,7 +725,7 @@ def import_manual_tom_params(layout_name, POP_SIZE, MAXLIKE=False, SELECT_TOM="F
                     TRAIN_TOM_PARAMS = [{'COMPLIANCE_TOM': 0.18577949715541736, 'RETAIN_GOALS_TOM': 0.08037119539531669,
                                          'PATH_TEAMWORK_TOM': 0.6813200407380992, 'RAT_COEFF_TOM': 4.6965533857786435,
                                          'PROB_GREEDY_TOM': 0.33725489330107356, 'PROB_OBS_OTHER_TOM': 0.2129522849017117,
-                                         'LOOK_AHEAD_STEPS_TOM': int(2.9622148666795725), 'PROB_THINKING_NOT_MOVING_TOM': 0,
+                                         'LOOK_AHEAD_STEPS_TOM': round(2.9622148666795725), 'PROB_THINKING_NOT_MOVING_TOM': 0,
                                          'PROB_PAUSING_TOM': PROB_PAUSING}]
                 else:
                     raise ValueError("Need to find the maxlike params for this layout!")

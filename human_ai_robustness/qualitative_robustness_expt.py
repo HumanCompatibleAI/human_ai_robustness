@@ -788,9 +788,6 @@ def run_tests(tests_to_run, layout, num_avg, agent_type, agent_run_name, agent_s
 
     print("Test results", tests)
 
-    state_robustness_tests = filter_tests_by_attribute(tests, "test_types", ["state_robustness"])
-    print(get_average_success_rate_across_tests(state_robustness_tests))
-
     # This is how I created the sample data
     # save_pickle(tests, "sample_data")
 
@@ -810,21 +807,8 @@ def aggregate_test_results_across_seeds(results):
 
     final_dict = copy.deepcopy(results[0])
     del final_dict["success_rate"]
-    final_dict["success_rate_mean_and_se"] = mean_and_std_err([result["success_rate"] for result in results])
+    final_dict["success_rate_across_seeds"] = [result["success_rate"] for result in results]
     return final_dict
-
-def filter_tests_by_attribute(tests_dict, attribute, value):
-    """
-    Returns tests that have `attribute` == `value`
-    """
-    filtered_tests = {}
-    for test_name, test_data_dict in tests_dict.items():
-        if test_data_dict[attribute] == value:
-            filtered_tests[test_name] = test_data_dict
-    return filtered_tests
-
-def get_average_success_rate_across_tests(tests_dict):
-    return np.mean([test["success_rate_mean_and_se"][0] for test in tests_dict.values()])
 
 
 ##########################

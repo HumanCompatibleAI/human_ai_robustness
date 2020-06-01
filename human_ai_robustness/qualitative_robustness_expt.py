@@ -154,7 +154,7 @@ class AbstractRobustnessTest(object):
     """
 
     # Constant attributes
-    ALL_TEST_TYPES = ["state_robustness", "agent_robustness", "memory"]
+    ALL_TEST_TYPES = ["state_robustness", "agent_robustness", "agent_robustness_plus_memory"]
 
     # Attributes meant to be overwitten by subclasses
     valid_layouts = ALL_LAYOUTS
@@ -172,9 +172,7 @@ class AbstractRobustnessTest(object):
         # Just a string of the name
         self.trained_agent_type = trained_agent_type
         self.agent_run_name = agent_run_name
-        #TODO: What to do if the layout isn't valid for this test?
-        # I was thinking you would just skip it upstream with an if statement. That's why valid_layouts is a class attribute
-        self.success_rate = self.evaluate_agent_on_layout(trained_agent) if self.layout in self.valid_layouts else None
+        self.success_rate = self.evaluate_agent_on_layout(trained_agent)
         self._check_valid_class()
 
     def to_dict(self):
@@ -313,7 +311,7 @@ standard_test_positions = {
 
 class Test1(AbstractRobustnessTest):
 
-    # NOTE: all subtests are state_robustness tests excpet for 1ai
+    # NOTE: all subtests are state_robustness tests except for 1ai
     test_types = ["state_robustness"]
 
 class Test1ai(Test1):
@@ -329,11 +327,12 @@ class Test1ai(Test1):
     POSSIBLE ADDITIONS: Give H no object. More positions for R.
     """
 
+    test_types = ["agent_robustness"]
+
     def set_testing_horizon(self):
         return get_layout_horizon(self.layout, "medium")
 
     valid_layouts = ['bottleneck', 'room', 'coordination_ring', 'counter_circuit']
-    test_types = ["memory"]
 
     def get_initial_states(self):
         initial_states_params = {
@@ -638,6 +637,8 @@ class Test1bi(Test1):
                 H has nothing
     """
 
+    test_types = ["state_robustness"]
+
     def set_testing_horizon(self):
         return get_layout_horizon(self.layout, "short")
 
@@ -698,7 +699,9 @@ class Test1bii(Test1):
     Success: R picking up any soup
     """
 
-    # test_types # TODO: could make a variant that is dependent on "how much faster H is than R", making it "agent_robustness"
+    # TODO: could make a variant that is dependent on "how much faster H is than R", making it "agent_robustness"
+
+    test_types = ["agent_robustness"]
 
     def set_testing_horizon(self):
         return get_layout_horizon(self.layout, "short")
@@ -758,7 +761,7 @@ class Test1bii(Test1):
         return variant_A_states + variant_B_states
 
     def setup_human_model(self):
-        return make_mle_tom_agent(self.mdp)
+        return StayAgent()  # Change to stay agent as TOMs were using their onion
 
     def is_success(self, initial_state, final_state, success_info=None):
         trained_agent = final_state.players[1]
@@ -779,9 +782,7 @@ class Test1bii(Test1):
 
 class Test2(AbstractRobustnessTest):
     
-    # TODO: think more about this classification, and in general we should double check them all at the end
-    test_types = ["state_robustness"]
-
+    test_types = ["agent_robustness"]
 
 class Test2a(Test2):
     """
@@ -797,7 +798,7 @@ class Test2a(Test2):
     """
 
     def set_testing_horizon(self):
-        return get_layout_horizon(self.layout, "medium")
+        return get_layout_horizon(self.layout, "short")
 
     valid_layouts = ['bottleneck', 'room', 'coordination_ring', 'counter_circuit', 'centre_objects']
 
@@ -872,7 +873,7 @@ class Test2b(Test2):
     """
 
     def set_testing_horizon(self):
-        return get_layout_horizon(self.layout, "medium")
+        return get_layout_horizon(self.layout, "short")
 
     def get_initial_states(self):
         initial_states_params = {
@@ -935,7 +936,7 @@ class Test3(AbstractRobustnessTest):
 
     #TODO: There is some repetition here: e.g. test 3ai is the same as test 3bi, except for setup_human_model -- can this repetition be avoided?
 
-    test_types = ["agent_robustness"]
+    test_types = ["agent_robustness_plus_memory"]
 
     def is_success(self, initial_state, final_state, success_info=None):
         initial_soup_state = initial_state.unowned_objects_by_type["soup"]
@@ -1340,11 +1341,11 @@ def make_semigreedy_opt_tom(mdp):
 ############################
 
 
+#TODO: Add tests 4a and 4b (half finished), then add them to all_tests
 all_tests = [Test1ai, Test1aii, Test1aiii, Test1bi, Test1bii, Test2a, Test2b,
-             Test3ai, Test3aii, Test3aiii, Test4a, Test4b, Test4c]
+             Test3ai, Test3aii, Test3aiii, Test3bi, Test3bii, Test3biii, Test4c]
 
-
-def run_tests(tests_to_run, layout, num_avg, agent_type, agent_run_name, agent_save_location, agent_seeds, print_info, display_runs):
+def run_tests(tests_to_run, layout, num_avg, agent_type, agent_run_folder, agent_run_name, agent_save_location, agent_seeds, print_info, display_runs):
 
     print("\nStarting qualitative expt with agent {}\n".format(agent_run_name))
 
@@ -1356,7 +1357,8 @@ def run_tests(tests_to_run, layout, num_avg, agent_type, agent_run_name, agent_s
 
     # Set up agent to evaluate
     mdp = make_mdp(layout)
-    agents_to_eval = setup_agents_to_evaluate(mdp, agent_type, agent_run_name, agent_seeds, agent_save_location)
+    agent_to_run = agent_run_folder + agent_run_name
+    agents_to_eval = setup_agents_to_evaluate(mdp, agent_type, agent_to_run, agent_seeds, agent_save_location)
 
     tests = {}
     for test_class in all_tests:
@@ -1378,15 +1380,18 @@ def run_tests(tests_to_run, layout, num_avg, agent_type, agent_run_name, agent_s
 
     print("\nTest results:", tests)
 
+    # Save results:
+    save_results(tests, agent_run_name)
+
     state_robustness_tests = filter_tests_by_attribute(tests, "test_types", ["state_robustness"])
     print("\nAverage score for state_robustnest tests: {}".format(
         get_average_success_rate_across_tests(state_robustness_tests)))
     agent_robustness_tests = filter_tests_by_attribute(tests, "test_types", ["agent_robustness"])
     print("Average score for agent_robustnest tests: {}".format(
         get_average_success_rate_across_tests(agent_robustness_tests)))
-    memory_tests = filter_tests_by_attribute(tests, "test_types", ["memory"])
-    print("Average score for memory tests: {}\n".format(
-        get_average_success_rate_across_tests(memory_tests)))
+    agent_robustness_plus_memory_tests = filter_tests_by_attribute(tests, "test_types", ["agent_robustness_plus_memory"])
+    print("Average score for agent_robustness_plus_memory tests: {}\n".format(
+        get_average_success_rate_across_tests(agent_robustness_plus_memory_tests)))
 
     # This is how I created the sample data
     # save_pickle(tests, "sample_data")
@@ -1398,6 +1403,10 @@ def run_tests(tests_to_run, layout, num_avg, agent_type, agent_run_name, agent_s
 # RESULT PROCESSING UTILS #
 ###########################
 
+def save_results(tests, agent_run_name):
+    filename = DATA_DIR + 'qualitative_expts/results_{}'.format(agent_run_name)
+    save_pickle(tests, filename)
+
 def aggregate_test_results_across_seeds(results):
     for result_dict in results:
         for k, v in result_dict.items():
@@ -1407,7 +1416,7 @@ def aggregate_test_results_across_seeds(results):
 
     final_dict = copy.deepcopy(results[0])
     del final_dict["success_rate"]
-    final_dict["success_rate_across_seeds"] = [result["success_rate"] for result in results]
+    final_dict["success_rate_mean_and_se"] = mean_and_std_err([result["success_rate"] for result in results])
     return final_dict
 
 def filter_tests_by_attribute(tests_dict, attribute, value):
@@ -1421,7 +1430,7 @@ def filter_tests_by_attribute(tests_dict, attribute, value):
     return filtered_tests
 
 def get_average_success_rate_across_tests(tests_dict):
-    return np.mean([np.mean(test["success_rate_across_seeds"]) for test in tests_dict.values()])
+    return np.mean([test["success_rate_mean_and_se"][0] for test in tests_dict.values()])
 
 
 ##########################
@@ -1440,6 +1449,7 @@ if __name__ == "__main__":
     parser.add_argument("-n", "--num_avg", type=int, required=False, default=1)
     parser.add_argument("-a_t", "--agent_type", type=str, required=False, default="ppo") # Must be one of ["ppo", "bc", "tom", "opt_tom"]
     parser.add_argument("-a_n", "--agent_run_name", type=str, required=False, help='e.g. lstm_expt_cc0')
+    parser.add_argument("-a_f", "--agent_run_folder", type=str, required=False, help='e.g. final_neurips_agents/cring')
     parser.add_argument("-a_s", "--agent_seeds", required=False, help='Give seeds separated by commas: 9999,8888')
     parser.add_argument("-r", "--agent_save_location", required=False, type=str, help="e.g. server or local", default='local') # NOTE: removed support for this temporarily
     parser.add_argument("-pr", "--print_info", default=False, action='store_true')

@@ -1,0 +1,1 @@
+{"cc_1_mantom_T_2732": 25.0, "cc_1_mantom_V_2732": 38.0, "cc_20_mantoms_T_9845": 75.0, "cc_20_mantoms_V_9845": 88.0, "cc_1_mettom_T_2732": 75.0, "cc_1_mettom_V_2732": 88.0, "cc_20_mettoms_T_9845": 38.0, "cc_20_mettoms_V_9845": 50.0, "cc_1_bc_T_2732": 75.0, "cc_1_bc_V_2732": 75.0, "cc_20_bcs_T_2732": 75.0, "cc_20_bcs_V_2732": 88.0}

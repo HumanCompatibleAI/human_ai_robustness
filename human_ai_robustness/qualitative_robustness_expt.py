@@ -1419,7 +1419,7 @@ def filter_tests_by_attribute(tests_dict, attribute, value):
     return filtered_tests
 
 def get_average_success_rate_across_tests(tests_dict):
-    return np.mean([test["success_rate_mean_and_se"][0] for test in tests_dict.values()])
+    return np.mean([np.mean(test["success_rate_across_seeds"]) for test in tests_dict.values()])
 
 
 ##########################

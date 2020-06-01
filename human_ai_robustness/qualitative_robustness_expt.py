@@ -173,6 +173,7 @@ class AbstractRobustnessTest(object):
         self.trained_agent_type = trained_agent_type
         self.agent_run_name = agent_run_name
         #TODO: What to do if the layout isn't valid for this test?
+        # I was thinking you would just skip it upstream with an if statement. That's why valid_layouts is a class attribute
         self.success_rate = self.evaluate_agent_on_layout(trained_agent) if self.layout in self.valid_layouts else None
         self._check_valid_class()
 
@@ -1359,6 +1360,9 @@ def run_tests(tests_to_run, layout, num_avg, agent_type, agent_run_name, agent_s
 
     tests = {}
     for test_class in all_tests:
+        if layout not in test_class.valid_layouts:
+            continue
+
         results_across_seeds = []
 
         for agent_to_eval in agents_to_eval:
@@ -1403,8 +1407,7 @@ def aggregate_test_results_across_seeds(results):
 
     final_dict = copy.deepcopy(results[0])
     del final_dict["success_rate"]
-    final_dict["success_rate_mean_and_se"] = mean_and_std_err([result["success_rate"] for result in results]) \
-        if results[0]["success_rate"] is not None else [None, None]
+    final_dict["success_rate_across_seeds"] = [result["success_rate"] for result in results]
     return final_dict
 
 def filter_tests_by_attribute(tests_dict, attribute, value):
@@ -1418,8 +1421,7 @@ def filter_tests_by_attribute(tests_dict, attribute, value):
     return filtered_tests
 
 def get_average_success_rate_across_tests(tests_dict):
-    return np.mean([test["success_rate_mean_and_se"][0] for test in tests_dict.values()
-                    if test["success_rate_mean_and_se"][0] is not None])
+    return np.mean([np.mean(test["success_rate_across_seeds"]) for test in tests_dict.values()])
 
 
 ##########################

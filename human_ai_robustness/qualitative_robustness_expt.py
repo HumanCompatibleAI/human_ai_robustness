@@ -365,7 +365,7 @@ class Test1ai(Test1):
         }
         constants = {
             "h_held": lambda h_loc: ObjectState("onion", h_loc),
-            "h_orientation_fn": lambda: Direction.random_direction(), # TODO: pk changed from "SOUTH" to random direction
+            "h_orientation_fn": lambda: Direction.random_direction(),
             "r_held": lambda r_loc: None,
             "objects": { loc : make_ready_soup_at_loc(loc) for loc in self.mdp.get_pot_locations() }
         }

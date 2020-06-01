@@ -1345,6 +1345,8 @@ all_tests = [Test1ai, Test1aii, Test1aiii, Test1bi, Test1bii, Test2a, Test2b,
 
 def run_tests(tests_to_run, layout, num_avg, agent_type, agent_run_name, agent_save_location, agent_seeds, print_info, display_runs):
 
+    print("\nStarting qualitative expt with agent {}\n".format(agent_run_name))
+
     # Make all randomness deterministic
     set_global_seed(0)
 
@@ -1370,7 +1372,7 @@ def run_tests(tests_to_run, layout, num_avg, agent_type, agent_run_name, agent_s
     # TODO: once we have these objects, we can easily apply filtering on all the data to generate
     # test-type specific plots and so on.
 
-    print("Test results:", tests)
+    print("\nTest results:", tests)
 
     state_robustness_tests = filter_tests_by_attribute(tests, "test_types", ["state_robustness"])
     print("\nAverage score for state_robustnest tests: {}".format(
@@ -1379,7 +1381,7 @@ def run_tests(tests_to_run, layout, num_avg, agent_type, agent_run_name, agent_s
     print("Average score for agent_robustnest tests: {}".format(
         get_average_success_rate_across_tests(agent_robustness_tests)))
     memory_tests = filter_tests_by_attribute(tests, "test_types", ["memory"])
-    print("Average score for memory tests: {}".format(
+    print("Average score for memory tests: {}\n".format(
         get_average_success_rate_across_tests(memory_tests)))
 
     # This is how I created the sample data

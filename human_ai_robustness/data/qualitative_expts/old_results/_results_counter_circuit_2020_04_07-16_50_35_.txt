@@ -1,1 +1,0 @@
-[[null, null, 56.0, null, null, 90.0, null, null, null, null]]

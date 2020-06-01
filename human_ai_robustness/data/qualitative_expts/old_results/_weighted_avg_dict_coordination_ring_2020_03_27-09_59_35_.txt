@@ -1,1 +1,0 @@
-{"tom0_T_None": 89.8, "tom1_T_None": 84.2, "tom2_T_None": 84.7, "tom3_T_None": 82.9, "tom4_T_None": 74.0, "tom5_T_None": 87.3, "tom6_T_None": 89.3, "tom7_T_None": 89.7, "tom8_T_None": 83.3, "tom9_T_None": 73.4}

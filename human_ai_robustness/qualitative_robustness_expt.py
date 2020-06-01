@@ -9,7 +9,7 @@ from overcooked_ai_py.mdp.actions import Direction
 from overcooked_ai_py.mdp.overcooked_env import OvercookedEnv
 from overcooked_ai_py.mdp.overcooked_mdp import OvercookedGridworld, PlayerState, ObjectState, OvercookedState
 from overcooked_ai_py.planning.planners import MediumLevelPlanner
-from human_aware_rl.ppo.ppo_pop import get_ppo_agent, make_tom_agent, get_ppo_run_seeds
+from human_aware_rl.ppo.ppo_pop import get_ppo_agent, make_tom_agent, get_ppo_run_seeds, play_parallel_val_games
 from human_aware_rl.data_dir import DATA_DIR
 from human_aware_rl.imitation.behavioural_cloning import get_bc_agent_from_saved
 from human_aware_rl.utils import set_global_seed
@@ -1253,6 +1253,101 @@ class Test4c(Test4):
 #         return initial_states_A
 
 
+class ValidationGames(object):
+    """Play games against all agents in the validation set (10 BCs and 10 TOMs)"""
+    valid_layouts = ALL_LAYOUTS
+    test_types = None
+
+    def __init__(self, num_val_games, trained_agent):
+        self.num_val_games = num_val_games
+        self.success_rate = self.play_validation_games(trained_agent, num_val_games)
+
+    def play_validation_games(self, trained_agent, num_val_games):
+
+        """
+        The ppo agent will play with all agents in the validation population. Play with both indices. Here we use a
+        rearranged val pop so that we can call all actions from ppo_agent in parallel. See description in make_rearranged_val_pop.
+        """
+
+        # ppo_agent.set_mdp(gym_env.base_env.mdp)
+        rearranged_val_pop = self.get_rearranged_val_pop
+
+        multi_env = gym_env.val_multi_env
+
+        # Using MultiOvercookedEnv and AsymmAgentPairs:
+        asymm_agent_pairs = []
+        for i in range(len(rearranged_val_pop)):
+            ppo_agent_indices = []
+            for j in range(multi_env.num_envs):
+                ppo_agent_indices.append(0 if j % 2 == 0 else 1)
+                # TODO: Don't need to do this here??:
+                rearranged_val_pop[i][j].set_agent_index(1 - ppo_agent_indices[j])
+            asymm_agent_pairs.append(AsymmAgentPairs(ppo_agent, rearranged_val_pop[i], single_agent_indices=ppo_agent_indices))
+
+        [asymm_agent_pairs[i].reset() for i in range(len(asymm_agent_pairs))]
+
+        # Play the games:
+        validation_rewards = []
+        for _ in range(gym_env.num_rearranged_val_games):
+            for i in range(len(rearranged_val_pop)):
+                trajs = multi_env.get_asymm_rollouts(asymm_agent_pairs[i], num_games=1)
+                assert len(trajs) == multi_env.num_envs
+                for j in range(multi_env.num_envs):
+                    sparse_rews = trajs[j]["ep_returns"]
+                    avg_sparse_rew = np.mean(sparse_rews)
+                    validation_rewards.append(avg_sparse_rew)
+
+        mean_val_rews = np.mean(validation_rewards)
+        run_info["validation_rewards"].append(mean_val_rews)
+
+        return run_info, mean_val_rews
+
+    def get_rearranged_val_pop(self, mdp, mlp, layout, sim_threads, num_val_games):
+
+        """Make a validation population, but in order to most efficiently take actions from the ppo_agent (which can do
+        sim_threads actions simultaneously), we make a population of 40 validation agents -- 20 different agents with 2
+        seeds -- then make 3 copies of this and split it into 4 or 2, so that each sub-pop has sim_threads number of agents
+        in it. Then we can call all sim_threads actions from the ppo."""
+
+        #= Settings needed =#
+        val_pop_size = 20
+        bc_dir = None
+        #===================#
+
+        rearranged_val_pop = [[], []] if sim_threads == 60 else [[], [], [], []]
+        VAL_TOM_PARAMS, _, _ = import_manual_tom_params(layout, 20)
+        VAL_BC_SEEDS = [720, 1343, 1903, 2212, 2598, 4389, 5108, 5958, 6573, 9735] if layout in \
+                            ["coordination_ring", "counter_circuit"] else [0]
+        count = 0
+        for _ in range(3):  # x3 because we have a population of 20*2, and need 120 agents in order to split them into sub-groups of size 30 or 60 (the ppo's sim_threads)
+            for i in range(val_pop_size):
+                for j in range(2):  # One for each index
+
+                    if i < val_pop_size / 2:
+                        val_agent = make_tom_agent(mlp)
+                        val_agent.set_tom_params(None, None, VAL_TOM_PARAMS, tom_params_choice=i)
+                    else:
+                        bc_name = layout + "_bc_train_seed{}". \
+                            format(VAL_BC_SEEDS[i - int(val_pop_size / 2)])
+                        print("LOADING >validation< BC MODEL FROM: {}{}".format(bc_dir, bc_name))
+                        val_agent, _ = get_bc_agent_from_saved(bc_name, unblock_if_stuck=True,
+                                                               stochastic=True,
+                                                               overwrite_bc_save_dir=bc_dir)
+                        val_agent.set_mdp(mdp)
+
+                    rearranged_val_pop = sort_into_rearranged_pop(rearranged_val_pop, val_agent, sim_threads, count)
+                    count += 1
+
+        num_rearranged_val_games = int(num_val_games / 3)
+        assert len(rearranged_val_pop) * sim_threads == count
+
+        multi_env = MultiOvercookedEnv(sim_threads, mdp, **params["env_params"])  # Set up MultiEnvs:
+
+        val_multi_env = multi_env
+        rearranged_val_pop = rearranged_val_pop
+        num_rearranged_val_games = num_rearranged_val_games
+
+
 
 #####################
 # AGENT SETUP UTILS #
@@ -1342,10 +1437,11 @@ def make_semigreedy_opt_tom(mdp):
 
 
 #TODO: Add tests 4a and 4b (half finished), then add them to all_tests
-all_tests = [Test1ai, Test1aii, Test1aiii, Test1bi, Test1bii, Test2a, Test2b,
+all_tests = [ValidationGames, Test1ai, Test1aii, Test1aiii, Test1bi, Test1bii, Test2a, Test2b,
              Test3ai, Test3aii, Test3aiii, Test3bi, Test3bii, Test3biii, Test4c]
 
-def run_tests(tests_to_run, layout, num_avg, agent_type, agent_run_folder, agent_run_name, agent_save_location, agent_seeds, print_info, display_runs):
+def run_tests(tests_to_run, layout, num_avg, agent_type, agent_run_folder, agent_run_name, agent_save_location,
+              agent_seeds, print_info, display_runs, num_val_games):
 
     print("\nStarting qualitative expt with agent {}\n".format(agent_run_name))
 
@@ -1368,15 +1464,15 @@ def run_tests(tests_to_run, layout, num_avg, agent_type, agent_run_folder, agent
         results_across_seeds = []
 
         for agent_to_eval in agents_to_eval:
-            test_object = test_class(mdp, trained_agent=agent_to_eval, trained_agent_type=agent_type, agent_run_name=agent_run_name, num_rollouts_per_initial_state=num_avg, print_info=print_info, display_runs=display_runs)
+            test_object = test_class(mdp, trained_agent=agent_to_eval, trained_agent_type=agent_type,
+                                     agent_run_name=agent_run_name, num_rollouts_per_initial_state=num_avg,
+                                     print_info=print_info, display_runs=display_runs) \
+                                        if test_class is not ValidationGames else test_class(num_val_games)
             results_across_seeds.append(test_object.to_dict())
 
         tests[test_object.__class__.__name__] = aggregate_test_results_across_seeds(results_across_seeds)
         print("Test {} complete. Running time so far: {}mins".
               format(test_object, round((time.perf_counter() - start_time)/60, 1)))
-
-    # TODO: once we have these objects, we can easily apply filtering on all the data to generate
-    # test-type specific plots and so on.
 
     print("\nTest results:", tests)
 
@@ -1454,6 +1550,7 @@ if __name__ == "__main__":
     parser.add_argument("-r", "--agent_save_location", required=False, type=str, help="e.g. server or local", default='local') # NOTE: removed support for this temporarily
     parser.add_argument("-pr", "--print_info", default=False, action='store_true')
     parser.add_argument("-dr", "--display_runs", default=False, action='store_true')
+    parser.add_argument("-nv", "--num_val_games", default=0, help='Set to 0 to not play validation games')
 
     args = parser.parse_args()
     run_tests(**args.__dict__)

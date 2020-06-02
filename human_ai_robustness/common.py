@@ -42,3 +42,16 @@ def get_hh_states_start_state_fn(layout_name, data_type):
 
     start_state_fn = lambda: np.random.choice(hh_starts)
     return start_state_fn
+
+def set_style(font_scale=1.6, tex=True):
+    import seaborn, matplotlib
+    seaborn.set(font='serif', font_scale=font_scale)
+    # Make the background white, and specify the specific font family
+    seaborn.set_style("white", {
+        "font.family": "serif",
+        "font.weight": "normal",
+        "font.serif": ["Times", "Palatino", "serif"],
+        'axes.facecolor': 'white',
+        'lines.markeredgewidth': 1})
+    matplotlib.rcParams['text.usetex'] = tex
+    matplotlib.rc('font',family='serif', serif=['Palatino'])

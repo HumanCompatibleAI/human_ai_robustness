@@ -480,8 +480,8 @@ class Test1aii(Test1):
                 {   "h_loc": (5, 2),    "r_loc": (3, 3),    "objects": { "dish": [(3, 2), (3, 4), (2, 4)]}}
             ],
             'large_room': [
-                {   "h_loc": (3, 6),    "r_loc": (1, 1),    "objects": { "dish": [(1, 0)]}},
-                {   "h_loc": (3, 6),    "r_loc": (1, 1),    "objects": { "dish": [(1, 0), (2, 0), (0, 2)]}},
+                {   "h_loc": (3, 5),    "r_loc": (1, 1),    "objects": { "dish": [(1, 0)]}},
+                {   "h_loc": (3, 5),    "r_loc": (1, 1),    "objects": { "dish": [(1, 0), (2, 0), (0, 2)]}},
                 {   "h_loc": (3, 1),    "r_loc": (5, 3),    "objects": { "dish": [(6, 3)], }},
                 {   "h_loc": (3, 1),    "r_loc": (5, 3),    "objects": { "dish": [(6, 3), (6, 2), (4, 6)]}}
             ],

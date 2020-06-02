@@ -1313,7 +1313,7 @@ class ValidationRewardTest(AbstractRobustnessTest):
 
         #= Settings needed =#
         val_pop_size = 20  # Don't change
-        bc_dir = None
+        bc_dir = DATA_DIR + 'bc_runs'
         assert num_val_games % 3 == 0, "Only set up for number of val games is a multiple of 3!"
         assert sim_threads == 30 or sim_threads == 60, "Only set up for ppo agents with 30 or 60 threads."
         params = {"env_params": {"horizon": self.env_horizon}}
@@ -1322,7 +1322,8 @@ class ValidationRewardTest(AbstractRobustnessTest):
         rearranged_val_pop = [[], []] if sim_threads == 60 else [[], [], [], []]
         VAL_TOM_PARAMS, _, _ = import_manual_tom_params(layout, 20)
         VAL_BC_SEEDS = [720, 1343, 1903, 2212, 2598, 4389, 5108, 5958, 6573, 9735] if layout in \
-                            ["coordination_ring", "counter_circuit"] else [0]
+                            ["coordination_ring", "counter_circuit"] else \
+                            [2732, 3264, 3468, 4373, 4859, 5874, 6744, 7891, 9225, 9845]
         count = 0
         for _ in range(3):  # x3 because we have a population of 20*2, and need 120 agents in order to split them into sub-groups of size 30 or 60 (the ppo's sim_threads)
             for i in range(val_pop_size):
@@ -1471,8 +1472,8 @@ def make_semigreedy_opt_tom(mdp):
 
 
 #TODO: Add tests 4a and 4b (half finished), then add them to all_tests
-all_tests = [Test1ai, Test1aii, Test1aiii, Test1bi, Test1bii, Test2a, Test2b,
-             Test3ai, Test3aii, Test3aiii, Test3bi, Test3bii, Test3biii, Test4c] #ValidationRewardTest
+all_tests = [ValidationRewardTest, Test1ai, Test1aii, Test1aiii, Test1bi, Test1bii, Test2a, Test2b,
+             Test3ai, Test3aii, Test3aiii, Test3bi, Test3bii, Test3biii, Test4c]
 
 def run_tests(tests_to_run, layout, num_avg, agent_type, agent_run_folder, agent_run_name, agent_save_location,
               agent_seeds, print_info, display_runs, num_val_games):
@@ -1494,6 +1495,8 @@ def run_tests(tests_to_run, layout, num_avg, agent_type, agent_run_folder, agent
     for test_class in all_tests:
         if layout not in test_class.valid_layouts:
             continue
+
+        num_avg = num_val_games if test_class is ValidationRewardTest else num_avg
 
         results_across_seeds = []
 
@@ -1589,7 +1592,8 @@ if __name__ == "__main__":
     parser.add_argument("-r", "--agent_save_location", required=False, type=str, help="e.g. server or local", default='local') # NOTE: removed support for this temporarily
     parser.add_argument("-pr", "--print_info", default=False, action='store_true')
     parser.add_argument("-dr", "--display_runs", default=False, action='store_true')
-    parser.add_argument("-nv", "--num_val_games", default=0, help='Set to 0 to not play validation games')
+    parser.add_argument("-nv", "--num_val_games", default=0, type=int,
+                        help='Set to 0 to not play validation games. Need to be a multiple of 3!')
 
     args = parser.parse_args()
     run_tests(**args.__dict__)

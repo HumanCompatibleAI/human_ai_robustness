@@ -154,7 +154,7 @@ class AbstractRobustnessTest(object):
     """
 
     # Constant attributes
-    ALL_TEST_TYPES = ["state_robustness", "agent_robustness", "agent_robustness_plus_memory"]
+    ALL_TEST_TYPES = ["state_robustness", "agent_robustness", "agent_robustness_plus_memory", "reward"]
 
     # Attributes meant to be overwitten by subclasses
     valid_layouts = ALL_LAYOUTS
@@ -1253,21 +1253,26 @@ class Test4c(Test4):
 #         return initial_states_A
 
 
-class ValidationGames(object):
+class ValidationRewardTest(AbstractRobustnessTest):
     """Play games against all agents in the validation set (10 BCs and 10 TOMs)"""
-    valid_layouts = ALL_LAYOUTS
-    test_types = None
 
-    def __init__(self, num_val_games, trained_agent):
-        self.num_val_games = num_val_games
-        self.success_rate = self.play_validation_games(trained_agent, num_val_games)
+    valid_layouts = ALL_LAYOUTS
+    test_types = ["reward"]
+
+    def set_testing_horizon(self):
+        return 400
+
+    def evaluate_agent_on_layout(self, trained_agent):
+        return self.play_validation_games(trained_agent, self.num_rollouts_per_initial_state)
 
     def play_validation_games(self, trained_agent, num_val_games):
-
         """
         The ppo agent will play with all agents in the validation population. Play with both indices. Here we use a
         rearranged val pop so that we can call all actions from ppo_agent in parallel. See description in make_rearranged_val_pop.
         """
+        # TODO: Finishing fixing this method. I feel like it's best for you to finish doing this because
+        # I'm not very familiar with the bits and pieces of your implementation and would be afraid of
+        # introducing silent bugs that are hard to debug
 
         # ppo_agent.set_mdp(gym_env.base_env.mdp)
         rearranged_val_pop = self.get_rearranged_val_pop
@@ -1290,17 +1295,14 @@ class ValidationGames(object):
         validation_rewards = []
         for _ in range(gym_env.num_rearranged_val_games):
             for i in range(len(rearranged_val_pop)):
-                trajs = multi_env.get_asymm_rollouts(asymm_agent_pairs[i], num_games=1)
+                trajs = multi_env.get_asymm_rollouts(asymm_agent_pairs[i], num_games=num_val_games)
                 assert len(trajs) == multi_env.num_envs
                 for j in range(multi_env.num_envs):
                     sparse_rews = trajs[j]["ep_returns"]
                     avg_sparse_rew = np.mean(sparse_rews)
                     validation_rewards.append(avg_sparse_rew)
 
-        mean_val_rews = np.mean(validation_rewards)
-        run_info["validation_rewards"].append(mean_val_rews)
-
-        return run_info, mean_val_rews
+        return np.mean(validation_rewards)
 
     def get_rearranged_val_pop(self, mdp, mlp, layout, sim_threads, num_val_games):
 
@@ -1437,8 +1439,8 @@ def make_semigreedy_opt_tom(mdp):
 
 
 #TODO: Add tests 4a and 4b (half finished), then add them to all_tests
-all_tests = [ValidationGames, Test1ai, Test1aii, Test1aiii, Test1bi, Test1bii, Test2a, Test2b,
-             Test3ai, Test3aii, Test3aiii, Test3bi, Test3bii, Test3biii, Test4c]
+all_tests = [Test1ai, Test1aii, Test1aiii, Test1bi, Test1bii, Test2a, Test2b,
+             Test3ai, Test3aii, Test3aiii, Test3bi, Test3bii, Test3biii, Test4c] #ValidationRewardTest
 
 def run_tests(tests_to_run, layout, num_avg, agent_type, agent_run_folder, agent_run_name, agent_save_location,
               agent_seeds, print_info, display_runs, num_val_games):
@@ -1464,10 +1466,15 @@ def run_tests(tests_to_run, layout, num_avg, agent_type, agent_run_folder, agent
         results_across_seeds = []
 
         for agent_to_eval in agents_to_eval:
-            test_object = test_class(mdp, trained_agent=agent_to_eval, trained_agent_type=agent_type,
-                                     agent_run_name=agent_run_name, num_rollouts_per_initial_state=num_avg,
-                                     print_info=print_info, display_runs=display_runs) \
-                                        if test_class is not ValidationGames else test_class(num_val_games)
+            test_object = test_class(
+                mdp=mdp,
+                trained_agent=agent_to_eval, 
+                trained_agent_type=agent_type,
+                agent_run_name=agent_run_name, 
+                num_rollouts_per_initial_state=num_avg,
+                print_info=print_info, 
+                display_runs=display_runs
+            )
             results_across_seeds.append(test_object.to_dict())
 
         tests[test_object.__class__.__name__] = aggregate_test_results_across_seeds(results_across_seeds)
@@ -1512,7 +1519,7 @@ def aggregate_test_results_across_seeds(results):
 
     final_dict = copy.deepcopy(results[0])
     del final_dict["success_rate"]
-    final_dict["success_rate_mean_and_se"] = mean_and_std_err([result["success_rate"] for result in results])
+    final_dict["success_rate_across_seeds"] = [result["success_rate"] for result in results]
     return final_dict
 
 def filter_tests_by_attribute(tests_dict, attribute, value):
@@ -1526,7 +1533,7 @@ def filter_tests_by_attribute(tests_dict, attribute, value):
     return filtered_tests
 
 def get_average_success_rate_across_tests(tests_dict):
-    return np.mean([test["success_rate_mean_and_se"][0] for test in tests_dict.values()])
+    return np.mean([np.mean(test["success_rate_across_seeds"]) for test in tests_dict.values()])
 
 
 ##########################

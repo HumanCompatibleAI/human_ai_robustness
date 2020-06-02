@@ -1277,8 +1277,6 @@ class ValidationRewardTest(AbstractRobustnessTest):
         multi_env, rearranged_val_pop, num_rearranged_val_games = self.make_rearranged_val_pop(
             self.mdp, make_mlp(self.mdp), self.layout, sim_threads, num_val_games)
 
-        multi_env = multi_env
-
         # Using MultiOvercookedEnv and AsymmAgentPairs:
         asymm_agent_pairs = []
         for i in range(len(rearranged_val_pop)):
@@ -1295,7 +1293,7 @@ class ValidationRewardTest(AbstractRobustnessTest):
         validation_rewards = []
         for _ in range(num_rearranged_val_games):
             for i in range(len(rearranged_val_pop)):
-                trajs = multi_env.get_asymm_rollouts(asymm_agent_pairs[i], num_games=num_val_games)
+                trajs = multi_env.get_asymm_rollouts(asymm_agent_pairs[i], num_games=1)
                 assert len(trajs) == multi_env.num_envs
                 for j in range(multi_env.num_envs):
                     sparse_rews = trajs[j]["ep_returns"]
@@ -1313,7 +1311,7 @@ class ValidationRewardTest(AbstractRobustnessTest):
 
         #= Settings needed =#
         val_pop_size = 20  # Don't change
-        bc_dir = DATA_DIR + 'bc_runs'
+        bc_dir = DATA_DIR + 'bc_runs/'
         assert num_val_games % 3 == 0, "Only set up for number of val games is a multiple of 3!"
         assert sim_threads == 30 or sim_threads == 60, "Only set up for ppo agents with 30 or 60 threads."
         params = {"env_params": {"horizon": self.env_horizon}}
@@ -1333,8 +1331,7 @@ class ValidationRewardTest(AbstractRobustnessTest):
                         val_agent = make_tom_agent(mlp)
                         val_agent.set_tom_params(None, None, VAL_TOM_PARAMS, tom_params_choice=i)
                     else:
-                        bc_name = layout + "_bc_train_seed{}". \
-                            format(VAL_BC_SEEDS[i - int(val_pop_size / 2)])
+                        bc_name = layout + "_test_{}".format(VAL_BC_SEEDS[i - int(val_pop_size / 2)])
                         print("LOADING >validation< BC MODEL FROM: {}{}".format(bc_dir, bc_name))
                         val_agent, _ = get_bc_agent_from_saved(bc_name, unblock_if_stuck=True,
                                                                stochastic=True,
@@ -1514,7 +1511,7 @@ def run_tests(tests_to_run, layout, num_avg, agent_type, agent_run_folder, agent
 
         tests[test_object.__class__.__name__] = aggregate_test_results_across_seeds(results_across_seeds)
         print("Test {} complete. Running time so far: {}mins".
-              format(test_object, round((time.perf_counter() - start_time)/60, 1)))
+              format(test_class, round((time.perf_counter() - start_time)/60, 1)))
 
     print("\nTest results:", tests)
 

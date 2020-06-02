@@ -1266,119 +1266,72 @@ class ValidationRewardTest(AbstractRobustnessTest):
         return self.play_validation_games(trained_agent, self.num_rollouts_per_initial_state)
 
     def play_validation_games(self, trained_agent, num_val_games):
+
         """
-        The ppo agent will play with all agents in the validation population. Play with both indices. Here we use a
-        rearranged val pop so that we can call all actions from ppo_agent in parallel. See description in make_rearranged_val_pop.
+        The ppo agent will play with all agents in the validation population. Play with both indices.
         """
 
-        #TODO: Get sim threads from the config data of the agent. For now, it's always 60:
-        sim_threads = 60
-
-        multi_env, rearranged_val_pop, num_rearranged_val_games = self.make_rearranged_val_pop(
-            self.mdp, make_mlp(self.mdp), self.layout, sim_threads, num_val_games)
-
-        # Using MultiOvercookedEnv and AsymmAgentPairs:
-        asymm_agent_pairs = []
-        for i in range(len(rearranged_val_pop)):
-            ppo_agent_indices = []
-            for j in range(multi_env.num_envs):
-                ppo_agent_indices.append(0 if j % 2 == 0 else 1)
-                # TODO: Don't need to do this here??:
-                rearranged_val_pop[i][j].set_agent_index(1 - ppo_agent_indices[j])
-            asymm_agent_pairs.append(AsymmAgentPairs(trained_agent, rearranged_val_pop[i], single_agent_indices=ppo_agent_indices))
-
-        [asymm_agent_pairs[i].reset() for i in range(len(asymm_agent_pairs))]
-
-        # Play the games:
+        mdp = self.mdp
+        trained_agent.set_mdp(mdp)
+        params = {"env_params": {"horizon": self.env_horizon}}
+        overcooked_env = OvercookedEnv(mdp, **params["env_params"])
         validation_rewards = []
-        for _ in range(num_rearranged_val_games):
-            for i in range(len(rearranged_val_pop)):
-                trajs = multi_env.get_asymm_rollouts(asymm_agent_pairs[i], num_games=1)
-                assert len(trajs) == multi_env.num_envs
-                for j in range(multi_env.num_envs):
-                    sparse_rews = trajs[j]["ep_returns"]
-                    avg_sparse_rew = np.mean(sparse_rews)
-                    validation_rewards.append(avg_sparse_rew)
+        validation_pop = self.make_validation_population(self.layout)
+
+        for val_agent in validation_pop:
+            for ppo_index in range(2):
+                agent_pair = AgentPair(trained_agent, val_agent) if ppo_index == 0 else AgentPair(val_agent, trained_agent)
+                print('\nPPO in index {}, playing with {}\n'.format(ppo_index, val_agent))
+                trajs = overcooked_env.get_rollouts(agent_pair, num_games=num_val_games,
+                                                    final_state=False, display=False)
+                sparse_rews = trajs["ep_returns"]
+                avg_sparse_rew = np.mean(sparse_rews)
+                validation_rewards.append(avg_sparse_rew)
 
         return np.mean(validation_rewards)
 
-    def make_rearranged_val_pop(self, mdp, mlp, layout, sim_threads, num_val_games):
+    def make_validation_population(self, layout):
+        """Create a population of e.g. 10 BC agents and 10 TOM agents, which are different from the training populations.
+        This population will be used as a validation set for the ppo."""
 
-        """Make a validation population, but in order to most efficiently take actions from the ppo_agent (which can do
-        sim_threads actions simultaneously), we make a population of 40 validation agents -- 20 different agents with 2
-        seeds -- then make 3 copies of this and split it into 4 or 2, so that each sub-pop has sim_threads number of agents
-        in it. Then we can call all sim_threads actions from the ppo."""
-
-        #= Settings needed =#
+        #== Settings needed ==#
         val_pop_size = 20  # Don't change
         bc_dir = DATA_DIR + 'bc_runs/'
-        assert num_val_games % 3 == 0, "Only set up for number of val games is a multiple of 3!"
-        assert sim_threads == 30 or sim_threads == 60, "Only set up for ppo agents with 30 or 60 threads."
-        params = {"env_params": {"horizon": self.env_horizon}}
-        #===================#
+        #=====================#
 
-        rearranged_val_pop = [[], []] if sim_threads == 60 else [[], [], [], []]
+        validation_population = []
+        half_val_pop_size = int(val_pop_size / 2)
+
+        # Make TOM pop
+        mlp = make_mlp(self.mdp)
         VAL_TOM_PARAMS, _, _ = import_manual_tom_params(layout, 20)
-        VAL_BC_SEEDS = [720, 1343, 1903, 2212, 2598, 4389, 5108, 5958, 6573, 9735] if layout in \
-                            ["coordination_ring", "counter_circuit"] else \
-                            [2732, 3264, 3468, 4373, 4859, 5874, 6744, 7891, 9225, 9845]
-        count = 0
-        for _ in range(3):  # x3 because we have a population of 20*2, and need 120 agents in order to split them into sub-groups of size 30 or 60 (the ppo's sim_threads)
-            for i in range(val_pop_size):
-                for j in range(2):  # One for each index
 
-                    if i < val_pop_size / 2:
-                        val_agent = make_tom_agent(mlp)
-                        val_agent.set_tom_params(None, None, VAL_TOM_PARAMS, tom_params_choice=i)
-                    else:
-                        bc_name = layout + "_test_{}".format(VAL_BC_SEEDS[i - int(val_pop_size / 2)])
-                        print("LOADING >validation< BC MODEL FROM: {}{}".format(bc_dir, bc_name))
-                        val_agent, _ = get_bc_agent_from_saved(bc_name, unblock_if_stuck=True,
-                                                               stochastic=True,
-                                                               overwrite_bc_save_dir=bc_dir)
-                        val_agent.set_mdp(mdp)
+        for i in range(half_val_pop_size):
+            tom_agent = make_tom_agent(mlp)
+            tom_agent.set_tom_params(None, None, VAL_TOM_PARAMS, tom_params_choice=i)
+            validation_population.append(tom_agent)
 
-                    rearranged_val_pop = self.sort_into_rearranged_pop(rearranged_val_pop, val_agent, sim_threads, count)
-                    count += 1
+        # Make BC pop
+        VAL_BC_SEEDS = [720, 1343, 1903, 2212, 2598, 4389, 5108, 5958, 6573, 9735] \
+            if layout in ["coordination_ring", "counter_circuit"] else \
+            [2732, 3264, 3468, 4373, 4859, 5874, 6744, 7891, 9225, 9845]
 
-        num_rearranged_val_games = int(num_val_games / 3)
-        assert len(rearranged_val_pop) * sim_threads == count
+        mdp = self.mdp
+        for i, seed in enumerate(VAL_BC_SEEDS):
+            if i < half_val_pop_size:
 
-        multi_env = MultiOvercookedEnv(sim_threads, mdp, **params["env_params"])  # Set up MultiEnvs:
+                bc_name = layout + "_test_{}".format(seed)
+                print("LOADING >validation< BC MODEL FROM: {}{}".format(bc_dir, bc_name))
+                bc_agent, _ = get_bc_agent_from_saved(bc_name, unblock_if_stuck=True,
+                                                       stochastic=True,
+                                                       overwrite_bc_save_dir=bc_dir)
+                bc_agent.set_mdp(mdp)
+                validation_population.append(bc_agent)
 
-        return multi_env, rearranged_val_pop, num_rearranged_val_games
+        assert len(validation_population) == val_pop_size
 
-    def sort_into_rearranged_pop(self, rearranged_val_pop, agent, ppo_sim_threads, count):
-        if ppo_sim_threads == 30:
-            if count < 30:
-                rearranged_val_pop[0].append(agent)
-            elif 30 <= count < 60:
-                rearranged_val_pop[1].append(agent)
-            elif 60 <= count < 90:
-                rearranged_val_pop[2].append(agent)
-            elif 90 <= count < 120:
-                rearranged_val_pop[3].append(agent)
-            else:
-                raise ValueError('Wrong population / average sizes')
-        elif ppo_sim_threads == 60:
-            if count < 60:
-                rearranged_val_pop[0].append(agent)
-            elif 60 <= count < 120:
-                rearranged_val_pop[1].append(agent)
-            else:
-                raise ValueError('Wrong population / average sizes')
-        elif ppo_sim_threads == 3:
-            if count < 3:
-                rearranged_val_pop[0].append(agent)
-            elif 3 <= count < 6:
-                rearranged_val_pop[1].append(agent)
-            elif 6 <= count < 9:
-                rearranged_val_pop[2].append(agent)
-            elif 9 <= count < 12:
-                rearranged_val_pop[3].append(agent)
-            else:
-                raise ValueError('Wrong population / average sizes')
-        return rearranged_val_pop
+        return validation_population
+
 
 
 #####################
@@ -1469,8 +1422,8 @@ def make_semigreedy_opt_tom(mdp):
 
 
 #TODO: Add tests 4a and 4b (half finished), then add them to all_tests
-all_tests = [Test1ai, Test1aii, Test1aiii, Test1bi, Test1bii, Test2a, Test2b,
-             Test3ai, Test3aii, Test3aiii, Test3bi, Test3bii, Test3biii, Test4c] # ValidationRewardTest
+all_tests = [ValidationRewardTest, Test1ai, Test1aii, Test1aiii, Test1bi, Test1bii, Test2a, Test2b,
+             Test3ai, Test3aii, Test3aiii, Test3bi, Test3bii, Test3biii, Test4c]
 
 def run_tests(tests_to_run, layout, num_avg, agent_type, agent_run_folder, agent_run_name, agent_save_location,
               agent_seeds, print_info, display_runs, num_val_games):

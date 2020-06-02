@@ -1469,8 +1469,8 @@ def make_semigreedy_opt_tom(mdp):
 
 
 #TODO: Add tests 4a and 4b (half finished), then add them to all_tests
-all_tests = [ValidationRewardTest, Test1ai, Test1aii, Test1aiii, Test1bi, Test1bii, Test2a, Test2b,
-             Test3ai, Test3aii, Test3aiii, Test3bi, Test3bii, Test3biii, Test4c]
+all_tests = [Test1ai, Test1aii, Test1aiii, Test1bi, Test1bii, Test2a, Test2b,
+             Test3ai, Test3aii, Test3aiii, Test3bi, Test3bii, Test3biii, Test4c, ValidationRewardTest]
 
 def run_tests(tests_to_run, layout, num_avg, agent_type, agent_run_folder, agent_run_name, agent_save_location,
               agent_seeds, print_info, display_runs, num_val_games):
@@ -1525,8 +1525,11 @@ def run_tests(tests_to_run, layout, num_avg, agent_type, agent_run_folder, agent
     print("Average score for agent_robustnest tests: {}".format(
         get_average_success_rate_across_tests(agent_robustness_tests)))
     agent_robustness_plus_memory_tests = filter_tests_by_attribute(tests, "test_types", ["agent_robustness_plus_memory"])
-    print("Average score for agent_robustness_plus_memory tests: {}\n".format(
+    print("Average score for agent_robustness_plus_memory tests: {}".format(
         get_average_success_rate_across_tests(agent_robustness_plus_memory_tests)))
+    validation_tests = filter_tests_by_attribute(tests, "test_types", ["reward"])
+    print("Average score for validation tests: {}\n".format(
+        get_average_success_rate_across_tests(validation_tests)))
 
     # This is how I created the sample data
     # save_pickle(tests, "sample_data")

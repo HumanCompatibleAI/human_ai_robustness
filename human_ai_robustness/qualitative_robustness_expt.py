@@ -18,7 +18,7 @@ from human_ai_robustness.agent import ToMModel
 from human_ai_robustness.import_person_params import import_manual_tom_params
 
 
-ALL_LAYOUTS = ["counter_circuit", "coordination_ring", "bottleneck", "room", "centre_objects", "centre_pots"]
+ALL_LAYOUTS = ["counter_circuit", "coordination_ring", "bottleneck", "large_room", "centre_objects", "centre_pots"]
 
 no_counters_params = {
     'start_orientations': False,
@@ -40,12 +40,10 @@ def get_layout_horizon(layout, horizon_length):
         else:
             return 20
     elif horizon_length == 'long':
-        if layout == 'counter_circuit':
-            return 30
-        elif layout == 'coordination_ring':
+        if layout in ['coordination_ring', 'centre_pots']:
             return 25
         else:
-            raise NotImplementedError
+            return 30
 
 # TODO: Should be using AgentEvaluator everywhere for standard mdp/mlp setups
 def make_mdp(layout):
@@ -332,7 +330,7 @@ class Test1ai(Test1):
     def set_testing_horizon(self):
         return get_layout_horizon(self.layout, "medium")
 
-    valid_layouts = ['bottleneck', 'room', 'coordination_ring', 'counter_circuit']
+    valid_layouts = ['bottleneck', 'large_room', 'coordination_ring', 'counter_circuit']
 
     def get_initial_states(self):
         initial_states_params = {
@@ -354,7 +352,7 @@ class Test1ai(Test1):
                 {   "h_loc": (4, 1),     "r_loc": (1, 1),    "objects": { "dish": [(0, 1)],               } },
                 {   "h_loc": (4, 1),     "r_loc": (1, 1),    "objects": { "dish": [(0, 1), (1, 0), (0, 2)]} }
             ],
-            'room': [
+            'large_room': [
                 {   "h_loc": (1, 5),     "r_loc": (2, 4),    "objects": { "dish": [(0, 4)]                } },
                 {   "h_loc": (1, 5),     "r_loc": (2, 4),    "objects": { "dish": [(0, 4), (2, 6), (3, 6)]} },
                 {   "h_loc": (1, 5),     "r_loc": (4, 1),    "objects": { "dish": [(4, 0)]                } },
@@ -703,6 +701,8 @@ class Test1bii(Test1):
 
     test_types = ["agent_robustness"]
 
+    valid_layouts = ["counter_circuit", "coordination_ring", "bottleneck", "large_room", "centre_objects"]
+
     def set_testing_horizon(self):
         return get_layout_horizon(self.layout, "short")
 
@@ -800,7 +800,7 @@ class Test2a(Test2):
     def set_testing_horizon(self):
         return get_layout_horizon(self.layout, "short")
 
-    valid_layouts = ['bottleneck', 'room', 'coordination_ring', 'counter_circuit', 'centre_objects']
+    valid_layouts = ['bottleneck', 'large_room', 'coordination_ring', 'counter_circuit', 'centre_objects']
 
     def get_initial_states(self):
         initial_states_params_AB = {
@@ -1146,7 +1146,7 @@ class Test4a(Test4):
 
     """4a) R has onion, pot needs onion."""
 
-    valid_layouts = ['bottleneck', 'room', 'centre_objects', 'centre_pots']  # For cc and cring, all locations are reasonable
+    valid_layouts = ['bottleneck', 'large_room', 'centre_objects', 'centre_pots']  # For cc and cring, all locations are reasonable
 
     def get_initial_states(self):
         initial_states_params = {
@@ -1167,7 +1167,7 @@ class Test4b(Test4):
 
     """4b) R has dish"""
 
-    valid_layouts = ['bottleneck', 'room', 'centre_objects', 'centre_pots']  # For cc and cring, all locations are reasonable
+    valid_layouts = ['bottleneck', 'large_room', 'centre_objects', 'centre_pots']  # For cc and cring, all locations are reasonable
 
     def get_initial_states(self):
         initial_states_params = {
@@ -1470,7 +1470,7 @@ def make_semigreedy_opt_tom(mdp):
 
 #TODO: Add tests 4a and 4b (half finished), then add them to all_tests
 all_tests = [Test1ai, Test1aii, Test1aiii, Test1bi, Test1bii, Test2a, Test2b,
-             Test3ai, Test3aii, Test3aiii, Test3bi, Test3bii, Test3biii, Test4c, ValidationRewardTest]
+             Test3ai, Test3aii, Test3aiii, Test3bi, Test3bii, Test3biii, Test4c] # ValidationRewardTest
 
 def run_tests(tests_to_run, layout, num_avg, agent_type, agent_run_folder, agent_run_name, agent_save_location,
               agent_seeds, print_info, display_runs, num_val_games):

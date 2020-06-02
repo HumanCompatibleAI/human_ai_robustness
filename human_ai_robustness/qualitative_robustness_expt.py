@@ -4,9 +4,9 @@ from argparse import ArgumentParser
 import matplotlib.pyplot as plt; plt.rcdefaults()
 
 from overcooked_ai_py.utils import mean_and_std_err, save_pickle
-from overcooked_ai_py.agents.agent import AgentPair, RandomAgent, StayAgent
+from overcooked_ai_py.agents.agent import AgentPair, RandomAgent, StayAgent, AsymmAgentPairs
 from overcooked_ai_py.mdp.actions import Direction
-from overcooked_ai_py.mdp.overcooked_env import OvercookedEnv
+from overcooked_ai_py.mdp.overcooked_env import OvercookedEnv, MultiOvercookedEnv
 from overcooked_ai_py.mdp.overcooked_mdp import OvercookedGridworld, PlayerState, ObjectState, OvercookedState
 from overcooked_ai_py.planning.planners import MediumLevelPlanner
 from human_aware_rl.ppo.ppo_pop import get_ppo_agent, make_tom_agent, get_ppo_run_seeds, play_parallel_val_games
@@ -1270,14 +1270,14 @@ class ValidationRewardTest(AbstractRobustnessTest):
         The ppo agent will play with all agents in the validation population. Play with both indices. Here we use a
         rearranged val pop so that we can call all actions from ppo_agent in parallel. See description in make_rearranged_val_pop.
         """
-        # TODO: Finishing fixing this method. I feel like it's best for you to finish doing this because
-        # I'm not very familiar with the bits and pieces of your implementation and would be afraid of
-        # introducing silent bugs that are hard to debug
 
-        # ppo_agent.set_mdp(gym_env.base_env.mdp)
-        rearranged_val_pop = self.get_rearranged_val_pop
+        #TODO: Get sim threads from the config data of the agent. For now, it's always 60:
+        sim_threads = 60
 
-        multi_env = gym_env.val_multi_env
+        multi_env, rearranged_val_pop, num_rearranged_val_games = self.make_rearranged_val_pop(
+            self.mdp, make_mlp(self.mdp), self.layout, sim_threads, num_val_games)
+
+        multi_env = multi_env
 
         # Using MultiOvercookedEnv and AsymmAgentPairs:
         asymm_agent_pairs = []
@@ -1287,13 +1287,13 @@ class ValidationRewardTest(AbstractRobustnessTest):
                 ppo_agent_indices.append(0 if j % 2 == 0 else 1)
                 # TODO: Don't need to do this here??:
                 rearranged_val_pop[i][j].set_agent_index(1 - ppo_agent_indices[j])
-            asymm_agent_pairs.append(AsymmAgentPairs(ppo_agent, rearranged_val_pop[i], single_agent_indices=ppo_agent_indices))
+            asymm_agent_pairs.append(AsymmAgentPairs(trained_agent, rearranged_val_pop[i], single_agent_indices=ppo_agent_indices))
 
         [asymm_agent_pairs[i].reset() for i in range(len(asymm_agent_pairs))]
 
         # Play the games:
         validation_rewards = []
-        for _ in range(gym_env.num_rearranged_val_games):
+        for _ in range(num_rearranged_val_games):
             for i in range(len(rearranged_val_pop)):
                 trajs = multi_env.get_asymm_rollouts(asymm_agent_pairs[i], num_games=num_val_games)
                 assert len(trajs) == multi_env.num_envs
@@ -1304,7 +1304,7 @@ class ValidationRewardTest(AbstractRobustnessTest):
 
         return np.mean(validation_rewards)
 
-    def get_rearranged_val_pop(self, mdp, mlp, layout, sim_threads, num_val_games):
+    def make_rearranged_val_pop(self, mdp, mlp, layout, sim_threads, num_val_games):
 
         """Make a validation population, but in order to most efficiently take actions from the ppo_agent (which can do
         sim_threads actions simultaneously), we make a population of 40 validation agents -- 20 different agents with 2
@@ -1312,8 +1312,11 @@ class ValidationRewardTest(AbstractRobustnessTest):
         in it. Then we can call all sim_threads actions from the ppo."""
 
         #= Settings needed =#
-        val_pop_size = 20
+        val_pop_size = 20  # Don't change
         bc_dir = None
+        assert num_val_games % 3 == 0, "Only set up for number of val games is a multiple of 3!"
+        assert sim_threads == 30 or sim_threads == 60, "Only set up for ppo agents with 30 or 60 threads."
+        params = {"env_params": {"horizon": self.env_horizon}}
         #===================#
 
         rearranged_val_pop = [[], []] if sim_threads == 60 else [[], [], [], []]
@@ -1337,7 +1340,7 @@ class ValidationRewardTest(AbstractRobustnessTest):
                                                                overwrite_bc_save_dir=bc_dir)
                         val_agent.set_mdp(mdp)
 
-                    rearranged_val_pop = sort_into_rearranged_pop(rearranged_val_pop, val_agent, sim_threads, count)
+                    rearranged_val_pop = self.sort_into_rearranged_pop(rearranged_val_pop, val_agent, sim_threads, count)
                     count += 1
 
         num_rearranged_val_games = int(num_val_games / 3)
@@ -1345,10 +1348,39 @@ class ValidationRewardTest(AbstractRobustnessTest):
 
         multi_env = MultiOvercookedEnv(sim_threads, mdp, **params["env_params"])  # Set up MultiEnvs:
 
-        val_multi_env = multi_env
-        rearranged_val_pop = rearranged_val_pop
-        num_rearranged_val_games = num_rearranged_val_games
+        return multi_env, rearranged_val_pop, num_rearranged_val_games
 
+    def sort_into_rearranged_pop(self, rearranged_val_pop, agent, ppo_sim_threads, count):
+        if ppo_sim_threads == 30:
+            if count < 30:
+                rearranged_val_pop[0].append(agent)
+            elif 30 <= count < 60:
+                rearranged_val_pop[1].append(agent)
+            elif 60 <= count < 90:
+                rearranged_val_pop[2].append(agent)
+            elif 90 <= count < 120:
+                rearranged_val_pop[3].append(agent)
+            else:
+                raise ValueError('Wrong population / average sizes')
+        elif ppo_sim_threads == 60:
+            if count < 60:
+                rearranged_val_pop[0].append(agent)
+            elif 60 <= count < 120:
+                rearranged_val_pop[1].append(agent)
+            else:
+                raise ValueError('Wrong population / average sizes')
+        elif ppo_sim_threads == 3:
+            if count < 3:
+                rearranged_val_pop[0].append(agent)
+            elif 3 <= count < 6:
+                rearranged_val_pop[1].append(agent)
+            elif 6 <= count < 9:
+                rearranged_val_pop[2].append(agent)
+            elif 9 <= count < 12:
+                rearranged_val_pop[3].append(agent)
+            else:
+                raise ValueError('Wrong population / average sizes')
+        return rearranged_val_pop
 
 
 #####################

@@ -1266,11 +1266,10 @@ class ValidationRewardTest(AbstractRobustnessTest):
         return self.play_validation_games(trained_agent, self.num_rollouts_per_initial_state)
 
     def play_validation_games(self, trained_agent, num_val_games):
-
         """
         The ppo agent will play with all agents in the validation population. Play with both indices.
         """
-
+        #TODO: Should be neatened up
         mdp = self.mdp
         trained_agent.set_mdp(mdp)
         params = {"env_params": {"horizon": self.env_horizon}}
@@ -1281,9 +1280,9 @@ class ValidationRewardTest(AbstractRobustnessTest):
         for val_agent in validation_pop:
             for ppo_index in range(2):
                 agent_pair = AgentPair(trained_agent, val_agent) if ppo_index == 0 else AgentPair(val_agent, trained_agent)
-                print('\nPPO in index {}, playing with {}\n'.format(ppo_index, val_agent))
+                # print('\nPPO in index {}, playing with {}\n'.format(ppo_index, val_agent))
                 trajs = overcooked_env.get_rollouts(agent_pair, num_games=num_val_games,
-                                                    final_state=False, display=False)
+                                                    final_state=False, display=False, info=False)
                 sparse_rews = trajs["ep_returns"]
                 avg_sparse_rew = np.mean(sparse_rews)
                 validation_rewards.append(avg_sparse_rew)
@@ -1321,7 +1320,7 @@ class ValidationRewardTest(AbstractRobustnessTest):
             if i < half_val_pop_size:
 
                 bc_name = layout + "_test_{}".format(seed)
-                print("LOADING >validation< BC MODEL FROM: {}{}".format(bc_dir, bc_name))
+                print("LOADING validation BC MODEL FROM: {}{}".format(bc_dir, bc_name))
                 bc_agent, _ = get_bc_agent_from_saved(bc_name, unblock_if_stuck=True,
                                                        stochastic=True,
                                                        overwrite_bc_save_dir=bc_dir)
@@ -1446,7 +1445,7 @@ def run_tests(tests_to_run, layout, num_avg, agent_type, agent_run_folder, agent
         if layout not in test_class.valid_layouts:
             continue
 
-        num_avg = num_val_games if test_class is ValidationRewardTest else num_avg
+        num_avg_this_test = num_val_games if test_class is ValidationRewardTest else num_avg
 
         results_across_seeds = []
 
@@ -1456,7 +1455,7 @@ def run_tests(tests_to_run, layout, num_avg, agent_type, agent_run_folder, agent
                 trained_agent=agent_to_eval, 
                 trained_agent_type=agent_type,
                 agent_run_name=agent_run_name, 
-                num_rollouts_per_initial_state=num_avg,
+                num_rollouts_per_initial_state=num_avg_this_test,
                 print_info=print_info, 
                 display_runs=display_runs
             )

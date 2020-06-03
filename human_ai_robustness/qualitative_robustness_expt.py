@@ -299,9 +299,15 @@ standard_test_positions = {
                 {   "h_loc": (3, 3),     "r_loc": (4, 3) },
                 {   "h_loc": (5, 5),     "r_loc": (1, 1) }
             ]
-
-
         }
+
+rm_1bi_positions = { 'large_room': [
+                {   "h_loc": (3, 3),     "r_loc": (5, 3) },
+                {   "h_loc": (3, 3),     "r_loc": (2, 4) },
+                {   "h_loc": (5, 3),     "r_loc": (4, 3) },
+                {   "h_loc": (5, 3),     "r_loc": (3, 3) },
+                {   "h_loc": (2, 4),     "r_loc": (4, 2) },
+                {   "h_loc": (2, 4),     "r_loc": (3, 3) } ]}
 
 ##########
 # TEST 1 #
@@ -389,13 +395,13 @@ class Test1aii(Test1):
     
     A: 
     - Counter object is onion
-    - One pot is full, other one needs just one onion
+    - One pot is full, other one needs just one onion (except in large_room: pot needs 1 onion)
     - Human is holding dish
     
     B:
     - Counter object is dish
     - All pots are full
-    - Human is holding dish
+    - Human is holding dish (except in large_room, where there is only 1 pot so we give H an onion)
     
     Success: R picks up the counter object
     """
@@ -451,6 +457,10 @@ class Test1aii(Test1):
         objects = { first_pot_loc : make_soup_missing_one_onion(first_pot_loc) }
         objects.update( { loc : make_ready_soup_at_loc(loc) for loc in other_pots_loc } )
 
+        # Different soup setting for large room:
+        if self.layout == "large_room":
+            objects = {loc: make_soup_missing_one_onion(loc) for loc in self.mdp.get_pot_locations()}
+
         constants_A = {
             "h_held": lambda h_loc: ObjectState("dish", h_loc),
             "h_orientation_fn": lambda: Direction.random_direction(),
@@ -458,6 +468,7 @@ class Test1aii(Test1):
             "r_orientation_fn": lambda: Direction.random_direction(),
             "objects": objects
         }
+
         variant_A_states = InitialStatesCreator(initial_states_params_A, constants_A, self.mdp).get_initial_states(success_info="onion")
 
         initial_states_params_B = {
@@ -506,6 +517,11 @@ class Test1aii(Test1):
             "r_orientation_fn": lambda: Direction.random_direction(),
             "objects": { loc : make_ready_soup_at_loc(loc) for loc in self.mdp.get_pot_locations() }
         }
+
+        # Different soup setting for large room:
+        if self.layout == "large_room":
+            constants_B["h_held"] = lambda h_loc: ObjectState("onion", h_loc)
+
         variant_B_states = InitialStatesCreator(initial_states_params_B, constants_B, self.mdp).get_initial_states(success_info="dish")
 
         return variant_A_states + variant_B_states
@@ -642,7 +658,7 @@ class Test1bi(Test1):
 
     def get_initial_states(self):
 
-        initial_states_params = standard_test_positions
+        initial_states_params = standard_test_positions if self.layout is not "large_room" else rm_1bi_positions
 
         constants_variant_A = {
             "h_held": lambda h_loc: None,
@@ -1421,8 +1437,8 @@ def make_semigreedy_opt_tom(mdp):
 
 
 #TODO: Add tests 4a and 4b (half finished), then add them to all_tests
-all_tests = [ValidationRewardTest, Test1ai, Test1aii, Test1aiii, Test1bi, Test1bii, Test2a, Test2b,
-             Test3ai, Test3aii, Test3aiii, Test3bi, Test3bii, Test3biii, Test4c]
+all_tests = [Test1ai, Test1aii, Test1aiii, Test1bi, Test1bii, Test2a, Test2b,
+             Test3ai, Test3aii, Test3aiii, Test3bi, Test3bii, Test3biii, Test4c, ValidationRewardTest]
 
 def run_tests(tests_to_run, layout, num_avg, agent_type, agent_run_folder, agent_run_name, agent_save_location,
               agent_seeds, print_info, display_runs, num_val_games):

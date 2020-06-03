@@ -1348,7 +1348,7 @@ class ValidationRewardTest(AbstractRobustnessTest):
                 print("LOADING validation BC MODEL FROM: {}{}".format(bc_dir, bc_name))
                 bc_agent, _ = get_bc_agent_from_saved(bc_name, unblock_if_stuck=True,
                                                        stochastic=True,
-                                                       overwrite_bc_save_dir=bc_dir)
+                                                       overwrite_bc_save_dir=bc_dir, force_compute_mlp=True)
                 bc_agent.set_mdp(mdp)
                 validation_population.append(bc_agent)
 
@@ -1446,8 +1446,8 @@ def make_semigreedy_opt_tom(mdp):
 
 
 #TODO: Add tests 4a and 4b (half finished), then add them to all_tests
-all_tests = [Test1ai, Test1aii, Test1aiii, Test1bi, Test1bii, Test2a, Test2b,
-             Test3ai, Test3aii, Test3aiii, Test3bi, Test3bii, Test3biii, Test4c, ValidationRewardTest]
+all_tests = [ValidationRewardTest, Test1ai, Test1aii, Test1aiii, Test1bi, Test1bii, Test2a, Test2b,
+             Test3ai, Test3aii, Test3aiii, Test3bi, Test3bii, Test3biii, Test4c]
 
 def run_tests(tests_to_run, layout, num_avg, agent_type, agent_run_folder, agent_run_name, agent_save_location,
               agent_seeds, print_info, display_runs, num_val_games):

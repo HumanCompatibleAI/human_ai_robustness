@@ -301,13 +301,18 @@ standard_test_positions = {
             ]
         }
 
-rm_1bi_positions = { 'large_room': [
+rm_cobj_1bi_positions = { 'large_room': [
                 {   "h_loc": (3, 3),     "r_loc": (5, 3) },
                 {   "h_loc": (3, 3),     "r_loc": (2, 4) },
                 {   "h_loc": (5, 3),     "r_loc": (4, 3) },
                 {   "h_loc": (5, 3),     "r_loc": (3, 3) },
                 {   "h_loc": (2, 4),     "r_loc": (4, 2) },
-                {   "h_loc": (2, 4),     "r_loc": (3, 3) } ]}
+                {   "h_loc": (2, 4),     "r_loc": (3, 3) } ],
+                        'centre_objects': [
+                {   "h_loc": (5, 1),     "r_loc": (3, 3) },
+                {   "h_loc": (5, 1),     "r_loc": (1, 5) },
+                {   "h_loc": (4, 1),     "r_loc": (2, 5) },
+                {   "h_loc": (5, 2),     "r_loc": (3, 5) } ]}
 
 ##########
 # TEST 1 #
@@ -401,7 +406,7 @@ class Test1aii(Test1):
     B:
     - Counter object is dish
     - All pots are full
-    - Human is holding dish (except in large_room, where there is only 1 pot so we give H an onion)
+    - Human is holding dish (except in large_room and centre_objects, where there is only 1 pot so we give H an onion)
     
     Success: R picks up the counter object
     """
@@ -457,8 +462,8 @@ class Test1aii(Test1):
         objects = { first_pot_loc : make_soup_missing_one_onion(first_pot_loc) }
         objects.update( { loc : make_ready_soup_at_loc(loc) for loc in other_pots_loc } )
 
-        # Different soup setting for large room:
-        if self.layout == "large_room":
+        # Different soup setting for large room and centre objects!:
+        if self.layout in ["large_room", "centre_objects"]:
             objects = {loc: make_soup_missing_one_onion(loc) for loc in self.mdp.get_pot_locations()}
 
         constants_A = {
@@ -518,8 +523,8 @@ class Test1aii(Test1):
             "objects": { loc : make_ready_soup_at_loc(loc) for loc in self.mdp.get_pot_locations() }
         }
 
-        # Different soup setting for large room:
-        if self.layout == "large_room":
+        # Different soup setting for large room and centre objects:
+        if self.layout in ["large_room", "centre_objects"]:
             constants_B["h_held"] = lambda h_loc: ObjectState("onion", h_loc)
 
         variant_B_states = InitialStatesCreator(initial_states_params_B, constants_B, self.mdp).get_initial_states(success_info="dish")
@@ -658,7 +663,8 @@ class Test1bi(Test1):
 
     def get_initial_states(self):
 
-        initial_states_params = standard_test_positions if self.layout is not "large_room" else rm_1bi_positions
+        initial_states_params = standard_test_positions \
+            if self.layout not in ["large_room", "centre_objects"] else rm_cobj_1bi_positions
 
         constants_variant_A = {
             "h_held": lambda h_loc: None,
@@ -720,7 +726,10 @@ class Test1bii(Test1):
     valid_layouts = ["counter_circuit", "coordination_ring", "bottleneck", "large_room", "centre_objects"]
 
     def set_testing_horizon(self):
-        return get_layout_horizon(self.layout, "short")
+        if self.layout != "centre_objects":
+            return get_layout_horizon(self.layout, "short")
+        else:
+            return 5  #TODO: sort out this quick fix for centre_objects
 
     def get_initial_states(self):
         initial_states_params = {

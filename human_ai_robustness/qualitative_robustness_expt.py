@@ -1468,7 +1468,7 @@ def run_tests(tests_to_run, layout, num_avg, agent_type, agent_run_folder, agent
     print("\nTest results:", tests)
 
     # Save results:
-    save_results(tests, agent_run_name)
+    save_results(tests, agent_run_name, num_avg, num_val_games)
 
     state_robustness_tests = filter_tests_by_attribute(tests, "test_types", ["state_robustness"])
     print("\nAverage score for state_robustnest tests: {}".format(
@@ -1493,8 +1493,8 @@ def run_tests(tests_to_run, layout, num_avg, agent_type, agent_run_folder, agent
 # RESULT PROCESSING UTILS #
 ###########################
 
-def save_results(tests, agent_run_name):
-    filename = DATA_DIR + 'qualitative_expts/results_{}'.format(agent_run_name)
+def save_results(tests, agent_run_name, num_avg, num_val_games):
+    filename = DATA_DIR + 'qualitative_expts/results_{}_n{}_v{}'.format(agent_run_name, num_avg, num_val_games)
     save_pickle(tests, filename)
 
 def aggregate_test_results_across_seeds(results):

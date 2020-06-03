@@ -126,8 +126,8 @@ def colors_fn(agent_name):
             "Unrecognized agent type {}. Must define a custom color for this agent type".format(agent_name))
 
 
-results_a = load_pickle("data/qual_results_from_server/qualitative_expts/results_cc_1bc_ns.pickle")
-results_b = load_pickle("data/qual_results_from_server/qualitative_expts/results_cc_1tom_ns.pickle")
+results_a = load_pickle("data/qual_results_from_server/old/qualitative_expts/results_cc_1bc_ns.pickle")
+results_b = load_pickle("data/qual_results_from_server/old/qualitative_expts/results_cc_1tom_ns.pickle")
 
 # PER-LAYOUT data format
 # Standard data format per-layout! Currently assuming that all results in dict are for one specific layout.

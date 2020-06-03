@@ -2,11 +2,11 @@
 from human_aware_rl.ppo.ppo_pop import plot_ppo_tom
 import matplotlib.pyplot as plt
 
-SEEDS = [2732, 3264, 4859, 9225, 9845]
+# SEEDS = [2732, 3264, 4859, 9225, 9845]
 # SEEDS = [2732, 4859, 9845]
-# SEEDS = [9845]
+SEEDS = [2732]
 
-map = 'cobj'
+map = 'rm'
 
 DIR = '/home/pmzpk/Documents/hr_coordination_from_server_ONEDRIVE/neu_expt_Ntoms'.format(map)
 # DIR = '/home/pmzpk/Dropbox/Pycharm_paulk444/human_ai_robustness/human_ai_robustness/data/'

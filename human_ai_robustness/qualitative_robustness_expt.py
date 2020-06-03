@@ -54,7 +54,7 @@ def make_mdp(layout):
 def make_mlp(mdp):
     no_counters_params['counter_drop'] = mdp.get_counter_locations()
     no_counters_params['counter_goals'] = mdp.get_counter_locations()
-    return MediumLevelPlanner.from_pickle_or_compute(mdp, no_counters_params, force_compute=False)
+    return MediumLevelPlanner.from_pickle_or_compute(mdp, no_counters_params, force_compute=True)
 
 ##############################
 # INITIAL STATES SETUP UTILS #

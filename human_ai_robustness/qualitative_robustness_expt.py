@@ -9,7 +9,8 @@ from overcooked_ai_py.mdp.actions import Direction
 from overcooked_ai_py.mdp.overcooked_env import OvercookedEnv, MultiOvercookedEnv
 from overcooked_ai_py.mdp.overcooked_mdp import OvercookedGridworld, PlayerState, ObjectState, OvercookedState
 from overcooked_ai_py.planning.planners import MediumLevelPlanner
-from human_aware_rl.ppo.ppo_pop import get_ppo_agent, make_tom_agent, get_ppo_run_seeds, play_parallel_val_games
+from human_aware_rl.ppo.ppo_pop import get_ppo_agent, make_tom_agent, get_ppo_run_seeds, play_parallel_val_games, \
+    find_best_seed
 from human_aware_rl.data_dir import DATA_DIR
 from human_aware_rl.imitation.behavioural_cloning import get_bc_agent_from_saved
 from human_aware_rl.utils import set_global_seed
@@ -1381,7 +1382,7 @@ def setup_agents_to_evaluate(mdp, agent_type, agent_run_name, agent_seeds, agent
             agent, _ = get_ppo_agent(ppo_agent_base_path, seed=seed, best="train")
             agents.append(agent)
     elif agent_type == "bc":
-        raise [get_bc_agent(agent_run_name)]
+        raise [get_bc_agent(agent_run_name, mdp)]
     elif agent_type == "tom":
         agents = [make_mle_tom_agent(mdp)]
     elif agent_type == "semigreedy_opt_tom":  # This is probably the TOM agent that gets the best score when paired with PPO
@@ -1396,10 +1397,17 @@ def setup_agents_to_evaluate(mdp, agent_type, agent_run_name, agent_seeds, agent
     assert len(agents) > 0
     return agents
 
-def get_bc_agent(agent_run_name):
+def get_bc_agent(mdp):
     """Return the BC agent for this layout and seed"""
-    raise NotImplementedError("Should port over code from ppo_pop to ensure that the BC agent used is the same as the one used for PPO_BC_1 training")
-    bc_agent, _ = get_bc_agent_from_saved(agent_run_name, unblock_if_stuck=True, stochastic=True, overwrite_bc_save_dir=None)
+    seed = find_best_seed(mdp.layout)[0]
+    bc_dir = DATA_DIR + 'bc_runs/'
+    bc_name = mdp.layout + "_bc_train_seed{}".format(seed) \
+        if mdp.layout in ["cramped_room", "counter_circuit", "coordination_ring", "asymmetric_advantages"] \
+        else mdp.layout + "_train_{}".format(seed)
+    print("LOADING BC MODEL FROM: {}{}".format(bc_dir, bc_name))
+    bc_agent, bc_params = get_bc_agent_from_saved(bc_name, unblock_if_stuck=True, stochastic=True,
+                                                  overwrite_bc_save_dir=bc_dir, force_compute_mlp=True)
+    bc_agent.set_mdp(mdp)
     return bc_agent
 
 
@@ -1446,8 +1454,8 @@ def make_semigreedy_opt_tom(mdp):
 
 
 #TODO: Add tests 4a and 4b (half finished), then add them to all_tests
-all_tests = [ValidationRewardTest, Test1ai, Test1aii, Test1aiii, Test1bi, Test1bii, Test2a, Test2b,
-             Test3ai, Test3aii, Test3aiii, Test3bi, Test3bii, Test3biii, Test4c]
+all_tests = [Test1ai, Test1aii, Test1aiii, Test1bi, Test1bii, Test2a, Test2b,
+             Test3ai, Test3aii, Test3aiii, Test3bi, Test3bii, Test3biii, Test4c, ValidationRewardTest]
 
 def run_tests(tests_to_run, layout, num_avg, agent_type, agent_run_folder, agent_run_name, agent_save_location,
               agent_seeds, print_info, display_runs, num_val_games):
@@ -1462,7 +1470,7 @@ def run_tests(tests_to_run, layout, num_avg, agent_type, agent_run_folder, agent
 
     # Set up agent to evaluate
     mdp = make_mdp(layout)
-    agent_to_run = agent_run_folder + agent_run_name
+    agent_to_run = agent_run_folder + agent_run_name if agent_type == "ppo" else agent_type
     agents_to_eval = setup_agents_to_evaluate(mdp, agent_type, agent_to_run, agent_seeds, agent_save_location)
 
     tests = {}
@@ -1493,7 +1501,7 @@ def run_tests(tests_to_run, layout, num_avg, agent_type, agent_run_folder, agent
     print("\nTest results:", tests)
 
     # Save results:
-    save_results(tests, agent_run_name, num_avg, num_val_games)
+    save_results(tests, agent_run_name, agent_type, num_avg, num_val_games)
 
     state_robustness_tests = filter_tests_by_attribute(tests, "test_types", ["state_robustness"])
     print("\nAverage score for state_robustnest tests: {}".format(
@@ -1518,8 +1526,9 @@ def run_tests(tests_to_run, layout, num_avg, agent_type, agent_run_folder, agent
 # RESULT PROCESSING UTILS #
 ###########################
 
-def save_results(tests, agent_run_name, num_avg, num_val_games):
-    filename = DATA_DIR + 'qualitative_expts/results_{}_n{}_v{}'.format(agent_run_name, num_avg, num_val_games)
+def save_results(tests, agent_run_name, agent_type, num_avg, num_val_games):
+    agent_save_name = agent_run_name if agent_type == "ppo" else agent_type
+    filename = DATA_DIR + 'qualitative_expts/results_{}_n{}_v{}'.format(agent_save_name, num_avg, num_val_games)
     save_pickle(tests, filename)
 
 def aggregate_test_results_across_seeds(results):

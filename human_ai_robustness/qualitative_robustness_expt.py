@@ -1382,13 +1382,13 @@ def setup_agents_to_evaluate(mdp, agent_type, agent_run_name, agent_seeds, agent
             agent, _ = get_ppo_agent(ppo_agent_base_path, seed=seed, best="train")
             agents.append(agent)
     elif agent_type == "bc":
-        raise [get_bc_agent(agent_run_name, mdp)]
+        raise [get_bc_agent(mdp)]
     elif agent_type == "tom":
         agents = [make_mle_tom_agent(mdp)]
     elif agent_type == "semigreedy_opt_tom":  # This is probably the TOM agent that gets the best score when paired with PPO
         agents = [make_semigreedy_opt_tom(mdp)]
-    elif agent_type == "teamworky_opt_tom":
-        raise NotImplementedError("need to implement this")
+    elif agent_type == "teamworky_opt_tom":  # This is probably the TOM agent that gets the best score on the QTs
+        agents = [make_teamworky_opt_tom(mdp)]
     elif agent_type == "rnd":
         agents = [RandomAgent()]
     else:
@@ -1437,6 +1437,13 @@ def make_semigreedy_opt_tom(mdp):
                                 'PROB_THINKING_NOT_MOVING_TOM': 0, 'PROB_PAUSING_TOM': 0    }
     return ToMModel.from_alternate_names_params_dict(mlp, alternate_names_params)
 
+def make_teamworky_opt_tom(mdp):
+    """Make a teamworky optimal TOM: Factors in other player; fully rational and doesn't pause"""
+    mlp = make_mlp(mdp)
+    alternate_names_params = {  'COMPLIANCE_TOM': 0.5, 'RETAIN_GOALS_TOM': 0, 'PATH_TEAMWORK_TOM': 1, 'RAT_COEFF_TOM': 20,
+                                'PROB_GREEDY_TOM': 0.2, 'PROB_OBS_OTHER_TOM': 0, 'LOOK_AHEAD_STEPS_TOM': 4,
+                                'PROB_THINKING_NOT_MOVING_TOM': 0, 'PROB_PAUSING_TOM': 0    }
+    return ToMModel.from_alternate_names_params_dict(mlp, alternate_names_params)
 
 # def make_test_tom_agent(mdp, tom_num):
 #     """Make a TOM from the VAL OR TRAIN? set used for ppo"""

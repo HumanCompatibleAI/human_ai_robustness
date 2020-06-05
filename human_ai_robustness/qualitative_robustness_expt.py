@@ -1510,8 +1510,9 @@ def run_tests(tests_to_run, layout, num_avg, agent_type, agent_run_folder, agent
     # Save results:
     save_results(tests, agent_run_name, agent_type, num_avg, num_val_games)
 
+    print("\nBreakdown for agent type {}, run name {}, on layout {}:".format(agent_type, agent_run_name, layout))
     state_robustness_tests = filter_tests_by_attribute(tests, "test_types", ["state_robustness"])
-    print("\nAverage score for state_robustnest tests: {}".format(
+    print("Average score for state_robustnest tests: {}".format(
         get_average_success_rate_across_tests(state_robustness_tests)))
     agent_robustness_tests = filter_tests_by_attribute(tests, "test_types", ["agent_robustness"])
     print("Average score for agent_robustnest tests: {}".format(

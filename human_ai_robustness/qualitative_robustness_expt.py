@@ -1508,7 +1508,7 @@ def run_tests(tests_to_run, layout, num_avg, agent_type, agent_run_folder, agent
     print("\nTest results:", tests)
 
     # Save results:
-    save_results(tests, agent_run_name, agent_type, num_avg, num_val_games)
+    save_results(tests, agent_run_name, agent_type, num_avg, num_val_games, layout)
 
     print("\nBreakdown for agent type {}, run name {}, on layout {}:".format(agent_type, agent_run_name, layout))
     state_robustness_tests = filter_tests_by_attribute(tests, "test_types", ["state_robustness"])
@@ -1534,8 +1534,8 @@ def run_tests(tests_to_run, layout, num_avg, agent_type, agent_run_folder, agent
 # RESULT PROCESSING UTILS #
 ###########################
 
-def save_results(tests, agent_run_name, agent_type, num_avg, num_val_games):
-    agent_save_name = agent_run_name if agent_type == "ppo" else agent_type
+def save_results(tests, agent_run_name, agent_type, num_avg, num_val_games, layout):
+    agent_save_name = agent_run_name if agent_type == "ppo" else "{}_{}".format(layout, agent_type)
     filename = DATA_DIR + 'qualitative_expts/results_{}_n{}_v{}'.format(agent_save_name, num_avg, num_val_games)
     save_pickle(tests, filename)
 

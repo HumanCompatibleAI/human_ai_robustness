@@ -1382,7 +1382,7 @@ def setup_agents_to_evaluate(mdp, agent_type, agent_run_name, agent_seeds, agent
             agent, _ = get_ppo_agent(ppo_agent_base_path, seed=seed, best="train")
             agents.append(agent)
     elif agent_type == "bc":
-        raise [get_bc_agent(mdp)]
+        agents = [get_bc_agent(mdp)]
     elif agent_type == "tom":
         agents = [make_mle_tom_agent(mdp)]
     elif agent_type == "semigreedy_opt_tom":  # This is probably the TOM agent that gets the best score when paired with PPO
@@ -1399,11 +1399,11 @@ def setup_agents_to_evaluate(mdp, agent_type, agent_run_name, agent_seeds, agent
 
 def get_bc_agent(mdp):
     """Return the BC agent for this layout and seed"""
-    seed = find_best_seed(mdp.layout)[0]
+    seed = find_best_seed(mdp.layout_name)[0]
     bc_dir = DATA_DIR + 'bc_runs/'
-    bc_name = mdp.layout + "_bc_train_seed{}".format(seed) \
-        if mdp.layout in ["cramped_room", "counter_circuit", "coordination_ring", "asymmetric_advantages"] \
-        else mdp.layout + "_train_{}".format(seed)
+    bc_name = mdp.layout_name + "_bc_train_seed{}".format(seed) \
+        if mdp.layout_name in ["cramped_room", "counter_circuit", "coordination_ring", "asymmetric_advantages"] \
+        else mdp.layout_name + "_train_{}".format(seed)
     print("LOADING BC MODEL FROM: {}{}".format(bc_dir, bc_name))
     bc_agent, bc_params = get_bc_agent_from_saved(bc_name, unblock_if_stuck=True, stochastic=True,
                                                   overwrite_bc_save_dir=bc_dir, force_compute_mlp=True)

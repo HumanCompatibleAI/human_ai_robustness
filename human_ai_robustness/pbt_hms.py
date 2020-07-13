@@ -26,7 +26,7 @@ from human_aware_rl.utils import create_dir_if_not_exists, delete_dir_if_exists,
 from human_aware_rl.baselines_utils import create_model, get_vectorized_gym_env, \
     update_model, get_agent_from_model, save_baselines_model, overwrite_model, \
     load_baselines_model, LinearAnnealer, delay_before_run
-from human_ai_robustness.human_ai_robustness_utils import LinearAnnealerZeroToOne
+# from human_ai_robustness.human_ai_robustness_utils import LinearAnnealerZeroToOne
 from human_aware_rl.imitation.behavioural_cloning import get_bc_agent_from_saved
 from human_ai_robustness.import_person_params import import_person_params
 
@@ -224,6 +224,18 @@ class PPOAgent(object):
         print("Old params", self.params)
         print("New params", params_to_mutate)
         return params_to_mutate
+
+#TODO: We don't need this: can just use value=LinearAnnealer then take 1-value!
+class LinearAnnealerZeroToOne():
+    """Anneals from 0 to 1 (it reaches 1 when timestep == horizon)"""
+
+    def __init__(self, horizon):
+        self.horizon = horizon
+
+    def param_value(self, timestep):
+        curr_value = min(timestep / self.horizon, 1)
+        assert 0 <= curr_value <= 1
+        return curr_value
 
 @ex.config
 def my_config():

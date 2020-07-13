@@ -753,7 +753,7 @@ def import_manual_tom_params(layout_name, POP_SIZE, MAXLIKE=False, SELECT_TOM="F
 
     for param in VAL_TOM_PARAMS:  #TODO: Is there a one-line way to do this?
         assert param not in TRAIN_TOM_PARAMS
-
+    
     # Check no params are the same:
     for i, param in enumerate(TRAIN_TOM_PARAMS):
         for j, param2 in enumerate(TRAIN_TOM_PARAMS):

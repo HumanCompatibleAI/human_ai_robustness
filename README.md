@@ -1,6 +1,6 @@
 # Human-AI Robustness
 
-This code can be used to reproduce the results in the paper [Evaluating and Improving the Robustness of Collaborative Agents](insert_link). *Note that this repository uses a specific older commits of the [human_ai_coord repository](https://github.com/HumanCompatibleAI/human_ai_coord) and sub-repos therein, and should not be expected to work with the current version of those repos (at the time of writing, the branch `pk-dev3` of each sub-repo was used)*.
+This code can be used to reproduce the results in the paper [Evaluating and Improving the Robustness of Collaborative Agents](insert_link). *Note that this repository uses specific older commits of the [human_ai_coord repository](https://github.com/HumanCompatibleAI/human_ai_coord) and sub-repos therein, and should not be expected to work with the current version of those repos (note that, at the time of writing, the branch `pk-dev3` of each sub-repo should work)*.
 
 For more information about the Overcooked-AI environment, check out [this](https://github.com/HumanCompatibleAI/overcooked_ai) repo.
 
@@ -22,13 +22,7 @@ $ conda create -n hair python=3.7
 $ conda activate hair
 ```
 
-To complete the installation, run:
-```
-                              $ cd human_aware_rl/human_ai_coord
-human_aware_rl/human_ai_coord $ ./install.sh
-```
-
-Then, from within `human_ai_robustness`, run `python setup.py develop`.
+To complete the installation, run `./install.sh` from within `human_aware_rl/human_ai_coord`. Then, from within `human_ai_robustness`, run `python setup.py develop`
 
 
 Next install tensorflow (the GPU **or** non-GPU version depending on your setup):

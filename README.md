@@ -24,7 +24,7 @@ $ conda activate hair
 
 To complete the installation, run:
 ```
-               $ cd human_aware_rl/human_ai_coord
+                              $ cd human_aware_rl/human_ai_coord
 human_aware_rl/human_ai_coord $ ./install.sh
 ```
 
@@ -73,12 +73,12 @@ python overcooked_interactive.py -t tom -l bottleneck
 `human_ai_robustness/qualitative_robustness_expt.py`: run our suite of qualitative tests. For example, to run the qualitative tests with one of our trained ppo agents on the layout `Bottleneck`, run (the superscipt `s` in the agent name refers to using diverse starts):
 
 ```
-python qualitative_robustness_expt.py -l bottleneck -a_f final_neurips_agents/example_bottleneck/ -a_n bot_20tom_s -nv 1”
+python qualitative_robustness_expt.py -l bottleneck -a_f final_trained_agents/example_bottleneck/ -a_n bot_20tom_s -nv 1
 ```
 
 `human_ai_robustness/agent.py`: the class ToMModel is the ToM model used throughout our results.
 
-`human_ai_robustness/data/bc_runs/bc_runs.zip`: this contains all of the BC agents used as partners to the ppo agent for the reuslts in our [paper](insert_link).
+`human_ai_robustness/data/bc_runs/`: this contains all of the BC agents used as partners to the ppo agent for the reuslts in our [paper](insert_link) (some need to be unzipped).
 
 `human_ai_robustness/data/final_trained_agents/final_trained_agents.zip`: this contains all of our trained ppo agents used in our [paper](insert_link).
 

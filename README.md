@@ -42,7 +42,7 @@ To verify your installation, you can try running the following command from the 
 python run_tests.py
 ```
 
-Note that using tensorflow-gpu will not enable to pass this tests (and others) due to intrinsic randomness introduced by GPU computations. We recommend to first install tensorflow (non-GPU), run the desired tests, and then install tensorflow-gpu.
+Note that using tensorflow-gpu will not allow this tests (and others) to be passed, due to the intrinsic randomness introduced by GPU computations. We recommend to first install tensorflow (non-GPU), run the desired tests, and then install tensorflow-gpu.
 
 On OSX, you may run into an error saying that Python must be installed as a framework. You can fix it by [telling Matplotlib to use a different backend](https://markhneedham.com/blog/2018/05/04/python-runtime-error-osx-matplotlib-not-installed-as-framework-mac/).
 
@@ -56,7 +56,7 @@ Here we highlight the most important parts of the repo that relate to our paper 
 python ppo/ppo_pop.py with LOCAL_TESTING=True layout_name="bottleneck" OTHER_AGENT_TYPE="tom" POP_SIZE=1
 ```
 
-`human_ai_coord/human_aware_rl/robustness_expts/`: folder with experiment scripts used to generate experimental results in the paper
+`human_ai_coord/human_aware_rl/robustness_expts/`: folder with the experiment scripts used to train PPO agents for the results in the paper.
 
 `human_ai_robustness/overcooked_interactive.py`: script to play Overcooked in the terminal against trained agents. For example, to play interactively with a ToM agent on layout `Bottleneck`:
 
@@ -64,19 +64,19 @@ python ppo/ppo_pop.py with LOCAL_TESTING=True layout_name="bottleneck" OTHER_AGE
 python overcooked_interactive.py -t tom -l bottleneck
 ```
 
-`human_ai_robustness/qualitative_robustness_expt.py`: run our suite of qualitative tests. For example, to run the qualitative tests with one of our trained ppo agents on the layout `Bottleneck`, run (the superscipt `s` in the agent name refers to using diverse starts):
+`human_ai_robustness/qualitative_robustness_expt.py`: run our suite of qualitative tests. For example, to run the qualitative tests with one of our trained PPO agents on the layout `Bottleneck`, run the following (the superscipt `s` in the agent name refers to using diverse starts):
 
 ```
 python qualitative_robustness_expt.py -l bottleneck -a_f final_trained_agents/example_bottleneck/ -a_n bot_20tom_s -nv 1
 ```
 
-`human_ai_robustness/agent.py`: the class ToMModel is the ToM model used throughout our results.
+`human_ai_robustness/agent.py`: the class `ToMModel` is the ToM model used throughout our results.
 
-`human_ai_robustness/data/bc_runs/`: this contains all of the BC agents used as partners to the ppo agent for the reuslts in our [paper](insert_link) (some need to be unzipped).
+`human_ai_robustness/data/bc_runs/`: this folder contains all of the BC agents used as partners to the PPO agent for the reuslts in our [paper](insert_link) (some need to be unzipped).
 
-`human_ai_robustness/data/final_trained_agents/final_trained_agents.zip`: this contains all of our trained ppo agents used in our [paper](insert_link).
+`human_ai_robustness/data/final_trained_agents/final_trained_agents.zip`: this folder contains all of the trained PPO agents used in our [paper](insert_link).
 
 # Reproducing results
 
-All results can be reproduced by first running the `.sh` scripts under `human_ai_coord/human_aware_rl/robustness_expts/`. This will train all of the agents; to run said agents on the suite of qualitative tests, run the `.sh` scripts under `human_ai_robustness/qt_experiments/`.
+All results can be reproduced by first running the `.sh` scripts under `human_ai_coord/human_aware_rl/robustness_expts/`. These scripts will train all of the agents; to run said agents on the suite of qualitative tests, run the `.sh` scripts under `human_ai_robustness/qt_experiments/`.
 

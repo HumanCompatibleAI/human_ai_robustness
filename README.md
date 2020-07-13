@@ -64,7 +64,7 @@ python ppo/ppo_pop.py with LOCAL_TESTING=True layout_name="bottleneck" OTHER_AGE
 python overcooked_interactive.py -t tom -l bottleneck
 ```
 
-`human_ai_robustness/qualitative_robustness_expt.py`: run our suite of qualitative tests. For example, to run the qualitative tests with one of our trained PPO agents on the layout `Bottleneck`, run the following (the superscipt `s` in the agent name refers to using diverse starts):
+`human_ai_robustness/qualitative_robustness_expt.py`: run our suite of qualitative tests. For example, to run the qualitative tests with one of our trained PPO agents on the layout `Bottleneck`, run the following (the subscript `s` in the agent name refers to using diverse starts):
 
 ```
 python qualitative_robustness_expt.py -l bottleneck -a_f final_trained_agents/example_bottleneck/ -a_n bot_20tom_s -nv 1
@@ -79,4 +79,3 @@ python qualitative_robustness_expt.py -l bottleneck -a_f final_trained_agents/ex
 # Reproducing results
 
 All results can be reproduced by first running the `.sh` scripts under `human_ai_coord/human_aware_rl/robustness_expts/`. These scripts will train all of the agents; to run said agents on the suite of qualitative tests, run the `.sh` scripts under `human_ai_robustness/experiments/`.
-

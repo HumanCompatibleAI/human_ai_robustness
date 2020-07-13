@@ -78,5 +78,5 @@ python qualitative_robustness_expt.py -l bottleneck -a_f final_trained_agents/ex
 
 # Reproducing results
 
-All results can be reproduced by first running the `.sh` scripts under `human_ai_coord/human_aware_rl/robustness_expts/`. These scripts will train all of the agents; to run said agents on the suite of qualitative tests, run the `.sh` scripts under `human_ai_robustness/qt_experiments/`.
+All results can be reproduced by first running the `.sh` scripts under `human_ai_coord/human_aware_rl/robustness_expts/`. These scripts will train all of the agents; to run said agents on the suite of qualitative tests, run the `.sh` scripts under `human_ai_robustness/experiments/`.
 

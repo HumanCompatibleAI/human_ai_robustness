@@ -82,7 +82,7 @@ class InitialStatesCreator(object):
         """
         states = []
 
-        # TODO: This framework probably needs to be improved some more. Right now it's somewhat arbitrary that
+        # TODO: This framework could be improved some more. Right now it's somewhat arbitrary that
         # the 3 elements of this tuple are H, R, and Objects. We should probably turn it into a dict and 
         # accept other types of thigns too, depending if it's ever used in the tests?
         for variation_params_dict in self.state_params[self.mdp.layout_name]:
@@ -238,9 +238,6 @@ class AbstractRobustnessTest(object):
 
 # This is a set of positions for each layout, which are suitable for several tests. None of the H positions should stop
 # R from getting to any essential features, so R should still be able to get reward.  #TODO: Check that the positions don't block features
-
-#TODO: Need to think about how many positions is reasonable for each test (there are 6 atm, to make it more in-line with 
-# tests that use special positions (typically 4 positions for each layout for these tests))
 
 standard_test_positions = {
             'coordination_ring': [
@@ -419,7 +416,7 @@ class Test1aii(Test1):
 
         initial_states_params_A = {
             # Some settings have a single counter object; others have 3 counter objects
-            'coordination_ring': [  #TODO: pk changed h_loc from (1, 3) to (2, 3), because H shouldn't block the dispenser
+            'coordination_ring': [  # Note: changed h_loc from (1, 3) to (2, 3), because H shouldn't block the dispenser
                 {   "h_loc": (1, 1),     "r_loc": (2, 1),    "objects": { "onion": [(2, 2)]}                 },
                 {   "h_loc": (1, 1),     "r_loc": (2, 1),    "objects": { "onion": [(2, 2), (2, 0), (0, 1)]} },
                 {   "h_loc": (2, 3),     "r_loc": (3, 2),    "objects": { "onion": [(2, 2)],               } },
@@ -544,8 +541,8 @@ class Test1aii(Test1):
 
         all_initial_objects_still_in_same_position = all(init_loc in final_counter_objs_locations for init_loc in initial_counter_obj_locations)
 
-        # TODO: Should make this more stringent to make sure that it was the trained agent who picked up the object. pk:
-        #  Isn't it a separate test to see whether an agent can correctly use an object they're holding?
+        # TODO: Should make this more stringent to make sure that it was the trained agent who picked up the object. Although,
+        # isn't it a separate test to see whether an agent can correctly use an object they're holding?
         # Could make this more stringent by requiring trained agent to still be holding object or have successfully used it
         success = not all_initial_objects_still_in_same_position 
         if success and self.print_info:

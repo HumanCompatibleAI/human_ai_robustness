@@ -3,12 +3,13 @@ from argparse import ArgumentParser
 
 from human_aware_rl.imitation.behavioural_cloning import get_bc_agent_from_saved
 from overcooked_ai_py.agents.agent import StayAgent, RandomAgent, AgentFromPolicy
-from human_ai_robustness.agent import GreedyHumanModel_pk, ToMModel
+from human_ai_robustness.agent import ToMModel
 from overcooked_ai_py.mdp.overcooked_mdp import OvercookedGridworld, Direction, Action
 from overcooked_ai_py.mdp.overcooked_env import OvercookedEnv
 from overcooked_ai_py.planning.planners import MediumLevelPlanner
 from overcooked_ai_py.utils import load_dict_from_file  # , get_max_iter
 from human_aware_rl.ppo.ppo_pop import make_tom_agent
+from human_aware_rl.data_dir import DATA_DIR
 
 from human_aware_rl.utils import get_max_iter
 
@@ -162,7 +163,6 @@ class App:
 def setup_game(run_type, model_dir, seed, agent_index, load_tom_params, greedy_tom):
 
     # if run_type in ["pbt", "ppo"]:
-    #     # TODO: Add testing for this
     #     run_path = "data/" + run_type + "_runs/" + run_dir + "/seed_{}".format(run_seed)
     #     # TODO: use get_config_from_pbt_dir if will be split up for the two cases
     #     config = load_dict_from_file(run_path + "/config")
@@ -208,7 +208,8 @@ def setup_game(run_type, model_dir, seed, agent_index, load_tom_params, greedy_t
     env = OvercookedEnv(mdp)
 
     if run_type == "ppo":
-        base_dir = '/home/pmzpk/Documents/hr_coordination_from_server_ONEDRIVE/'
+
+        base_dir = DATA_DIR + 'final_neurips_agents/'
         dir = base_dir + model_dir + '/'
         from human_aware_rl.ppo.ppo_pop import get_ppo_agent
         agent, _ = get_ppo_agent(dir, seed, best=True)

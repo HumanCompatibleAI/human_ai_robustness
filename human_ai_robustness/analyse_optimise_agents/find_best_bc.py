@@ -7,6 +7,7 @@ from overcooked_ai_py.mdp.overcooked_env import OvercookedEnv
 import copy
 import numpy as np
 from argparse import ArgumentParser
+from human_aware_rl.data_dir import DATA_DIR
 
 
 if __name__ == "__main__":
@@ -19,8 +20,7 @@ if __name__ == "__main__":
 
     # Variables to change
     BC_SEEDS = [2222, 2599, 2732, 2897, 3264, 3468, 4373, 4859, 537, 5874, 6036, 6216, 6744, 6921, 705, 7768, 7891, 9225, 9845, 9893]
-    # BC_LOCAL_DIR = '/home/pmzpk/bc_runs/'
-    BC_LOCAL_DIR = '/home/paul/bc_runs/'
+    BC_DIR = DATA_DIR + 'bc_runs/'
     NUM_GAMES = 1
     #
 
@@ -39,9 +39,9 @@ if __name__ == "__main__":
     bc_agent_store = []
     for i in range(len(BC_SEEDS)):
         bc_name = layout_name + "_train_{}".format(BC_SEEDS[i])
-        print("LOADING BC MODEL FROM: {}{}".format(BC_LOCAL_DIR, bc_name))
+        print("LOADING BC MODEL FROM: {}{}".format(BC_DIR, bc_name))
         bc_agent, bc_params = get_bc_agent_from_saved(bc_name, unblock_if_stuck=True, stochastic=True,
-                                                      overwrite_bc_save_dir=BC_LOCAL_DIR)
+                                                      overwrite_bc_save_dir=BC_DIR)
         bc_agent.set_mdp(mdp)
         bc_agent_store.append(bc_agent)
 

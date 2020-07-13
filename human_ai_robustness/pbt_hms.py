@@ -242,7 +242,7 @@ def my_config():
     LOCAL_TESTING = False
 
     GPU_ID = 0
-    RUN_TYPE = "pbt"  #pk: Needed for making gym envs
+    RUN_TYPE = "pbt"  # Needed for making gym envs
 
     # Saving
     EX_DIR = "unnamed" if not LOCAL_TESTING else "test"
@@ -266,7 +266,7 @@ def my_config():
     COMBINED_POP_SIZE = PPO_POP_SIZE + HM_POP_SIZE
     # ITER_PER_SELECTION = COMBINED_POP_SIZE * PPO_POP_SIZE  # How many pairings and model training updates before the
     # worst model is overwritten.
-    PPO_RUN_TOT_TIMESTEPS = 50000 if not LOCAL_TESTING else 100  #pk: How any timesteps each time we "update" the
+    PPO_RUN_TOT_TIMESTEPS = 50000 if not LOCAL_TESTING else 100  # How any timesteps each time we "update" the
     # model using .update function. Changed from 40k to 50k
 
     #---------------#
@@ -418,7 +418,7 @@ def my_config():
         "RND_OBJS": RND_OBJS,
         "RND_POS": RND_POS,
         "HYPERPARAMS_TO_MUTATE": HYPERPARAMS_TO_MUTATE,
-        # "ORDER_GOAL": ORDER_GOAL, # pk: Why is this not needed?
+        # "ORDER_GOAL": ORDER_GOAL, #  Why is this not needed?
         "REW_SHAPING_HORIZON": REW_SHAPING_HORIZON,
         # "WEIGHT_HM_HORIZON": WEIGHT_HM_HORIZON,
         "ENTROPY": ENTROPY,
@@ -472,7 +472,7 @@ def test_on_pc():
 
     sim_threads = 24
     TOTAL_STEPS_PER_AGENT = 1e3  #
-    PPO_RUN_TOT_TIMESTEPS = 100  # pk: How any timesteps each time we "update" the
+    PPO_RUN_TOT_TIMESTEPS = 100  #  How any timesteps each time we "update" the
 
     TOTAL_BATCH_SIZE = 100  # Local testing reduced
     STEPS_PER_UPDATE = 1
@@ -808,13 +808,13 @@ def pbt_one_run(params, seed):
     for _ in range(5):
         overcooked_env.reset()  #pk Qu: Why do we need to reset? Guessed ANS: Because if creating random envs we want
         # to see different random envs rather than just printing the same one 5 times!
-        print(overcooked_env)  #pk: We can print this object because the class has function "__repr__"
+        print(overcooked_env)  # We can print this object because the class has function "__repr__"
 
     # Create gym env:
     gym_env = get_vectorized_gym_env(overcooked_env, 'Overcooked-v0',
                                      featurize_fn=lambda mdp, x: mdp.lossless_state_encoding(x), **params)
     gym_env.update_reward_shaping_param(1.0)  # Start reward shaping from 1
-    #TODO pk: Careful here because get_vectorized_gym_env has 'if kwargs["RUN_TYPE"] == "joint_ppo": gym_env.custom_init(base_env,
+    #TODO  Careful here because get_vectorized_gym_env has 'if kwargs["RUN_TYPE"] == "joint_ppo": gym_env.custom_init(base_env,
     # joint_actions=True)'. What does 'joint_ppo' refer to? It's fine because the default in pbt.py is RUN_TYPE = "pbt"?
     gym_env.run_type = params["RUN_TYPE"]
 
@@ -858,7 +858,7 @@ def pbt_one_run(params, seed):
     bc_agent, _ = get_bc_agent_from_saved(params["BC_AGENT_FOLDER"], unblock_if_stuck=True)
     bc_agent2, _ = get_bc_agent_from_saved(params["BC_AGENT_FOLDER2"], unblock_if_stuck=True)
 
-    print("Initialized agent models")  #pk: Note: (For now) I'm using 'print' for things I definitely want to print,
+    print("Initialized agent models")  # Note: (For now) I'm using 'print' for things I definitely want to print,
     # then using logging.info for information that might or might not be interesting/useful
 
     # MAIN LOOP
@@ -1002,7 +1002,6 @@ def pbt_one_run(params, seed):
             print("AVG ep rewards dict:", avg_ep_returns_dict)
 
             #TODO: This could go in the loop above?
-            #TODO: PK: I commented most of this out because I'm not using it
 
             for i, pbt_agent in enumerate(ppo_pop):
             #     #TODO: Does this work correctly? Is it needed?:
@@ -1199,7 +1198,7 @@ def run_pbt(params):
              'to baselines (ppo2 & runner?) when making ppo work for PPO_{TOMs} <----')
 
     logging.basicConfig(format='%(levelname)s:%(message)s', level=logging.WARNING)
-    logging.getLogger().setLevel(logging.WARNING)  # pk: Note sure why I need this line too
+    logging.getLogger().setLevel(logging.WARNING)  #  Note sure why I need this line too
     create_dir_if_not_exists(params["SAVE_DIR"])
     save_dict_to_file(params, params["SAVE_DIR"] + "config")
     # Pause before starting run

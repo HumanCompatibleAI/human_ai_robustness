@@ -547,7 +547,6 @@ def convert_to_logit(param_value, pparam):
         #TODO: Better to keep the parameter as a probability, and convert it to an integer only when taking actions?
         #TODO: This assumes that we only consider 2, 3, or 4 lookahead steps
         param_value = (param_value - 1.5)/3
-        #TODO: Is this right? Is there a less elborate way?
     return np.log(param_value/(1-param_value))
 
 def convert_back_from_logit(logit_value, pparam):
@@ -668,7 +667,6 @@ if __name__ == "__main__":
     logging.getLogger().setLevel(logging.ERROR)  # pk: Note sure why I need this line too
 
     # Load human data as state-action pairs:
-    # TODO: Do other layouts
     train_mdps = [layout]
     ordered_trajs = True
     human_ai_trajs = False

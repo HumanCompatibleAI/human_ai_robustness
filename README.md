@@ -1,6 +1,6 @@
 # Human-AI Robustness
 
-This code can be used to reproduce the results in the paper [On the Utility of Learning about Humans for Human-AI Coordination](insert_link). *Note that this repository uses a specific older commits of the [human_ai_coord repository](https://github.com/HumanCompatibleAI/human_ai_coord)* and sub-repositories therein, and should not be expected to work with the current version of those repositories.
+This code can be used to reproduce the results in the paper [Evaluating and Improving the Robustness of Collaborative Agents](insert_link). *Note that this repository uses a specific older commits of the [human_ai_coord repository](https://github.com/HumanCompatibleAI/human_ai_coord) and sub-repos therein, and should not be expected to work with the current version of those repos (at the time of writing, the branch `pk-dev3` of each sub-repo was used)*.
 
 For more information about the Overcooked-AI environment, check out [this](https://github.com/HumanCompatibleAI/overcooked_ai) repo.
 
@@ -22,20 +22,16 @@ $ conda create -n hair python=3.7
 $ conda activate hair
 ```
 
-
-
-
-
-
-
-
 To complete the installation, run:
 ```
-               $ cd human_ai_coord
-human_ai_coord $ ./install.sh
+               $ cd human_aware_rl/human_ai_coord
+human_aware_rl/human_ai_coord $ ./install.sh
 ```
 
-Then install tensorflow (the GPU **or** non-GPU version depending on your setup):
+Then, from within `human_ai_robustness`, run `python setup.py develop`.
+
+
+Next install tensorflow (the GPU **or** non-GPU version depending on your setup):
 ```
 $ pip install tensorflow==1.13.1
 ```
@@ -44,95 +40,49 @@ $ pip install tensorflow==1.13.1
 $ pip install tensorflow-gpu==1.13.1
 ```
 
-Note that using tensorflow-gpu will not enable to pass the DRL tests due to intrinsic randomness introduced by GPU computations. We recommend to first install tensorflow (non-GPU), run the tests, and then install tensorflow-gpu.
-
 ## Verify Installation
 
-To verify your installation, you can try running the following command from the `human_aware_rl` folder:
+To verify your installation, you can try running the following command from the `human_ai_coord/human_aware_rl` folder:
 
 ```
 python run_tests.py
 ```
 
-Note that most of the DRL tests rely on having the exact randomness settings that were used to generate the tests.
+Note that using tensorflow-gpu will not enable to pass this tests (and others) due to intrinsic randomness introduced by GPU computations. We recommend to first install tensorflow (non-GPU), run the desired tests, and then install tensorflow-gpu.
 
 On OSX, you may run into an error saying that Python must be installed as a framework. You can fix it by [telling Matplotlib to use a different backend](https://markhneedham.com/blog/2018/05/04/python-runtime-error-osx-matplotlib-not-installed-as-framework-mac/).
 
-## Repo Structure Overview
+## Repo Structure Overview and Examples
 
+Here we highlight the most important parts of the repo that relate to our paper [Evaluating and Improving the Robustness of Collaborative Agents](insert_link).
 
-`ppo/` (both using baselines):
-- `ppo.py`: train one agent with PPO in Overcooked with other agent fixed
+`human_ai_coord/human_aware_rl/ppo/ppo_pop.py`: train one agent with PPO in Overcooked with either a single fixed agent or a population of agents. For example, to run a local test of `ppo_pop.py` for a population of 1 theory-of-mind (ToM) model on the layout `Bottleneck`, run the following from within `human_ai_coord/human_aware_rl` (replace `"tom"` with `"bc_pop"` to train with a BC agent instead): 
 
-`pbt/` (all using baselines):
-- `pbt.py`: train agents with population based training in overcooked
-
-`imitation/`:
-- `behaviour_cloning.py`:  simple script to perform BC on trajectory data using baselines
-
-`human/`:
-- `process_data.py` script to process human data in specific formats to be used by DRL algorithms
-- `data_processing_utils.py` utils for the above
-
-`experiments/`: folder with experiment scripts used to generate experimental results in the paper
-
-`baselines_utils.py`: utility functions used for `pbt.py`
-`overcooked_interactive.py`: script to play Overcooked in terminal against trained agents
-`run_tests.py`: script to run all tests
-
-# Playing with trained agents
-
-## In terminal-graphics
-
-To play with trained agents in the terminal, use `overcooked_interactive.py`. A sample command is:
-
-`python overcooked_interactive.py -t bc -r simple_bc_test_seed4`
-
-Playing requires not clicking away from the terminal window.
-
-## With JavaScript graphics
-
-This requires converting the trained models to Tensorflow JS format, and visualizing with the [overcooked-demo](https://github.com/HumanCompatibleAI/overcooked-demo) code. First install overcooked-demo and ensure it works properly.
-
-### Converting models to JS format
-
-Unfortunately, converting models requires creating a new conda environment to avoid module conflicts.
-
-Create and activate a new conda environment:
 ```
-$ conda create -n model_conversion python=3.7
-$ conda activate model_conversion
+python ppo/ppo_pop.py with LOCAL_TESTING=True layout_name="bottleneck" OTHER_AGENT_TYPE="tom" POP_SIZE=1
 ```
 
-Run the base `setup.py` and then install `tensorflowjs`:
-```
-human_ai_coord $ python setup.py develop
-human_ai_coord $ pip install tensorflowjs==0.8.5
-```
+`human_ai_coord/human_aware_rl/robustness_expts/`: folder with experiment scripts used to generate experimental results in the paper
 
-(Installing `tensorflowjs` might first require `pip install Keras-Applications==1.0.4` and `pip install keras_preprocessing==1.0.2`.)
+`human_ai_robustness/overcooked_interactive.py`: script to play Overcooked in the terminal against trained agents. For example, to play interactively with a ToM agent on layout `Bottleneck`:
 
-To set up `tfjs-converter`, which we use to convert models from py to js, clone the `tfjs-converter` repo (specifically, [this tree](https://github.com/tensorflow/tfjs-converter/tree/b241de23e6ba38397af316d59128a9b169b3265a) should work), then run `yarn` from within `tfjs-converter`:
 ```
-tfjs-converter $ yarn
+python overcooked_interactive.py -t tom -l bottleneck
 ```
 
-To convert models in the right format, use the `convert_model_to_web.sh` script. Example usage:
+`human_ai_robustness/qualitative_robustness_expt.py`: run our suite of qualitative tests. For example, to run the qualitative tests with one of our trained ppo agents on the layout `Bottleneck`, run (the superscipt `s` in the agent name refers to using diverse starts):
+
 ```
-human_aware_rl $ ./convert_model_to_web.sh ppo_runs ppo_sp_simple 193
+python qualitative_robustness_expt.py -l bottleneck -a_f final_neurips_agents/example_bottleneck/ -a_n bot_20tom_s -nv 1”
 ```
-where 193 is the seed number of the DRL run.
 
-### Transferring agents to Overcooked-Demo
+`human_ai_robustness/agent.py`: the class ToMModel is the ToM model used throughout our results.
 
-The converted models can be found in `human_aware_rl/data/web_models/` and should be transferred to the `static/assets` folder with the same naming as the standard models.
+`human_ai_robustness/data/bc_runs/bc_runs.zip`: this contains all of the BC agents used as partners to the ppo agent for the reuslts in our [paper](insert_link).
 
-### Playing with newly trained agents
-
-To play with newly trained agents, just follow the instructions in the [Overcooked-Demo](https://github.com/HumanCompatibleAI/overcooked-demo) README.
+`human_ai_robustness/data/final_trained_agents/final_trained_agents.zip`: this contains all of our trained ppo agents used in our [paper](insert_link).
 
 # Reproducing results
 
-All DRL results can be reproduced by running the `.sh` scripts under `human_aware_rl/experiments/`.
+All results can be reproduced by first running the `.sh` scripts under `human_ai_coord/human_aware_rl/robustness_expts/`. This will train all of the agents; to run said agents on the suite of qualitative tests, run the `.sh` scripts under `human_ai_robustness/qt_experiments/`.
 
-All non-DRL results can be reproduced by running cells in `NeurIPS Experiments and Visualizations.ipynb`.

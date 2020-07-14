@@ -74,7 +74,7 @@ python qualitative_robustness_expt.py -l bottleneck -a_f final_trained_agents/ex
 
 `human_ai_robustness/data/bc_runs/`: this folder contains all of the BC agents used as partners to the PPO agent for the reuslts in our [paper](insert_link) (some need to be unzipped).
 
-`human_ai_robustness/data/final_trained_agents/final_trained_agents.zip`: this folder contains all of the trained PPO agents used in our [paper](insert_link).
+`human_ai_robustness/data/final_trained_agents/`: this folder only contains one example of a PPO agent trained for our [paper](insert_link). Other trained agents are available on request.
 
 # Reproducing results
 

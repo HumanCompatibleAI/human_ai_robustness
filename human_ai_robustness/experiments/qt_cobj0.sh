@@ -1,0 +1,14 @@
+python qualitative_robustness_expt.py -l centre_objects -a_f final_neurips_agents/cobj/ -a_n cobj_1tom_ns -n 50 -nv 5
+python qualitative_robustness_expt.py -l centre_objects -a_f final_neurips_agents/cobj/ -a_n cobj_20tom_ns -n 50 -nv 5
+python qualitative_robustness_expt.py -l centre_objects -a_f final_neurips_agents/cobj/ -a_n cobj_1bc_ns -n 50 -nv 5
+python qualitative_robustness_expt.py -l centre_objects -a_f final_neurips_agents/cobj/ -a_n cobj_20bc_ns -n 50 -nv 5
+python qualitative_robustness_expt.py -l centre_objects -a_f final_neurips_agents/cobj/ -a_n cobj_20mixed_ns -n 50 -nv 5
+python qualitative_robustness_expt.py -l centre_objects -a_f final_neurips_agents/cobj/ -a_n cobj_20mixed_s -n 50 -nv 5
+python qualitative_robustness_expt.py -l centre_objects -a_f final_neurips_agents/cobj/ -a_n cobj_100tom_s -n 50 -nv 5
+python qualitative_robustness_expt.py -l centre_objects -a_f final_neurips_agents/cobj/ -a_n cobj_500tom_s -n 50 -nv 5
+python qualitative_robustness_expt.py -l centre_objects -a_f final_neurips_agents/cobj/ -a_n cobj_5tom_s -n 50 -nv 5
+python qualitative_robustness_expt.py -l centre_objects -a_f final_neurips_agents/cobj/ -a_n cobj_20tomrand_s -n 50 -nv 5
+python qualitative_robustness_expt.py -l centre_objects -a_f final_neurips_agents/cobj/ -a_n cobj_1bc_s -n 50 -nv 5
+python qualitative_robustness_expt.py -l centre_objects -a_f final_neurips_agents/cobj/ -a_n cobj_20bc_s -n 50 -nv 5
+python qualitative_robustness_expt.py -l centre_objects -a_f final_neurips_agents/cobj/ -a_n cobj_1tom_s -n 50 -nv 5
+python qualitative_robustness_expt.py -l centre_objects -a_f final_neurips_agents/cobj/ -a_n cobj_20tom_s -n 50 -nv 5
